@@ -1,22 +1,20 @@
 import numpy as np
-import typing
 import numbers
-from pycv._lib.array_api.dtypes import cast
-from pycv._lib._inspect import isfunction
 from pycv._lib.array_api.array_pad import get_padding_width, pad
 from pycv._lib.array_api.regulator import check_finite
 from pycv._lib.array_api.shapes import output_shape, atleast_nd
-from pycv._lib.filters_support.kernel_utils import cast_kernel_dilation
-from pycv._lib.decorator import registrate_decorator
+from pycv._lib.filters_support.kernel_utils import cast_kernel_dilation, valid_offset
 from pycv._lib.core import ops
 
 FLIPPER = (1, 0, 2)
 
 __all__ = [
+    'default_axis',
+    'fix_kernel_shape',
     'valid_kernels',
-    'filter_dispatcher',
-    'apply_filter',
-    'apply_filter_function',
+    'get_output',
+    'c_convolve',
+    'c_rank_filter',
     'PUBLIC'
 ]
 PUBLIC = []
@@ -29,23 +27,51 @@ FLIP = True
 
 ########################################################################################################################
 
+def default_axis(nd: int, default_nd: int) -> tuple:
+    if default_nd > nd:
+        raise ValueError('array dimensions is smaller then the default dimensions')
+    axis = tuple(nd - i - 1 for i in range(default_nd))
+    return axis
+
+
+def fix_kernel_shape(shape: int, axis: tuple, nd: int) -> tuple:
+    if nd > len(axis):
+        raise ValueError('n dimensions is smaller then axis size')
+    axis_bool = [False] * nd
+    for ax in axis:
+        if ax >= nd:
+            raise ValueError('axis is out of range for array dimensions')
+        axis_bool = True
+    kernel_shape = tuple(shape if ax else 1 for ax in axis_bool)
+    return kernel_shape
+
+
+########################################################################################################################
+
 def valid_kernels(
         kernel: np.ndarray,
         array_rank: int,
         flip: bool = FLIP,
-        dilation: int | tuple = DILATION
-) -> tuple[np.ndarray, tuple]:
+        dilation: int | tuple = DILATION,
+        offset: int | tuple | None = None,
+        filter_dim_bound: int = 3
+) -> tuple[np.ndarray, tuple, tuple]:
     if not check_finite(kernel):
         raise ValueError('Kernel must not contain infs or NaNs')
     filter_dim = kernel.ndim
-    if filter_dim > 3:
+    if filter_dim > filter_dim_bound:
         raise ValueError(f'Convolution for 4D or above is not supported, got kernel with rank of {filter_dim}')
     if flip:
         kernel = np.flip(kernel, FLIPPER[:filter_dim]) if filter_dim > 1 else np.flip(kernel, 0)
     kernel = cast_kernel_dilation(kernel, dilation)
+    if filter_dim == 1 and isinstance(offset, numbers.Number):
+        offset = (offset,)
+    offset = valid_offset(kernel.shape, offset)
     if filter_dim > 1:
         kernel = atleast_nd(kernel, array_rank, raise_err=False, expand_pos=0)
-    return kernel, kernel.shape
+        for _ in range(kernel.ndim - len(offset)):
+            offset = (0,) + offset
+    return kernel, kernel.shape, offset
 
 
 def get_output(
@@ -66,73 +92,43 @@ def get_output(
     return output
 
 
-@registrate_decorator(kw_syntax=True)
-def filter_dispatcher(func, *args, **kwargs):
-    axis = kwargs.get('axis', None)
-    dilation = kwargs.get('dilation', DILATION)
-    flip = kwargs.get('flip', FLIP)
-    padding_mode = kwargs.get('padding_mode', PADDING_MODE)
-    offset = kwargs.get('offset', None)
-    stride = kwargs.get('stride', STRIDE)
+########################################################################################################################
 
-    if len(args) != 3:
-        raise ValueError('args must contain (inputs, kernels, outputs)')
-    inputs, kernel, output = args[0], args[1], args[2]
-
-    input_output = output is not None
-    filters_as_size = isinstance(kernel, (tuple, numbers.Number))
-
-    array_rank = inputs.ndim
+def c_convolve(
+        inputs: np.ndarray,
+        kernel: np.ndarray,
+        output: np.ndarray | None = None,
+        axis: int = None,
+        stride: int | tuple | list = 1,
+        dilation: int | tuple | list = 1,
+        padding_mode: str = 'valid',
+        flip: bool = True,
+        offset: tuple | None = None,
+        **padkw
+) -> np.ndarray | None:
+    nd = inputs.ndim
 
     if not check_finite(inputs):
         raise ValueError('Inputs must not contain infs or NaNs')
 
-    if input_output and not check_finite(output):
-        raise ValueError('Output must not contain infs or NaNs')
+    kernel, kernel_shape, offset = valid_kernels(kernel, nd, flip, dilation, offset)
+    k_nd = len(kernel_shape)
 
-    if filters_as_size:
-        kernel_shape = kernel
-        if isinstance(kernel, numbers.Number):
-            kernel_shape = (kernel,)
-        if not all(isinstance(n, numbers.Number) for n in kernel):
-            raise ValueError('Kernel size need to be tuple of ints')
-    else:
-        kernel, kernel_shape = valid_kernels(kernel, array_rank, flip, dilation)
-        kernel = cast(kernel, inputs.dtype)
+    input_output = output is not None
 
-    filter_dim = len(kernel_shape)
-    if axis is None:
-        axis = tuple(i for i in range(filter_dim))
-    elif isinstance(axis, numbers.Number):
-        if filter_dim > 1:
-            raise ValueError('axis size not match to kernel dimensions')
-        axis = (axis,)
-
-    if not all(ax < array_rank for ax in axis):
-        raise ValueError('axis is out of range for array dimensions')
-
-    if len(tuple(set(axis))) != len(axis):
-        raise ValueError("axis need to be unique")
-
-    axis_bool = [False] * array_rank
-    for ax in axis:
-        axis_bool[ax] = True
-
-    if filter_dim == 1:
-        sz = kernel_shape[0]
-        kernel_shape = tuple(sz if ax else 1 for ax in axis_bool)
-
-    if offset is None:
-        offset = tuple(s // 2 for s in kernel_shape)
-    else:
-        if filter_dim != len(offset):
-            raise ValueError(f'Number of dimensions in kernel and offset does not match: {filter_dim} != {len(offset)}')
-        if any((o < 0 or o >= ks) for o, ks in zip(offset, kernel_shape)):
-            raise ValueError('Invalid offset')
+    if k_nd == 1:
+        axis = nd - 1 if axis is None else axis
+        kernel_shape = tuple(kernel_shape[0] if ax == axis else 1 for ax in range(nd))
+        kernel = np.reshape(kernel, kernel_shape)
+        if offset is not None:
+            offset = tuple(offset[0] if ax == axis else 0 for ax in range(nd))
 
     if padding_mode != 'valid':
         pad_width = get_padding_width(kernel_shape, offset, flip=False, image_shape=inputs.shape)
-        inputs = pad(inputs, pad_width, mode=padding_mode, **kwargs)
+        inputs = pad(inputs, pad_width, mode=padding_mode, **padkw)
+
+    if kernel.dtype != inputs.dtype:
+        kernel = kernel.astype(inputs.dtype)
 
     if not all(na > nk for na, nk in zip(inputs.shape, kernel_shape)):
         raise ValueError("Kernel dimensions cannot be larger than the input array's dimensions.")
@@ -144,73 +140,74 @@ def filter_dispatcher(func, *args, **kwargs):
     output = get_output(output, inputs, outputs_shape)
 
     if np.all(inputs == 0):
-        output[(None,) * array_rank] = 0.
+        output[(None,) * nd] = 0.
         return None if input_output else output
 
-    if not filters_as_size:
-        if filter_dim == 1:
-            kernel = np.reshape(kernel, kernel_shape)
-        ops.convolve(inputs, kernel, output, offset)
+    ops.convolve(inputs, kernel, output, offset)
+
+    return None if input_output else output
+
+
+def c_rank_filter(
+        inputs: np.ndarray,
+        footprint: np.ndarray,
+        rank: int,
+        output: np.ndarray | None = None,
+        axis: int = None,
+        stride: int | tuple | list = 1,
+        padding_mode: str = 'valid',
+        offset: tuple | None = None,
+        **padkw
+) -> np.ndarray | None:
+    nd = inputs.ndim
+
+    if not check_finite(inputs):
+        raise ValueError('Inputs must not contain infs or NaNs')
+
+    footprint, kernel_shape, offset = valid_kernels(footprint, nd, False, DILATION, offset)
+    k_nd = len(kernel_shape)
+
+    if not all(s % 2 != 0 for s in kernel_shape):
+        raise ValueError('kernel dimensions size need to be odd')
+
+    input_output = output is not None
+
+    if k_nd == 1:
+        axis = nd - 1 if axis is None else axis
+        kernel_shape = tuple(kernel_shape[0] if ax == axis else 1 for ax in range(nd))
+        footprint = np.reshape(footprint, kernel_shape)
+        if offset is not None:
+            offset = tuple(offset[0] if ax == axis else 0 for ax in range(nd))
+
+    if padding_mode != 'valid':
+        pad_width = get_padding_width(kernel_shape, offset, flip=False, image_shape=inputs.shape)
+        inputs = pad(inputs, pad_width, mode=padding_mode, **padkw)
+
+    if footprint.dtype != bool:
+        footprint = footprint.astype(bool)
+
+    if not all(na > nk for na, nk in zip(inputs.shape, kernel_shape)):
+        raise ValueError("Kernel dimensions cannot be larger than the input array's dimensions.")
+
+    if not all((nk - 1) >= 0 for nk in kernel_shape):
+        raise ValueError("Kernel shape is too small.")
+
+    if rank > footprint.size:
+        raise ValueError(f'rank is out of range for footprint with size {footprint.size}')
+
+    outputs_shape = output_shape(inputs.shape, kernel_shape, stride)
+    output = get_output(output, inputs, outputs_shape)
+
+    if np.all(inputs == 0):
+        output[(None,) * nd] = 0.
         return None if input_output else output
-    func(inputs, kernel_shape, output, *args[3:], **kwargs)
+
+    ops.rank_filter(inputs, footprint, output, rank, offset)
+
     return None if input_output else output
 
 
 ########################################################################################################################
 
-@filter_dispatcher
-def apply_filter(
-        inputs: np.ndarray,
-        kernel: np.ndarray,
-        output: np.ndarray,
-        axis: int | tuple | None = None,
-        stride: int | tuple | list = 1,
-        dilation: int | tuple | list = 1,
-        padding_mode: str = 'valid',
-        flip: bool = True,
-        **padkw
-) -> np.ndarray | None:
-    pass
 
 
-@filter_dispatcher
-def apply_rank_filter(
-        inputs: np.ndarray,
-        kernel_size: tuple,
-        output: np.ndarray,
-        rank: int,
-        footprint: np.ndarray | None,
-        axis: int | tuple | None = None,
-        stride: int | tuple | list = 1,
-        dilation: int | tuple | list = 1,
-        padding_mode: str = 'valid',
-        **padkw
-) -> np.ndarray | None:
-    if footprint is None:
-        footprint = np.ones(kernel_size, bool)
-    elif not isinstance(footprint, np.ndarray):
-        raise TypeError('footprint need to be type of numpy.ndarray')
-    else:
-        if footprint.dtype != bool:
-            raise ValueError('footprint dtype need to be bool')
-        if footprint.shape != kernel_size:
-            raise ValueError('footprint not equal to kernel_size')
-
-    ops.rank_filter(inputs, footprint, output, rank, None)
-
-
-@filter_dispatcher
-def apply_filter_function(
-        inputs: np.ndarray,
-        kernel_size: tuple,
-        output: np.ndarray,
-        function: typing.Callable,
-        axis: int | tuple | None = None,
-        stride: int | tuple | list = 1,
-        dilation: int | tuple | list = 1,
-        padding_mode: str = 'valid',
-        **padkw
-) -> np.ndarray | None:
-    pass
-
-########################################################################################################################

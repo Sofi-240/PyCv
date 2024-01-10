@@ -4,6 +4,7 @@ from pycv._lib.array_api.dtypes import get_dtype_info
 import numbers
 
 __all__ = [
+    'valid_offset',
     'cast_kernel_dilation',
     'unraveled_offsets',
     'ravel_offsets',
@@ -12,8 +13,6 @@ __all__ = [
     'isvalid_neighbor_unraveled',
     'border_mask',
     'reshape_1d_kernel',
-    'StrelInfo',
-    'get_strel_info',
     'color_mapping_range',
     'PUBLIC'
 ]
@@ -22,6 +21,17 @@ PUBLIC = []
 
 
 ########################################################################################################################
+
+def valid_offset(kernel_shape: tuple, offset: tuple | None) -> tuple:
+    if offset is None:
+        return tuple(s // 2 for s in kernel_shape)
+    if len(kernel_shape) != len(offset):
+        raise ValueError(
+            f'Number of dimensions in kernel and offset does not match: {len(kernel_shape)} != {len(offset)}'
+        )
+    if any(o < 0 or o >= s for o, s in zip(offset, kernel_shape)):
+        raise ValueError('offset is out of kernel bounds')
+    return offset
 
 
 def cast_kernel_dilation(
@@ -448,91 +458,6 @@ def default_cc_strel(
     mid = cords[(1,) * ndim]
 
     return np.where(cords > mid, False, strel)
-
-
-########################################################################################################################
-
-
-class StrelInfo(object):
-    __slots__ = [
-        '_shape', '_order', '_size', '_is_adapt',
-        'center', 'u_offsets', 'offsets_values', 'r_offsets', 'image_shape', 'borders_mask'
-    ]
-
-    def __init__(self, se: np.ndarray, center: tuple | None = None, order: str = 'C', store_values: bool = True):
-        if not isinstance(se, np.ndarray):
-            raise TypeError('se array need to be type of numpy.ndarray')
-        self._shape = se.shape
-        self._order = order
-
-        if center is None:
-            if not all(s % 2 != 0 for s in se.shape):
-                raise ValueError('Structuring element dimensions length need to be odd or set center point')
-            center = tuple(s // 2 for s in se.shape)
-
-        self.center = center
-
-        self.u_offsets = unraveled_offsets(se, center)
-        self._size = self.u_offsets.shape[0]
-
-        self.offsets_values = None
-        if store_values and se.dtype != bool:
-            self.offsets_values = se[np.nonzero(se)]
-
-        self._is_adapt = False
-        self.r_offsets = None
-        self.image_shape = None
-        self.borders_mask = None
-
-    def __len__(self):
-        return self._size
-
-    @property
-    def is_adapt(self):
-        return self._is_adapt
-
-    @property
-    def shape(self):
-        return self._shape
-
-    def adapt(self, image_shape: tuple) -> None:
-        self.r_offsets = ravel_offsets(self.u_offsets, image_shape, order=self._order)
-        self.image_shape = image_shape
-        self.borders_mask = border_mask(image_shape, self._shape, self.center).ravel(order=self._order)
-        self._is_adapt = True
-
-    def clear_adaption(self) -> None:
-        self._is_adapt = False
-        self.r_offsets = None
-        self.image_shape = None
-        self.borders_mask = None
-
-    def isvalid_neighbor(self, index: int | tuple, offset_index: int) -> bool:
-        if not self.is_adapt:
-            raise RuntimeError('StrelInfo object is not adapted to image')
-        if isinstance(index, tuple):
-            return isvalid_neighbor_unraveled(index, self.u_offsets[offset_index], self.image_shape)
-        return isvalid_neighbor_raveled(index, self.u_offsets[offset_index], self.image_shape, self._order)
-
-
-def get_strel_info(
-        mode: str,
-        ndim: int,
-        connectivity: int = 1,
-        hole: bool = True,
-        center: tuple | None = None,
-        order: str = 'C'
-) -> StrelInfo:
-    supported_mode = {
-        'cc': default_cc_strel,
-        'binary': default_binary_strel
-    }
-    func_out = supported_mode.get(mode, None)
-    if func_out is None:
-        raise ValueError(
-            f'{mode} mode is not supported, use "cc" for connected components strel and "binary" for binary strel'
-        )
-    return StrelInfo(func_out(ndim, connectivity, hole), center=center, order=order, store_values=False)
 
 
 ########################################################################################################################
