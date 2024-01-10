@@ -1,0 +1,9 @@
+python setup.py install
+py -m pip uninstall PyCv
+
+python setup.py build_ext
+python setup.py develop
+
+cd C:\Users\97254\Documents\MyProjects\PyCv\pycv\_lib\core
+
+printf("offsets is %" NPY_INTP_FMT "\n", (footprint).offsets[jj]);
