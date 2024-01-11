@@ -8,7 +8,6 @@
 case _TYPE:                                                                                      \
 {                                                                                                \
     npy_intp _ii;                                                                                \
-    _buffer_val = _true_val;                                                                     \
     for (_ii = 0; _ii < _buffer_size; _ii++) {                                                   \
         if (_offsets[_ii] < _offsets_flag) {                                                     \
             _buffer_val = *(_type *)(_pi + _offsets[_ii]) ? _true_val : _false_val;              \
@@ -99,7 +98,7 @@ int ops_binary_erosion(PyArrayObject *input,
     }
 
     for (ii = 0; ii < PyArray_SIZE(input); ii++) {
-        buffer = _true;
+        buffer = _false;
         if (!mask || *(npy_bool *)(ma)) {
             switch (PyArray_TYPE(input)) {
                 TYPE_CASE_BINARY_EROSION(NPY_BOOL, npy_bool,
@@ -153,6 +152,9 @@ int ops_binary_erosion(PyArrayObject *input,
                     PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
                     goto exit;
             }
+        }
+        if (!_true) {
+            buffer = !buffer;
         }
         switch (PyArray_TYPE(output)) {
             TYPE_CASE_VALUE_OUT(NPY_BOOL, npy_bool, po, buffer);
@@ -724,7 +726,6 @@ int ops_binary_region_fill(PyArrayObject *output,
 }
 
 // #####################################################################################################################
-
 
 
 

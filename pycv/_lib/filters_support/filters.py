@@ -3,7 +3,7 @@ import numbers
 from pycv._lib.array_api.array_pad import get_padding_width, pad
 from pycv._lib.array_api.regulator import check_finite
 from pycv._lib.array_api.shapes import output_shape
-from pycv._lib.filters_support.utils import default_axis, fix_kernel_shape, valid_kernels, get_output
+from pycv._lib.filters_support.utils import default_axis, fix_kernel_shape, valid_kernels, get_output, valid_kernel_shape_with_ref
 from pycv._lib.core import ops
 
 FLIPPER = (1, 0, 2)
@@ -14,11 +14,6 @@ __all__ = [
     'PUBLIC'
 ]
 PUBLIC = []
-
-DILATION = 1
-PADDING_MODE = 'valid'
-STRIDE = 1
-FLIP = True
 
 
 ########################################################################################################################
@@ -59,18 +54,14 @@ def c_convolve(
     if kernel.dtype != inputs.dtype:
         kernel = kernel.astype(inputs.dtype)
 
-    if not all(na > nk for na, nk in zip(inputs.shape, kernel_shape)):
-        raise ValueError("Kernel dimensions cannot be larger than the input array's dimensions.")
-
-    if not all((nk - 1) >= 0 for nk in kernel_shape):
-        raise ValueError("Kernel shape is too small.")
+    valid_kernel_shape_with_ref(kernel_shape, inputs.shape)
 
     outputs_shape = output_shape(inputs.shape, kernel_shape, stride)
     output, share_memory = get_output(output, inputs, outputs_shape)
 
     if share_memory:
         hold_output = output
-        output = get_output(hold_output.dtype, inputs, outputs_shape)
+        output, _ = get_output(hold_output.dtype, inputs, outputs_shape)
 
     if np.all(inputs == 0):
         output[...] = 0.
@@ -122,11 +113,7 @@ def c_rank_filter(
     if footprint.dtype != bool:
         footprint = footprint.astype(bool)
 
-    if not all(na > nk for na, nk in zip(inputs.shape, kernel_shape)):
-        raise ValueError("Kernel dimensions cannot be larger than the input array's dimensions.")
-
-    if not all((nk - 1) >= 0 for nk in kernel_shape):
-        raise ValueError("Kernel shape is too small.")
+    valid_kernel_shape_with_ref(kernel_shape, inputs.shape)
 
     if rank > footprint.size:
         raise ValueError(f'rank is out of range for footprint with size {footprint.size}')
@@ -136,7 +123,7 @@ def c_rank_filter(
 
     if share_memory:
         hold_output = output
-        output = get_output(hold_output.dtype, inputs, outputs_shape)
+        output, _ = get_output(hold_output.dtype, inputs, outputs_shape)
 
     if np.all(inputs == 0):
         output[...] = 0.

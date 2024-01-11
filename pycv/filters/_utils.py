@@ -5,6 +5,8 @@ from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.filters_support.filters import c_convolve
 from pycv._lib.filters_support.utils import default_axis
 from pycv._lib.filters_support.windows import edge_kernel
+from pycv._lib.filters_support.morphology import c_gray_ero_or_dil
+from pycv._lib.filters_support.kernel_utils import border_mask
 
 __all__ = [
     'edge_filters',
@@ -22,10 +24,10 @@ def if_pad_is_same_or_constant(
         kernel_shape: tuple,
         padding_mode: str
 ):
-    # if padding_mode not in ['same', 'constant']:
-    #     return image
-    # mask = border_mask(image.shape, kernel_shape)
-    return
+    if padding_mode not in ['same', 'constant']:
+        return image
+    mask = border_mask(image.shape, kernel_shape)
+    return c_gray_ero_or_dil(0, image, mask=mask)
 
 
 def kernel_size_valid(

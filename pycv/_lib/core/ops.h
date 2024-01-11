@@ -12,5 +12,6 @@ PyObject* erosion(PyObject* self, PyObject* args);
 PyObject* dilation(PyObject* self, PyObject* args);
 PyObject* rank_filter(PyObject* self, PyObject* args);
 PyObject* is_local_max(PyObject* self, PyObject* args);
+PyObject* binary_region_fill(PyObject* self, PyObject* args);
 
 #endif

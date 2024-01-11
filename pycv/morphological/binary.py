@@ -1,6 +1,5 @@
 import numpy as np
-from pycv.morphological._utils import binary_dispatcher
-from pycv._lib.core import ops
+from pycv._lib.filters_support.morphology import c_binary_erosion
 
 __all__ = [
     'binary_erosion',
@@ -22,7 +21,7 @@ PUBLIC = [
 
 ########################################################################################################################
 
-@binary_dispatcher
+
 def binary_erosion(
         image: np.ndarray,
         strel: np.ndarray | None = None,
@@ -31,12 +30,10 @@ def binary_erosion(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None
 ) -> np.ndarray:
-    ops.binary_erosion(image, strel, output, offset, iterations, mask, 0)
+    ret = c_binary_erosion(image, strel, offset, iterations, mask, output, 0)
+    return output if ret is None else ret
 
-    return output
 
-
-@binary_dispatcher
 def binary_dilation(
         image: np.ndarray,
         strel: np.ndarray | None = None,
@@ -45,12 +42,12 @@ def binary_dilation(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None
 ) -> np.ndarray:
-    ops.binary_erosion(image, strel, output, offset, iterations, mask, 1)
-    return output
+    ret = c_binary_erosion(image, strel, offset, iterations, mask, output, 1)
+    return output if ret is None else ret
 
 
 ########################################################################################################################
-@binary_dispatcher
+
 def binary_opening(
         image: np.ndarray,
         strel: np.ndarray | None = None,
@@ -58,13 +55,11 @@ def binary_opening(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None
 ) -> np.ndarray:
-    ero = np.zeros_like(output)
-    ops.binary_erosion(image, strel, ero, offset, 1, mask, 0)
-    ops.binary_erosion(image, strel, output, offset, 1, mask, 1)
-    return output
+    ero = c_binary_erosion(image, strel, offset, 1, mask, None, 0)
+    ret = c_binary_erosion(ero, strel, offset, 1, mask, output, 1)
+    return output if ret is None else ret
 
 
-@binary_dispatcher
 def binary_closing(
         image: np.ndarray,
         strel: np.ndarray | None = None,
@@ -72,13 +67,12 @@ def binary_closing(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None
 ) -> np.ndarray:
-    dil = np.zeros_like(output)
-    ops.binary_erosion(image, strel, dil, offset, 1, mask, 1)
-    ops.binary_erosion(image, strel, output, offset, 1, mask, 0)
-    return output
+    dil = c_binary_erosion(image, strel, offset, 1, mask, None, 1)
+    ret = c_binary_erosion(dil, strel, offset, 1, mask, output, 0)
+    return output if ret is None else ret
 
 
-@binary_dispatcher
+
 def binary_edge(
         image: np.ndarray,
         edge_mode: str = 'inner',
@@ -95,11 +89,12 @@ def binary_edge(
     ero = None
 
     if supported_mode != 'inner':
-        dil = np.zeros_like(output)
-        ops.binary_erosion(image, strel, dil, offset, 1, mask, 1)
+        dil = c_binary_erosion(image, strel, offset, 1, mask, None, 1)
     if supported_mode != 'outer':
-        ero = np.zeros_like(output)
-        ops.binary_erosion(image, strel, ero, offset, 1, mask, 0)
+        ero = c_binary_erosion(image, strel, offset, 1, mask, None, 0)
+
+    if output is None:
+        output = np.zeros_like(dil if dil is not None else ero)
 
     if ero is not None and dil is not None:
         output[:] = dil ^ ero

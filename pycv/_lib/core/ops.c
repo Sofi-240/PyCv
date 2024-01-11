@@ -253,6 +253,7 @@ PyObject* binary_region_fill(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
+
 // #####################################################################################################################
 
 static PyMethodDef methods[] = {

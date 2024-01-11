@@ -16,7 +16,6 @@ __all__ = [
 PUBLIC = []
 
 MAX_NDIM = 3
-FLIP = True
 
 ########################################################################################################################
 
@@ -44,8 +43,8 @@ def fix_kernel_shape(shape: int, axis: tuple, nd: int) -> tuple:
 def valid_kernels(
         kernel: np.ndarray,
         array_rank: int,
-        flip: bool = FLIP,
-        dilation: int | tuple = DILATION,
+        flip: bool = True,
+        dilation: int | tuple = 1,
         offset: int | tuple | None = None,
         filter_dim_bound: int = MAX_NDIM
 ) -> tuple[np.ndarray, tuple, tuple]:
@@ -66,6 +65,13 @@ def valid_kernels(
             offset = (0,) + offset
     return kernel, kernel.shape, offset
 
+def valid_kernel_shape_with_ref(kernel_shape: tuple, image_shape: tuple):
+    if not all(na > nk for na, nk in zip(image_shape, kernel_shape)):
+        raise ValueError("Kernel dimensions cannot be larger than the input array's dimensions.")
+
+    if not all((nk - 1) >= 0 for nk in kernel_shape):
+        raise ValueError("Kernel shape is too small.")
+
 
 def get_output(
         output: np.ndarray | type | np.dtype | None,
@@ -82,7 +88,7 @@ def get_output(
         raise ValueError("output can be np.ndarray or type instance")
     elif output.shape != shape:
         raise RuntimeError("output shape not correct")
-    share_memory = numpy.may_share_memory(inputs, output)
+    share_memory = np.may_share_memory(inputs, output)
     return output, share_memory
 
 ########################################################################################################################
