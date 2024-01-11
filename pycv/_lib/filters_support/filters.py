@@ -2,17 +2,13 @@ import numpy as np
 import numbers
 from pycv._lib.array_api.array_pad import get_padding_width, pad
 from pycv._lib.array_api.regulator import check_finite
-from pycv._lib.array_api.shapes import output_shape, atleast_nd
-from pycv._lib.filters_support.kernel_utils import cast_kernel_dilation, valid_offset
+from pycv._lib.array_api.shapes import output_shape
+from pycv._lib.filters_support.utils import default_axis, fix_kernel_shape, valid_kernels, get_output
 from pycv._lib.core import ops
 
 FLIPPER = (1, 0, 2)
 
 __all__ = [
-    'default_axis',
-    'fix_kernel_shape',
-    'valid_kernels',
-    'get_output',
     'c_convolve',
     'c_rank_filter',
     'PUBLIC'
@@ -23,73 +19,6 @@ DILATION = 1
 PADDING_MODE = 'valid'
 STRIDE = 1
 FLIP = True
-
-
-########################################################################################################################
-
-def default_axis(nd: int, default_nd: int) -> tuple:
-    if default_nd > nd:
-        raise ValueError('array dimensions is smaller then the default dimensions')
-    axis = tuple(nd - i - 1 for i in range(default_nd))
-    return axis
-
-
-def fix_kernel_shape(shape: int, axis: tuple, nd: int) -> tuple:
-    if nd > len(axis):
-        raise ValueError('n dimensions is smaller then axis size')
-    axis_bool = [False] * nd
-    for ax in axis:
-        if ax >= nd:
-            raise ValueError('axis is out of range for array dimensions')
-        axis_bool = True
-    kernel_shape = tuple(shape if ax else 1 for ax in axis_bool)
-    return kernel_shape
-
-
-########################################################################################################################
-
-def valid_kernels(
-        kernel: np.ndarray,
-        array_rank: int,
-        flip: bool = FLIP,
-        dilation: int | tuple = DILATION,
-        offset: int | tuple | None = None,
-        filter_dim_bound: int = 3
-) -> tuple[np.ndarray, tuple, tuple]:
-    if not check_finite(kernel):
-        raise ValueError('Kernel must not contain infs or NaNs')
-    filter_dim = kernel.ndim
-    if filter_dim > filter_dim_bound:
-        raise ValueError(f'Convolution for 4D or above is not supported, got kernel with rank of {filter_dim}')
-    if flip:
-        kernel = np.flip(kernel, FLIPPER[:filter_dim]) if filter_dim > 1 else np.flip(kernel, 0)
-    kernel = cast_kernel_dilation(kernel, dilation)
-    if filter_dim == 1 and isinstance(offset, numbers.Number):
-        offset = (offset,)
-    offset = valid_offset(kernel.shape, offset)
-    if filter_dim > 1:
-        kernel = atleast_nd(kernel, array_rank, raise_err=False, expand_pos=0)
-        for _ in range(kernel.ndim - len(offset)):
-            offset = (0,) + offset
-    return kernel, kernel.shape, offset
-
-
-def get_output(
-        output: np.ndarray | type | np.dtype | None,
-        inputs: np.ndarray,
-        shape: tuple | None = None
-):
-    if shape is None:
-        shape = inputs.shape
-    if output is None:
-        output = np.zeros(shape, dtype=inputs.dtype)
-    elif isinstance(output, (type, np.dtype)):
-        output = np.zeros(shape, dtype=np.dtype)
-    elif not isinstance(output, np.ndarray):
-        raise ValueError("output can be np.ndarray or type instance")
-    elif output.shape != shape:
-        raise RuntimeError("output shape not correct")
-    return output
 
 
 ########################################################################################################################
@@ -137,13 +66,20 @@ def c_convolve(
         raise ValueError("Kernel shape is too small.")
 
     outputs_shape = output_shape(inputs.shape, kernel_shape, stride)
-    output = get_output(output, inputs, outputs_shape)
+    output, share_memory = get_output(output, inputs, outputs_shape)
+
+    if share_memory:
+        hold_output = output
+        output = get_output(hold_output.dtype, inputs, outputs_shape)
 
     if np.all(inputs == 0):
-        output[(None,) * nd] = 0.
-        return None if input_output else output
+        output[...] = 0.
+    else:
+        ops.convolve(inputs, kernel, output, offset)
 
-    ops.convolve(inputs, kernel, output, offset)
+    if share_memory:
+        hold_output[...] = output
+        output = hold_output
 
     return None if input_output else output
 
@@ -196,13 +132,20 @@ def c_rank_filter(
         raise ValueError(f'rank is out of range for footprint with size {footprint.size}')
 
     outputs_shape = output_shape(inputs.shape, kernel_shape, stride)
-    output = get_output(output, inputs, outputs_shape)
+    output, share_memory = get_output(output, inputs, outputs_shape)
+
+    if share_memory:
+        hold_output = output
+        output = get_output(hold_output.dtype, inputs, outputs_shape)
 
     if np.all(inputs == 0):
-        output[(None,) * nd] = 0.
-        return None if input_output else output
+        output[...] = 0.
+    else:
+        ops.rank_filter(inputs, footprint, output, rank, offset)
 
-    ops.rank_filter(inputs, footprint, output, rank, offset)
+    if share_memory:
+        hold_output[...] = output
+        output = hold_output
 
     return None if input_output else output
 

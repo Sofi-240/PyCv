@@ -2,7 +2,9 @@ import numpy as np
 import numbers
 from pycv._lib.filters_support.windows import gaussian_kernel
 from pycv.filters._utils import kernel_size_valid, filter_with_convolve
-from pycv._lib.filters_support.filters import c_rank_filter, default_axis
+from pycv._lib.filters_support.filters import c_rank_filter
+from pycv._lib.filters_support.utils import default_axis
+
 
 __all__ = [
     'gaussian_filter',

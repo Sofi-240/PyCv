@@ -1,5 +1,6 @@
 #include "ops_support.h"
 
+
 // #####################################################################################################################
 
 npy_intp RAVEL_INDEX(npy_intp *index, npy_intp *array_shape, npy_intp nd_m1)
@@ -76,13 +77,30 @@ int INIT_FOOTPRINT(PyArrayObject *kernel, npy_bool **footprint, int *footprint_s
     *footprint_size = 0;
 
     for (ii = 0; ii < filter_size; ii++) {
-        val = *(double *)ki != 0 ? NPY_TRUE : NPY_FALSE;
+        val = NPY_FALSE;
+        switch (PyArray_TYPE(kernel)) {
+            TYPE_CASE_GET_VALUE_BOOL(NPY_BOOL, npy_bool, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_UBYTE, npy_ubyte, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_USHORT, npy_ushort, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_UINT, npy_uint, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_ULONG, npy_ulong, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_ULONGLONG, npy_ulonglong, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_BYTE, npy_byte, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_SHORT, npy_short, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_INT, npy_int, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_LONG, npy_long, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_LONGLONG, npy_longlong, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_FLOAT, npy_float, ki, val);
+            TYPE_CASE_GET_VALUE_BOOL(NPY_DOUBLE, npy_double, ki, val);
+            default:
+                PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+                goto exit;
+        }
         *fo++ = val;
         if (val) {
             *footprint_size += 1;
         }
         BASE_ITERATOR_NEXT(dptr_k, ki);
-
     }
 
     exit:
@@ -94,12 +112,222 @@ int INIT_FOOTPRINT(PyArrayObject *kernel, npy_bool **footprint, int *footprint_s
         }
 }
 
+int COPY_DATA_TO_DOUBLE(PyArrayObject *array, double **line, npy_bool *footprint)
+{
+    npy_intp ii, array_size, line_size;
+    double tmp, *line_p;
+    Base_Iterator dptr;
+    char *pointer;
+
+    array_size = PyArray_SIZE(array);
+
+    if (footprint) {
+        line_size = 0;
+        for (ii = 0; ii < array_size; ii++) {
+            if (footprint[ii]) {
+                line_size++;
+            }
+        }
+    } else {
+        line_size = array_size;
+    }
+
+    *line = malloc(line_size * sizeof(double));
+
+    if (!*line) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+
+    if (!INIT_Base_Iterator(array, &dptr)){
+        goto exit;
+    }
+    pointer = (void *)PyArray_DATA(array);
+    line_p = *line;
+
+    for (ii = 0; ii < array_size; ii++) {
+        if (!footprint || footprint[ii]) {
+            tmp = 0.0;
+            switch (PyArray_TYPE(array)) {
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_BOOL, npy_bool, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_UBYTE, npy_ubyte, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_USHORT, npy_ushort, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_UINT, npy_uint, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_ULONG, npy_ulong, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_ULONGLONG, npy_ulonglong, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_BYTE, npy_byte, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_SHORT, npy_short, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_INT, npy_int, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_LONG, npy_long, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_LONGLONG, npy_longlong, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_FLOAT, npy_float, pointer, tmp);
+                TYPE_CASE_GET_VALUE_DOUBLE(NPY_DOUBLE, npy_double, pointer, tmp);
+                default:
+                    PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+                    goto exit;
+            }
+            *line_p++ = tmp;
+        }
+        BASE_ITERATOR_NEXT(dptr, pointer);
+    }
+
+    exit:
+        if (PyErr_Occurred()) {
+            free(*line);
+            return 0;
+        } else {
+            return 1;
+        }
+}
+
 int INIT_OFFSETS(PyArrayObject *array,
                  npy_intp *kernel_shape,
                  npy_intp *kernel_origins,
                  npy_bool *footprint,
-                 npy_intp **offsets,
-                 npy_bool **borders_lookup)
+                 npy_intp **offsets)
+{
+    npy_intp nd_m1, ii, jj, kernel_size, footprint_size, index_ravel;
+    npy_intp array_strides[NPY_MAXDIMS];
+    npy_intp filter_dims[NPY_MAXDIMS], origins[NPY_MAXDIMS];
+    npy_intp position[NPY_MAXDIMS], kernel_coordinates[NPY_MAXDIMS];
+    npy_intp *of;
+
+    nd_m1 = PyArray_NDIM(array) - 1;
+    kernel_size = 1;
+
+    for (ii = 0; ii <= nd_m1; ii++) {
+        array_strides[ii] = PyArray_STRIDE(array, ii);
+
+        filter_dims[ii] = *kernel_shape++;
+        origins[ii] = kernel_origins ? *kernel_origins++ : filter_dims[ii] / 2;
+        kernel_size *= filter_dims[ii];
+
+        position[ii] = 0;
+        kernel_coordinates[ii] = 0;
+    }
+
+
+    if (!footprint) {
+        footprint_size = kernel_size;
+    } else {
+        footprint_size = 0;
+        for (ii = 0; ii < kernel_size; ii++) {
+            if (footprint[ii]) {
+                footprint_size += 1;
+            }
+        }
+    }
+
+    *offsets = malloc(footprint_size * sizeof(npy_intp));
+    if (!*offsets) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    of = *offsets;
+
+    for (ii = 0; ii < kernel_size; ii++) {
+        if (!footprint || footprint[ii]) {
+            for(jj = 0; jj <= nd_m1; jj++) {
+                position[jj] = kernel_coordinates[jj] - origins[jj];
+            }
+
+            index_ravel = position[nd_m1] * array_strides[nd_m1];
+
+            for(jj = nd_m1 - 1; jj >= 0; jj--) {
+                index_ravel += position[jj] * array_strides[jj];
+            }
+            *of++ = index_ravel;
+        }
+        for (jj = nd_m1; jj >= 0; jj--) {
+            if (kernel_coordinates[jj] < filter_dims[jj] - 1) {
+                kernel_coordinates[jj]++;
+                break;
+            }
+            else {
+                kernel_coordinates[jj] = 0;
+            }
+        }
+    }
+    exit:
+        if (PyErr_Occurred()) {
+            free(*offsets);
+            return 0;
+        } else {
+            return 1;
+        }
+}
+
+int INIT_OFFSETS_AS_COORDINATES(npy_intp nd,
+                                npy_intp *kernel_shape,
+                                npy_intp *kernel_origins,
+                                npy_bool *footprint,
+                                npy_intp **offsets)
+{
+    npy_intp ii, jj, kernel_size, footprint_size;
+    npy_intp filter_dims[NPY_MAXDIMS], origins[NPY_MAXDIMS];
+    npy_intp kernel_coordinates[NPY_MAXDIMS];
+    npy_intp *of;
+
+    kernel_size = 1;
+
+    for (ii = 0; ii < nd; ii++) {
+        filter_dims[ii] = *kernel_shape++;
+        origins[ii] = kernel_origins ? *kernel_origins++ : filter_dims[ii] / 2;
+        kernel_size *= filter_dims[ii];
+
+        kernel_coordinates[ii] = 0;
+    }
+
+
+    if (!footprint) {
+        footprint_size = kernel_size;
+    } else {
+        footprint_size = 0;
+        for (ii = 0; ii < kernel_size; ii++) {
+            if (footprint[ii]) {
+                footprint_size += 1;
+            }
+        }
+    }
+
+    *offsets = malloc(footprint_size * nd * sizeof(npy_intp));
+    if (!*offsets) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    of = *offsets;
+
+    for (ii = 0; ii < kernel_size; ii++) {
+        if (!footprint || footprint[ii]) {
+            for(jj = 0; jj < nd; jj++) {
+                *of++ = kernel_coordinates[jj] - origins[jj];
+            }
+        }
+        for (jj = nd - 1; jj >= 0; jj--) {
+            if (kernel_coordinates[jj] < filter_dims[jj] - 1) {
+                kernel_coordinates[jj]++;
+                break;
+            }
+            else {
+                kernel_coordinates[jj] = 0;
+            }
+        }
+    }
+    exit:
+        if (PyErr_Occurred()) {
+            free(*offsets);
+            return 0;
+        } else {
+            return 1;
+        }
+}
+
+int INIT_OFFSETS_WITH_BORDERS(PyArrayObject *array,
+                              npy_intp *kernel_shape,
+                              npy_intp *kernel_origins,
+                              npy_bool *footprint,
+                              npy_intp **offsets,
+                              npy_bool **borders_lookup)
 {
     npy_intp nd_m1, ii, jj, kernel_size, footprint_size, array_size, index_ravel;
     npy_intp array_dims[NPY_MAXDIMS], array_strides[NPY_MAXDIMS];
@@ -207,7 +435,6 @@ int INIT_OFFSETS(PyArrayObject *array,
         } else {
             return 1;
         }
-
 }
 
 int INIT_OFFSETS_ARRAY(PyArrayObject *array,
@@ -359,7 +586,6 @@ int INIT_OFFSETS_ARRAY(PyArrayObject *array,
         } else {
             return 1;
         }
-
 }
 
 // #####################################################################################################################
@@ -371,6 +597,5 @@ int INIT_Neighborhood_Iterator(npy_intp *neighborhood_size, npy_intp *array_size
     iterator->bound = array_size;
     return 1;
 }
-
 
 // #####################################################################################################################

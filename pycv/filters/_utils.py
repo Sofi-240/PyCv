@@ -2,11 +2,13 @@ import numpy as np
 import numbers
 from pycv._lib.array_api.dtypes import cast, get_dtype_info
 from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib.filters_support.filters import default_axis, c_convolve
+from pycv._lib.filters_support.filters import c_convolve
+from pycv._lib.filters_support.utils import default_axis
 from pycv._lib.filters_support.windows import edge_kernel
 
 __all__ = [
     'edge_filters',
+    'filter_with_convolve',
     'PUBLIC'
 ]
 
@@ -129,7 +131,7 @@ def filter_with_convolve(
 
     return output
 
-
+########################################################################################################################
 
 
 

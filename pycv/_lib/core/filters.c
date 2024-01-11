@@ -1,39 +1,27 @@
 #include "ops_support.h"
 #include "filters.h"
 
-// #####################################################################################################################
-
-#define CASE_VALUE_OUT(_TYPE, _type, _po, _val)   \
-case _TYPE:   \
-    *(_type *)_po = (_type)_val;   \
-    break
-
-#define CASE_VALUE_OUT_SAFE(_TYPE, _type, _po, _val)                  \
-case _TYPE:                                                            \
-    *(_type *)_po = (_val) > -1. ? (_type)(_val) : -(_type)(-_val);    \
-    break
 
 // #####################################################################################################################
 
-#define CASE_CONVOLVE(_TYPE, _type, _pi, _weights, _buffer_size, _offsets, _buffer_val)   \
-case _TYPE:    \
-{    \
-    npy_intp _ii;      \
-    for (_ii = 0; _ii < _buffer_size; _ii++) {      \
-        _buffer_val += _weights[_ii] * (double)(*((_type *)(_pi + _offsets[_ii])));      \
-    }      \
-}      \
+#define TYPE_CASE_CONVOLVE(_TYPE, _type, _pi, _weights, _buffer_size, _offsets, _buffer_val)   \
+case _TYPE:                                                                                    \
+{                                                                                              \
+    npy_intp _ii;                                                                              \
+    for (_ii = 0; _ii < _buffer_size; _ii++) {                                                 \
+        _buffer_val += _weights[_ii] * (double)(*((_type *)(_pi + _offsets[_ii])));            \
+    }                                                                                          \
+}                                                                                              \
 break
-
 
 int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *output, npy_intp *origins)
 {
-    Base_Iterator dptr_o, dptr_i, dptr_k;
-    char *pi, *po, *ki = NULL;
+    Base_Iterator dptr_o, dptr_i;
+    char *pi = NULL, *po = NULL;
     npy_bool *footprint, *borders_lookup;
     int footprint_size;
     npy_intp ii, *offsets;
-    double buffer, *weights, *ww;
+    double buffer, *weights;
 
     NPY_BEGIN_THREADS_DEF;
 
@@ -41,27 +29,12 @@ int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *out
         goto exit;
     }
 
-    if (!INIT_Base_Iterator(kernel, &dptr_k)){
+    if (!INIT_OFFSETS_WITH_BORDERS(input, PyArray_DIMS(kernel), origins, footprint, &offsets, &borders_lookup)) {
         goto exit;
     }
 
-    if (!INIT_OFFSETS(input, PyArray_DIMS(kernel), origins, footprint, &offsets, &borders_lookup)) {
+    if (!COPY_DATA_TO_DOUBLE(kernel, &weights, footprint)) {
         goto exit;
-    }
-
-    weights = malloc(footprint_size * sizeof(double));
-    if (!weights) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-    ww = weights;
-    ki = (void *)PyArray_DATA(kernel);
-
-    for (ii = 0; ii < PyArray_SIZE(kernel); ii++) {
-        if (footprint[ii]) {
-            *ww++ = *(double *)ki;
-        }
-        BASE_ITERATOR_NEXT(dptr_k, ki);
     }
 
     if (!INIT_Base_Iterator(input, &dptr_i)){
@@ -78,55 +51,54 @@ int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *out
     po = (void *)PyArray_DATA(output);
 
     for (ii = 0; ii < PyArray_SIZE(input); ii++) {
-
         if (!borders_lookup[ii]) {
             buffer = 0.0;
             switch (PyArray_TYPE(input)) {
-                CASE_CONVOLVE(NPY_BOOL, npy_bool,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_UBYTE, npy_ubyte,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_USHORT, npy_ushort,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_UINT, npy_uint,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_ULONG, npy_ulong,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_ULONGLONG, npy_ulonglong,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_BYTE, npy_byte,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_SHORT, npy_short,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_INT, npy_int,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_LONG, npy_long,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_LONGLONG, npy_longlong,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_FLOAT, npy_float,
-                              pi, weights, footprint_size, offsets, buffer);
-                CASE_CONVOLVE(NPY_DOUBLE, npy_double,
-                              pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_BOOL, npy_bool,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_UBYTE, npy_ubyte,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_USHORT, npy_ushort,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_UINT, npy_uint,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_ULONG, npy_ulong,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_ULONGLONG, npy_ulonglong,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_BYTE, npy_byte,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_SHORT, npy_short,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_INT, npy_int,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_LONG, npy_long,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_LONGLONG, npy_longlong,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_FLOAT, npy_float,
+                                   pi, weights, footprint_size, offsets, buffer);
+                TYPE_CASE_CONVOLVE(NPY_DOUBLE, npy_double,
+                                   pi, weights, footprint_size, offsets, buffer);
                 default:
                     NPY_END_THREADS;
                     PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
                     goto exit;
             }
             switch (PyArray_TYPE(output)) {
-                CASE_VALUE_OUT_SAFE(NPY_BOOL, npy_bool, po, buffer);
-                CASE_VALUE_OUT_SAFE(NPY_UBYTE, npy_ubyte, po, buffer);
-                CASE_VALUE_OUT_SAFE(NPY_USHORT, npy_ushort, po, buffer);
-                CASE_VALUE_OUT_SAFE(NPY_UINT, npy_uint, po, buffer);
-                CASE_VALUE_OUT_SAFE(NPY_ULONG, npy_ulong, po, buffer);
-                CASE_VALUE_OUT_SAFE(NPY_ULONGLONG, npy_ulonglong, po, buffer);
-                CASE_VALUE_OUT(NPY_BYTE, npy_byte, po, buffer);
-                CASE_VALUE_OUT(NPY_SHORT, npy_short, po, buffer);
-                CASE_VALUE_OUT(NPY_INT, npy_int, po, buffer);
-                CASE_VALUE_OUT(NPY_LONG, npy_long, po, buffer);
-                CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, po, buffer);
-                CASE_VALUE_OUT(NPY_FLOAT, npy_float, po, buffer);
-                CASE_VALUE_OUT(NPY_DOUBLE, npy_double, po, buffer);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_BOOL, npy_bool, po, buffer);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_UBYTE, npy_ubyte, po, buffer);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_USHORT, npy_ushort, po, buffer);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_UINT, npy_uint, po, buffer);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONG, npy_ulong, po, buffer);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONGLONG, npy_ulonglong, po, buffer);
+                TYPE_CASE_VALUE_OUT(NPY_BYTE, npy_byte, po, buffer);
+                TYPE_CASE_VALUE_OUT(NPY_SHORT, npy_short, po, buffer);
+                TYPE_CASE_VALUE_OUT(NPY_INT, npy_int, po, buffer);
+                TYPE_CASE_VALUE_OUT(NPY_LONG, npy_long, po, buffer);
+                TYPE_CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, po, buffer);
+                TYPE_CASE_VALUE_OUT(NPY_FLOAT, npy_float, po, buffer);
+                TYPE_CASE_VALUE_OUT(NPY_DOUBLE, npy_double, po, buffer);
                 default:
                     NPY_END_THREADS;
                     PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
@@ -134,12 +106,9 @@ int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *out
             }
             BASE_ITERATOR_NEXT(dptr_o, po);
         }
-
         BASE_ITERATOR_NEXT(dptr_i, pi);
     }
-
     NPY_END_THREADS;
-
     exit:
         return PyErr_Occurred() ? 0 : 1;
 }
@@ -167,7 +136,6 @@ static npy_intp PARTITION(double *buffer, npy_intp low, npy_intp high)
     return ii;
 }
 
-
 static double QUICK_SELECT(double *buffer, npy_intp low, npy_intp high, int rank)
 {
     npy_intp pivot_index = PARTITION(buffer, low, high);
@@ -180,7 +148,7 @@ static double QUICK_SELECT(double *buffer, npy_intp low, npy_intp high, int rank
     }
 }
 
-#define CASE_SELECT(_TYPE, _type, _pi, _buffer_size, _offsets, _buffer, _rank, _rank_val)   \
+#define TYPE_CASE_SELECT(_TYPE, _type, _pi, _buffer_size, _offsets, _buffer, _rank, _rank_val)   \
 case _TYPE:    \
 {    \
     npy_intp _ii;    \
@@ -205,6 +173,7 @@ int ops_rank_filter(PyArrayObject *input,
     double rank_val, *buffer = NULL;
 
     NPY_BEGIN_THREADS_DEF;
+
     kernel_size = PyArray_SIZE(footprint);
     fo = (npy_bool *)PyArray_DATA(footprint);
 
@@ -214,7 +183,7 @@ int ops_rank_filter(PyArrayObject *input,
         }
     }
 
-    if (!INIT_OFFSETS(input, PyArray_DIMS(footprint), origins, fo, &offsets, &borders_lookup)) {
+    if (!INIT_OFFSETS_WITH_BORDERS(input, PyArray_DIMS(footprint), origins, fo, &offsets, &borders_lookup)) {
         goto exit;
     }
 
@@ -241,51 +210,51 @@ int ops_rank_filter(PyArrayObject *input,
         if (!borders_lookup[ii]) {
             rank_val = 0.0;
             switch (PyArray_TYPE(input)) {
-                CASE_SELECT(NPY_BOOL, npy_bool,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_UBYTE, npy_ubyte,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_USHORT, npy_ushort,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_UINT, npy_uint,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_ULONG, npy_ulong,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_ULONGLONG, npy_ulonglong,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_BYTE, npy_byte,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_SHORT, npy_short,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_INT, npy_int,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_LONG, npy_long,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_LONGLONG, npy_longlong,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_FLOAT, npy_float,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
-                CASE_SELECT(NPY_DOUBLE, npy_double,
-                            pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_BOOL, npy_bool,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_UBYTE, npy_ubyte,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_USHORT, npy_ushort,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_UINT, npy_uint,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_ULONG, npy_ulong,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_ULONGLONG, npy_ulonglong,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_BYTE, npy_byte,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_SHORT, npy_short,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_INT, npy_int,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_LONG, npy_long,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_LONGLONG, npy_longlong,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_FLOAT, npy_float,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
+                TYPE_CASE_SELECT(NPY_DOUBLE, npy_double,
+                                 pi, footprint_size, offsets, buffer, rank, rank_val);
                 default:
                     NPY_END_THREADS;
                     PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
                     goto exit;
             }
             switch (PyArray_TYPE(output)) {
-                CASE_VALUE_OUT_SAFE(NPY_BOOL, npy_bool, po, rank_val);
-                CASE_VALUE_OUT_SAFE(NPY_UBYTE, npy_ubyte, po, rank_val);
-                CASE_VALUE_OUT_SAFE(NPY_USHORT, npy_ushort, po, rank_val);
-                CASE_VALUE_OUT_SAFE(NPY_UINT, npy_uint, po, rank_val);
-                CASE_VALUE_OUT_SAFE(NPY_ULONG, npy_ulong, po, rank_val);
-                CASE_VALUE_OUT_SAFE(NPY_ULONGLONG, npy_ulonglong, po, rank_val);
-                CASE_VALUE_OUT(NPY_BYTE, npy_byte, po, rank_val);
-                CASE_VALUE_OUT(NPY_SHORT, npy_short, po, rank_val);
-                CASE_VALUE_OUT(NPY_INT, npy_int, po, rank_val);
-                CASE_VALUE_OUT(NPY_LONG, npy_long, po, rank_val);
-                CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, po, rank_val);
-                CASE_VALUE_OUT(NPY_FLOAT, npy_float, po, rank_val);
-                CASE_VALUE_OUT(NPY_DOUBLE, npy_double, po, rank_val);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_BOOL, npy_bool, po, rank_val);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_UBYTE, npy_ubyte, po, rank_val);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_USHORT, npy_ushort, po, rank_val);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_UINT, npy_uint, po, rank_val);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONG, npy_ulong, po, rank_val);
+                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONGLONG, npy_ulonglong, po, rank_val);
+                TYPE_CASE_VALUE_OUT(NPY_BYTE, npy_byte, po, rank_val);
+                TYPE_CASE_VALUE_OUT(NPY_SHORT, npy_short, po, rank_val);
+                TYPE_CASE_VALUE_OUT(NPY_INT, npy_int, po, rank_val);
+                TYPE_CASE_VALUE_OUT(NPY_LONG, npy_long, po, rank_val);
+                TYPE_CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, po, rank_val);
+                TYPE_CASE_VALUE_OUT(NPY_FLOAT, npy_float, po, rank_val);
+                TYPE_CASE_VALUE_OUT(NPY_DOUBLE, npy_double, po, rank_val);
                 default:
                     NPY_END_THREADS;
                     PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
@@ -293,12 +262,9 @@ int ops_rank_filter(PyArrayObject *input,
             }
             BASE_ITERATOR_NEXT(dptr_o, po);
         }
-
         BASE_ITERATOR_NEXT(dptr_i, pi);
     }
-
     NPY_END_THREADS;
-
     exit:
         free(offsets);
         free(borders_lookup);

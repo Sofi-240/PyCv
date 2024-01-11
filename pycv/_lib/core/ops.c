@@ -3,6 +3,7 @@
 
 #include "filters.h"
 #include "morphology.h"
+#include "query_array.h"
 
 // #####################################################################################################################
 
@@ -90,6 +91,83 @@ PyObject* binary_erosion(PyObject* self, PyObject* args)
         Py_XDECREF(input);
         Py_XDECREF(strel);
         Py_XDECREF(output);
+        if (mask) {
+            Py_XDECREF(mask);
+        }
+        PyDimMem_FREE(origins.ptr);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+PyObject* erosion(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *flat_strel = NULL, *non_flat_strel = NULL, *output = NULL, *mask = NULL;
+    PyArray_Dims origins = {NULL, 0};
+    double cast_value;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&O&O&O&d",
+            Input_To_Array, &input,
+            Input_To_Array, &flat_strel,
+            InputOptional_To_Array, &non_flat_strel,
+            Output_To_Array, &output,
+            PyArray_IntpConverter, &origins,
+            InputOptional_To_Array, &mask,
+            &cast_value)) {
+        goto exit;
+    }
+
+    ops_erosion(input, flat_strel, non_flat_strel, output, origins.ptr, mask, cast_value);
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(flat_strel);
+        if (non_flat_strel) {
+            Py_XDECREF(non_flat_strel);
+        }
+        if (mask) {
+            Py_XDECREF(mask);
+        }
+        Py_XDECREF(output);
+        PyDimMem_FREE(origins.ptr);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+PyObject* dilation(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *flat_strel = NULL, *non_flat_strel = NULL, *output = NULL, *mask = NULL;
+    PyArray_Dims origins = {NULL, 0};
+    double cast_value;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&O&O&O&d",
+            Input_To_Array, &input,
+            Input_To_Array, &flat_strel,
+            InputOptional_To_Array, &non_flat_strel,
+            Output_To_Array, &output,
+            PyArray_IntpConverter, &origins,
+            InputOptional_To_Array, &mask,
+            &cast_value)) {
+        goto exit;
+    }
+
+    ops_dilation(input, flat_strel, non_flat_strel, output, origins.ptr, mask, cast_value);
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(flat_strel);
+        if (non_flat_strel) {
+            Py_XDECREF(non_flat_strel);
+        }
+        if (mask) {
+            Py_XDECREF(mask);
+        }
+        Py_XDECREF(output);
         PyDimMem_FREE(origins.ptr);
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
@@ -122,6 +200,59 @@ PyObject* rank_filter(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
+PyObject* is_local_max(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *strel = NULL, *output = NULL;
+    PyArray_Dims origins = {NULL, 0};
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&O&",
+            Input_To_Array, &input,
+            Input_To_Array, &strel,
+            Output_To_Array, &output,
+            PyArray_IntpConverter, &origins)) {
+        goto exit;
+    }
+
+    is_local_q(input, strel, output, LOCAL_MAX, origins.ptr);
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(strel);
+        Py_XDECREF(output);
+        PyDimMem_FREE(origins.ptr);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+PyObject* binary_region_fill(PyObject* self, PyObject* args)
+{
+    PyArrayObject *strel = NULL, *output = NULL;
+    PyArray_Dims seed_point = {NULL, 0};
+    PyArray_Dims origins = {NULL, 0};
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&O&",
+            Output_To_Array, &output,
+            Input_To_Array, &strel,
+            PyArray_IntpConverter, &seed_point,
+            PyArray_IntpConverter, &origins)) {
+        goto exit;
+    }
+
+    ops_binary_region_fill(output, strel, seed_point.ptr, origins.ptr);
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(strel);
+        Py_XDECREF(output);
+        PyDimMem_FREE(seed_point.ptr);
+        PyDimMem_FREE(origins.ptr);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
 // #####################################################################################################################
 
 static PyMethodDef methods[] = {
@@ -138,8 +269,32 @@ static PyMethodDef methods[] = {
         NULL
     },
     {
+        "erosion",
+        (PyCFunction)erosion,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "dilation",
+        (PyCFunction)dilation,
+        METH_VARARGS,
+        NULL
+    },
+    {
         "rank_filter",
         (PyCFunction)rank_filter,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "is_local_max",
+        (PyCFunction)is_local_max,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "binary_region_fill",
+        (PyCFunction)binary_region_fill,
         METH_VARARGS,
         NULL
     },
