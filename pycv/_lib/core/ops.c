@@ -253,6 +253,29 @@ PyObject* binary_region_fill(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
+PyObject* binary_labeling(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *strel = NULL, *output = NULL;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&",
+            Input_To_Array, &input,
+            Input_To_Array, &strel,
+            Output_To_Array, &output)) {
+        goto exit;
+    }
+
+    ops_binary_labeling(input, strel, output);
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(strel);
+        Py_XDECREF(output);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
 
 // #####################################################################################################################
 
@@ -296,6 +319,12 @@ static PyMethodDef methods[] = {
     {
         "binary_region_fill",
         (PyCFunction)binary_region_fill,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "binary_labeling",
+        (PyCFunction)binary_labeling,
         METH_VARARGS,
         NULL
     },

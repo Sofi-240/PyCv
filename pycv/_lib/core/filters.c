@@ -25,6 +25,10 @@ int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *out
 
     NPY_BEGIN_THREADS_DEF;
 
+    if (!check_dtype(PyArray_TYPE(input)) || !check_dtype(PyArray_TYPE(output)) || !check_dtype(PyArray_TYPE(kernel))) {
+        goto exit;
+    }
+
     if (!INIT_FOOTPRINT(kernel, &footprint, &footprint_size)) {
         goto exit;
     }
@@ -85,25 +89,26 @@ int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *out
                     PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
                     goto exit;
             }
-            switch (PyArray_TYPE(output)) {
-                TYPE_CASE_VALUE_OUT_F2U(NPY_BOOL, npy_bool, po, buffer);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_UBYTE, npy_ubyte, po, buffer);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_USHORT, npy_ushort, po, buffer);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_UINT, npy_uint, po, buffer);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONG, npy_ulong, po, buffer);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONGLONG, npy_ulonglong, po, buffer);
-                TYPE_CASE_VALUE_OUT(NPY_BYTE, npy_byte, po, buffer);
-                TYPE_CASE_VALUE_OUT(NPY_SHORT, npy_short, po, buffer);
-                TYPE_CASE_VALUE_OUT(NPY_INT, npy_int, po, buffer);
-                TYPE_CASE_VALUE_OUT(NPY_LONG, npy_long, po, buffer);
-                TYPE_CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, po, buffer);
-                TYPE_CASE_VALUE_OUT(NPY_FLOAT, npy_float, po, buffer);
-                TYPE_CASE_VALUE_OUT(NPY_DOUBLE, npy_double, po, buffer);
-                default:
-                    NPY_END_THREADS;
-                    PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-                    goto exit;
-            }
+            SET_VALUE_FROM_DOUBLE(PyArray_TYPE(output), po, buffer);
+//            switch (PyArray_TYPE(output)) {
+//                TYPE_CASE_VALUE_OUT_F2U(NPY_BOOL, npy_bool, po, buffer);
+//                TYPE_CASE_VALUE_OUT_F2U(NPY_UBYTE, npy_ubyte, po, buffer);
+//                TYPE_CASE_VALUE_OUT_F2U(NPY_USHORT, npy_ushort, po, buffer);
+//                TYPE_CASE_VALUE_OUT_F2U(NPY_UINT, npy_uint, po, buffer);
+//                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONG, npy_ulong, po, buffer);
+//                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONGLONG, npy_ulonglong, po, buffer);
+//                TYPE_CASE_VALUE_OUT(NPY_BYTE, npy_byte, po, buffer);
+//                TYPE_CASE_VALUE_OUT(NPY_SHORT, npy_short, po, buffer);
+//                TYPE_CASE_VALUE_OUT(NPY_INT, npy_int, po, buffer);
+//                TYPE_CASE_VALUE_OUT(NPY_LONG, npy_long, po, buffer);
+//                TYPE_CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, po, buffer);
+//                TYPE_CASE_VALUE_OUT(NPY_FLOAT, npy_float, po, buffer);
+//                TYPE_CASE_VALUE_OUT(NPY_DOUBLE, npy_double, po, buffer);
+//                default:
+//                    NPY_END_THREADS;
+//                    PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+//                    goto exit;
+//            }
             BASE_ITERATOR_NEXT(dptr_o, po);
         }
         BASE_ITERATOR_NEXT(dptr_i, pi);

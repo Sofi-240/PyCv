@@ -1,17 +1,25 @@
 import numpy as np
 from _debug_utils.im_load import load_image
-from _debug_utils.im_viz import show_collection
+# from _debug_utils.im_viz import show_collection
 from pycv._lib.array_api.dtypes import cast
 from pycv._lib.core import ops
-from pycv.morphological.binary import *
-from pycv.morphological.regions import find_connected_region
+# from pycv.morphological.binary import *
+# from pycv.morphological.regions import region_fill
 
-image = (255 - load_image('horse.png')[..., 0] > 1)
-output = np.zeros_like(image)
-binary_edge(image, output=output)
+inputs = np.ones((60, 60), np.float64)
+kernel = np.ones((3, 3), inputs.dtype)
+inputs[0, 0] = 10
+output = np.zeros_like(inputs)
+offset = tuple(s // 2 for s in kernel.shape)
 
-find_connected_region(output, seed_point=(128, 119), inplace=True)
-show_collection([image, output], 1, 2)
+ops.convolve(inputs, kernel, output, offset)
+
+# image = (255 - load_image('horse.png')[..., 0] > 1)
+# output = np.zeros_like(image)
+# binary_edge(image, output=output)
+#
+# region_fill(output, seed_point=(128, 119), inplace=True)
+# show_collection([image, output], 1, 2)
 
 # kernel = np.ones((3, 3), bool)
 # origins = tuple(s // 2 for s in kernel.shape)

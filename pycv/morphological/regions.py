@@ -3,7 +3,6 @@ from pycv._lib.filters_support.morphology import c_binary_region_fill
 
 __all__ = [
     'region_fill',
-    'binary_edge',
     'PUBLIC'
 ]
 

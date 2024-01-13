@@ -1,5 +1,45 @@
 #include "ops_support.h"
 
+// #####################################################################################################################
+
+int check_dtype(int dtype)
+{
+    switch (dtype) {
+        case NPY_BOOL:
+            goto exit;
+        case NPY_UBYTE:
+            goto exit;
+        case NPY_USHORT:
+            goto exit;
+        case NPY_UINT:
+            goto exit;
+        case NPY_ULONG:
+            goto exit;
+        case NPY_ULONGLONG:
+            goto exit;
+        case NPY_BYTE:
+            goto exit;
+        case NPY_SHORT:
+            goto exit;
+        case NPY_INT:
+            goto exit;
+        case NPY_LONG:
+            goto exit;
+        case NPY_LONGLONG:
+            goto exit;
+        case NPY_FLOAT:
+            goto exit;
+        case NPY_DOUBLE:
+            goto exit;
+        default:
+            printf("%d", dtype);
+            PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+            goto exit;
+    }
+    exit:
+        return PyErr_Occurred() ? 0 : 1;
+}
+
 
 // #####################################################################################################################
 
@@ -148,24 +188,7 @@ int COPY_DATA_TO_DOUBLE(PyArrayObject *array, double **line, npy_bool *footprint
     for (ii = 0; ii < array_size; ii++) {
         if (!footprint || footprint[ii]) {
             tmp = 0.0;
-            switch (PyArray_TYPE(array)) {
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_BOOL, npy_bool, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_UBYTE, npy_ubyte, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_USHORT, npy_ushort, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_UINT, npy_uint, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_ULONG, npy_ulong, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_ULONGLONG, npy_ulonglong, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_BYTE, npy_byte, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_SHORT, npy_short, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_INT, npy_int, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_LONG, npy_long, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_LONGLONG, npy_longlong, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_FLOAT, npy_float, pointer, tmp);
-                TYPE_CASE_GET_VALUE_DOUBLE(NPY_DOUBLE, npy_double, pointer, tmp);
-                default:
-                    PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-                    goto exit;
-            }
+            GET_VALUE_AS_DOUBLE(PyArray_TYPE(array), pointer, tmp);
             *line_p++ = tmp;
         }
         BASE_ITERATOR_NEXT(dptr, pointer);

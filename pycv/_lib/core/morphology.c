@@ -458,7 +458,6 @@ int ops_dilation(PyArrayObject *input,
     }
 
 
-
     if (!INIT_Neighborhood_Iterator(offsets_stride, PyArray_SIZE(input), &dptr_of)){
         goto exit;
     }
@@ -728,6 +727,43 @@ int ops_binary_region_fill(PyArrayObject *output,
 // #####################################################################################################################
 
 
+int ops_binary_labeling(PyArrayObject *input,
+                        PyArrayObject *strel,
+                        PyArrayObject *output)
+{
+    char *pi = NULL, *po = NULL;
+    double value = 0.0, *line;
+    npy_bool value_bool = NPY_FALSE;
+    npy_bool *footprint = NULL;
+//    NPY_ALLOW_C_API_DEF;
+    NPY_BEGIN_THREADS_DEF;
+
+    pi = (void *)PyArray_DATA(input);
+    po = (void *)PyArray_DATA(output);
+
+    printf("HERE\n");
+//    GET_VALUE_AS_DOUBLE(PyArray_TYPE(input), pi, value);
+//    printf("value is %.2f", value);
+//
+//    GET_VALUE_AS_BOOL(PyArray_TYPE(input), pi, value_bool);
+//    printf("value bool is %" NPY_INTP_FMT "\n", value_bool);
+//
+    NPY_BEGIN_THREADS;
+
+//    NPY_ALLOW_C_API;
+//    COPY_DATA_TO_DOUBLE(strel, &line, footprint);
+//    NPY_DISABLE_C_API;
+    GET_VALUE_AS_DOUBLE(PyArray_TYPE(input), pi, value);
+//    NPY_DISABLE_C_API;
+    printf("value is %.2f\n", value);
+
+    SET_VALUE_FROM_DOUBLE(PyArray_TYPE(output), po, value);
+    printf("out is %.2f", *(double *)po);
+
+    NPY_END_THREADS;
+    exit:
+        return PyErr_Occurred() ? 0 : 1;
+}
 
 
 

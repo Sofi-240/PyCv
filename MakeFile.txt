@@ -7,3 +7,4 @@ python setup.py develop
 cd C:\Users\97254\Documents\MyProjects\PyCv\pycv\_lib\core
 
 printf("offsets is %" NPY_INTP_FMT "\n", (footprint).offsets[jj]);
+printf("value is %.2f", value);

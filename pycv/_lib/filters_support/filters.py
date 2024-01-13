@@ -58,6 +58,7 @@ def c_convolve(
 
     outputs_shape = output_shape(inputs.shape, kernel_shape, stride)
     output, share_memory = get_output(output, inputs, outputs_shape)
+    hold_output = None
 
     if share_memory:
         hold_output = output
@@ -120,6 +121,7 @@ def c_rank_filter(
 
     outputs_shape = output_shape(inputs.shape, kernel_shape, stride)
     output, share_memory = get_output(output, inputs, outputs_shape)
+    hold_output = None
 
     if share_memory:
         hold_output = output
