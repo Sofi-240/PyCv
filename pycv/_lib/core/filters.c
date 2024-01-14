@@ -1,53 +1,134 @@
-#include "ops_support.h"
+#include "ops_base.h"
 #include "filters.h"
-
 
 // #####################################################################################################################
 
-#define TYPE_CASE_CONVOLVE(_TYPE, _type, _pi, _weights, _buffer_size, _offsets, _buffer_val)   \
-case _TYPE:                                                                                    \
+#define TYPE_CASE_CONVOLVE(_NUM_TYPE, _type, _pi, _weights, _offsets_size, _offsets, _out)     \
+case _NUM_TYPE:                                                                                \
 {                                                                                              \
     npy_intp _ii;                                                                              \
-    for (_ii = 0; _ii < _buffer_size; _ii++) {                                                 \
-        _buffer_val += _weights[_ii] * (double)(*((_type *)(_pi + _offsets[_ii])));            \
+    for (_ii = 0; _ii < _offsets_size; _ii++) {                                                \
+        _out += _weights[_ii] * (double)(*((_type *)(_pi + _offsets[_ii])));                   \
     }                                                                                          \
 }                                                                                              \
 break
 
+#define EX_CONVOLVE(_NUM_TYPE, _pi, _weights, _offsets_size, _offsets, _out)                                           \
+{                                                                                                                      \
+    switch (_NUM_TYPE) {                                                                                               \
+        TYPE_CASE_CONVOLVE(NPY_BOOL, npy_bool, _pi, _weights, _offsets_size, _offsets, _out);                          \
+        TYPE_CASE_CONVOLVE(NPY_UBYTE, npy_ubyte, _pi, _weights, _offsets_size, _offsets, _out);                        \
+        TYPE_CASE_CONVOLVE(NPY_USHORT, npy_ushort, _pi, _weights, _offsets_size, _offsets, _out);                      \
+        TYPE_CASE_CONVOLVE(NPY_UINT, npy_uint, _pi, _weights, _offsets_size, _offsets, _out);                          \
+        TYPE_CASE_CONVOLVE(NPY_ULONG, npy_ulong, _pi, _weights, _offsets_size, _offsets, _out);                        \
+        TYPE_CASE_CONVOLVE(NPY_ULONGLONG, npy_ulonglong, _pi, _weights, _offsets_size, _offsets, _out);                \
+        TYPE_CASE_CONVOLVE(NPY_BYTE, npy_byte, _pi, _weights, _offsets_size, _offsets, _out);                          \
+        TYPE_CASE_CONVOLVE(NPY_SHORT, npy_short, _pi, _weights, _offsets_size, _offsets, _out);                        \
+        TYPE_CASE_CONVOLVE(NPY_INT, npy_int, _pi, _weights, _offsets_size, _offsets, _out);                            \
+        TYPE_CASE_CONVOLVE(NPY_LONG, npy_long, _pi, _weights, _offsets_size, _offsets, _out);                          \
+        TYPE_CASE_CONVOLVE(NPY_LONGLONG, npy_longlong, _pi, _weights, _offsets_size, _offsets, _out);                  \
+        TYPE_CASE_CONVOLVE(NPY_FLOAT, npy_float, _pi, _weights, _offsets_size, _offsets, _out);                        \
+        TYPE_CASE_CONVOLVE(NPY_DOUBLE, npy_double, _pi, _weights, _offsets_size, _offsets, _out);                      \
+    }                                                                                                                  \
+}
+
+static int flip_kernel(PyArrayObject *kernel, double **kernel_out) {
+    ArrayIter iter;
+    npy_intp size, ii;
+    char *pointer = NULL;
+    double *k_run, tmp = 0.0;
+    int num_type;
+
+    size = PyArray_SIZE(kernel);
+    num_type = PyArray_TYPE(kernel);
+
+    *kernel_out = calloc(size, sizeof(double));
+    if (!*kernel_out) {
+        PyErr_NoMemory();
+        return 0;
+    }
+    k_run = *kernel_out;
+
+    ArrayIterInit(kernel, &iter);
+    pointer = (void *)PyArray_DATA(kernel);
+
+    for (ii = size - 1; ii >= 0; ii--) {
+        GET_VALUE_AS(num_type, double, pointer, tmp);
+        k_run[ii] = tmp;
+        ARRAY_ITER_NEXT(iter, pointer);
+    }
+    return 1;
+}
+
+
 int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *output, npy_intp *origins)
 {
-    Base_Iterator dptr_o, dptr_i;
-    char *pi = NULL, *po = NULL;
+    ArrayIter iter_i, iter_o;
+    char *po = NULL, *pi = NULL;
     npy_bool *footprint, *borders_lookup;
-    int footprint_size;
+    int offsets_size, num_type_i, num_type_o;
     npy_intp ii, *offsets;
-    double buffer, *weights;
+    double tmp, *kernel_flipted, *weights, *ww;
 
     NPY_BEGIN_THREADS_DEF;
 
-    if (!check_dtype(PyArray_TYPE(input)) || !check_dtype(PyArray_TYPE(output)) || !check_dtype(PyArray_TYPE(kernel))) {
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(kernel))) {
+        PyErr_SetString(PyExc_RuntimeError, "kernel dtype not supported");
         goto exit;
     }
 
-    if (!INIT_FOOTPRINT(kernel, &footprint, &footprint_size)) {
+    if (!flip_kernel(kernel, &kernel_flipted)) {
         goto exit;
     }
 
-    if (!INIT_OFFSETS_WITH_BORDERS(input, PyArray_DIMS(kernel), origins, footprint, &offsets, &borders_lookup)) {
+    footprint = malloc(PyArray_SIZE(kernel) * sizeof(npy_bool));
+    if (!footprint) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    offsets_size = 0;
+    for (ii = 0; ii < PyArray_SIZE(kernel); ii++) {
+        if (kernel_flipted[ii]) {
+            footprint[ii] = NPY_TRUE;
+            offsets_size++;
+        } else {
+            footprint[ii] = NPY_FALSE;
+        }
+    }
+
+    weights = malloc(offsets_size * sizeof(double));
+    if (!weights) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    ww = weights;
+    for (ii = 0; ii < PyArray_SIZE(kernel); ii++) {
+        if (footprint[ii]) {
+            *ww++ = kernel_flipted[ii];
+        }
+    }
+
+    if (!init_offsets_ravel(input, PyArray_DIMS(kernel), origins, footprint, &offsets)) {
         goto exit;
     }
 
-    if (!COPY_DATA_TO_DOUBLE(kernel, &weights, footprint)) {
+    if (!init_borders_lut(PyArray_NDIM(input), PyArray_DIMS(input), PyArray_DIMS(kernel), origins, &borders_lookup)) {
         goto exit;
     }
 
-    if (!INIT_Base_Iterator(input, &dptr_i)){
-        goto exit;
-    }
+    ArrayIterInit(input, &iter_i);
+    ArrayIterInit(output, &iter_o);
 
-    if (!INIT_Base_Iterator(output, &dptr_o)){
-        goto exit;
-    }
+    num_type_i = PyArray_TYPE(input);
+    num_type_o = PyArray_TYPE(output);
 
     NPY_BEGIN_THREADS;
 
@@ -56,62 +137,12 @@ int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *out
 
     for (ii = 0; ii < PyArray_SIZE(input); ii++) {
         if (!borders_lookup[ii]) {
-            buffer = 0.0;
-            switch (PyArray_TYPE(input)) {
-                TYPE_CASE_CONVOLVE(NPY_BOOL, npy_bool,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_UBYTE, npy_ubyte,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_USHORT, npy_ushort,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_UINT, npy_uint,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_ULONG, npy_ulong,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_ULONGLONG, npy_ulonglong,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_BYTE, npy_byte,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_SHORT, npy_short,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_INT, npy_int,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_LONG, npy_long,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_LONGLONG, npy_longlong,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_FLOAT, npy_float,
-                                   pi, weights, footprint_size, offsets, buffer);
-                TYPE_CASE_CONVOLVE(NPY_DOUBLE, npy_double,
-                                   pi, weights, footprint_size, offsets, buffer);
-                default:
-                    NPY_END_THREADS;
-                    PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-                    goto exit;
-            }
-            SET_VALUE_FROM_DOUBLE(PyArray_TYPE(output), po, buffer);
-//            switch (PyArray_TYPE(output)) {
-//                TYPE_CASE_VALUE_OUT_F2U(NPY_BOOL, npy_bool, po, buffer);
-//                TYPE_CASE_VALUE_OUT_F2U(NPY_UBYTE, npy_ubyte, po, buffer);
-//                TYPE_CASE_VALUE_OUT_F2U(NPY_USHORT, npy_ushort, po, buffer);
-//                TYPE_CASE_VALUE_OUT_F2U(NPY_UINT, npy_uint, po, buffer);
-//                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONG, npy_ulong, po, buffer);
-//                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONGLONG, npy_ulonglong, po, buffer);
-//                TYPE_CASE_VALUE_OUT(NPY_BYTE, npy_byte, po, buffer);
-//                TYPE_CASE_VALUE_OUT(NPY_SHORT, npy_short, po, buffer);
-//                TYPE_CASE_VALUE_OUT(NPY_INT, npy_int, po, buffer);
-//                TYPE_CASE_VALUE_OUT(NPY_LONG, npy_long, po, buffer);
-//                TYPE_CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, po, buffer);
-//                TYPE_CASE_VALUE_OUT(NPY_FLOAT, npy_float, po, buffer);
-//                TYPE_CASE_VALUE_OUT(NPY_DOUBLE, npy_double, po, buffer);
-//                default:
-//                    NPY_END_THREADS;
-//                    PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-//                    goto exit;
-//            }
-            BASE_ITERATOR_NEXT(dptr_o, po);
+            tmp = 0.0;
+            EX_CONVOLVE(num_type_i, pi, weights, offsets_size, offsets, tmp);
+            SET_VALUE_TO(num_type_o, po, tmp);
+            ARRAY_ITER_NEXT(iter_o, po);
         }
-        BASE_ITERATOR_NEXT(dptr_i, pi);
+        ARRAY_ITER_NEXT(iter_i, pi);
     }
     NPY_END_THREADS;
     exit:
@@ -120,49 +151,70 @@ int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *out
 
 // #####################################################################################################################
 
-static void SWAP(double *i1, double *i2)
+// QUICK SELECT
+
+static void qs_swap(double *i1, double *i2)
 {
     double tmp = *i1;
     *i1 = *i2;
     *i2 = tmp;
 }
 
-static npy_intp PARTITION(double *buffer, npy_intp low, npy_intp high)
+static npy_intp qs_partition(double *buffer, npy_intp low, npy_intp high)
 {
     double pivot = buffer[high];
     npy_intp jj, ii = low;
     for (jj = low; jj < high; jj++) {
         if (buffer[jj] < pivot) {
-            SWAP(&buffer[ii], &buffer[jj]);
+            qs_swap(&buffer[ii], &buffer[jj]);
             ii++;
         }
     }
-    SWAP(&buffer[ii], &buffer[high]);
+    qs_swap(&buffer[ii], &buffer[high]);
     return ii;
 }
 
-static double QUICK_SELECT(double *buffer, npy_intp low, npy_intp high, int rank)
+static double quick_select(double *buffer, npy_intp low, npy_intp high, int rank)
 {
-    npy_intp pivot_index = PARTITION(buffer, low, high);
+    npy_intp pivot_index = qs_partition(buffer, low, high);
     if (rank == pivot_index) {
         return buffer[pivot_index];
     } else if (rank - 1 < pivot_index) {
-        return QUICK_SELECT(buffer, low, pivot_index - 1, rank);
+        return quick_select(buffer, low, pivot_index - 1, rank);
     } else {
-        return QUICK_SELECT(buffer, pivot_index + 1, high, rank);
+        return quick_select(buffer, pivot_index + 1, high, rank);
     }
 }
 
-#define TYPE_CASE_SELECT(_TYPE, _type, _pi, _buffer_size, _offsets, _buffer, _rank, _rank_val)   \
-case _TYPE:    \
-{    \
-    npy_intp _ii;    \
-    for (_ii = 0; _ii < _buffer_size; _ii++) {    \
-        _buffer[_ii] = (double)(*((_type *)(_pi + _offsets[_ii])));    \
-    }    \
-    _rank_val = QUICK_SELECT(_buffer, 0, _buffer_size - 1, _rank);     \
-}    \
+#define TYPE_CASE_SELECT(_NUM_TYPE, _type, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val)   \
+case _NUM_TYPE:                                                                                       \
+{                                                                                                     \
+    npy_intp _ii;                                                                                     \
+    for (_ii = 0; _ii < _offsets_size; _ii++) {                                                       \
+        _buffer[_ii] = (double)(*((_type *)(_pi + _offsets[_ii])));                                   \
+    }                                                                                                 \
+    _rank_val = quick_select(_buffer, 0, _offsets_size - 1, _rank);                                   \
+}                                                                                                     \
 break
+
+#define EX_SELECT(_NUM_TYPE, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val)                               \
+{                                                                                                                   \
+    switch (_NUM_TYPE) {                                                                                            \
+        TYPE_CASE_SELECT(NPY_BOOL, npy_bool, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);              \
+        TYPE_CASE_SELECT(NPY_UBYTE, npy_ubyte, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);            \
+        TYPE_CASE_SELECT(NPY_USHORT, npy_ushort, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);          \
+        TYPE_CASE_SELECT(NPY_UINT, npy_uint, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);              \
+        TYPE_CASE_SELECT(NPY_ULONG, npy_ulong, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);            \
+        TYPE_CASE_SELECT(NPY_ULONGLONG, npy_ulonglong, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);    \
+        TYPE_CASE_SELECT(NPY_BYTE, npy_byte, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);              \
+        TYPE_CASE_SELECT(NPY_SHORT, npy_short, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);            \
+        TYPE_CASE_SELECT(NPY_INT, npy_int, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);                \
+        TYPE_CASE_SELECT(NPY_LONG, npy_long, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);              \
+        TYPE_CASE_SELECT(NPY_LONGLONG, npy_longlong, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);      \
+        TYPE_CASE_SELECT(NPY_FLOAT, npy_float, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);            \
+        TYPE_CASE_SELECT(NPY_DOUBLE, npy_double, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);          \
+    }                                                                                                               \
+}
 
 int ops_rank_filter(PyArrayObject *input,
                     PyArrayObject *footprint,
@@ -170,37 +222,47 @@ int ops_rank_filter(PyArrayObject *input,
                     int rank,
                     npy_intp *origins)
 {
-    Base_Iterator dptr_o, dptr_i;
-    char *pi = NULL, *po = NULL;
-    npy_bool *borders_lookup, *fo = NULL;
-    npy_intp footprint_size = 0;
-    npy_intp ii, jj, kernel_size, *offsets;
-    double rank_val, *buffer = NULL;
+    ArrayIter iter_i, iter_o;
+    char *po = NULL, *pi = NULL;
+    npy_bool *footprint_arr, *borders_lookup;
+    int offsets_size, num_type_i, num_type_o;
+    npy_intp ii, *offsets;
+    double rank_val, *buffer;
 
     NPY_BEGIN_THREADS_DEF;
 
-    kernel_size = PyArray_SIZE(footprint);
-    fo = (npy_bool *)PyArray_DATA(footprint);
-
-    for (ii = 0; ii < kernel_size; ii++) {
-        if (fo[ii]) {
-            footprint_size++;
-        }
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
     }
-
-    if (!INIT_OFFSETS_WITH_BORDERS(input, PyArray_DIMS(footprint), origins, fo, &offsets, &borders_lookup)) {
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(footprint))) {
+        PyErr_SetString(PyExc_RuntimeError, "footprint dtype not supported");
         goto exit;
     }
 
-    if (!INIT_Base_Iterator(input, &dptr_i)){
+    if (!array_to_footprint(footprint, &footprint_arr, &offsets_size)) {
         goto exit;
     }
 
-    if (!INIT_Base_Iterator(output, &dptr_o)){
+    if (!init_offsets_ravel(input, PyArray_DIMS(footprint), origins, footprint_arr, &offsets)) {
         goto exit;
     }
 
-    buffer = malloc(footprint_size * sizeof(double));
+    if (!init_borders_lut(PyArray_NDIM(input), PyArray_DIMS(input), PyArray_DIMS(footprint), origins, &borders_lookup)) {
+        goto exit;
+    }
+
+    ArrayIterInit(input, &iter_i);
+    ArrayIterInit(output, &iter_o);
+
+    num_type_i = PyArray_TYPE(input);
+    num_type_o = PyArray_TYPE(output);
+
+    buffer = malloc(offsets_size * sizeof(double));
     if (!buffer) {
         PyErr_NoMemory();
         goto exit;
@@ -214,66 +276,50 @@ int ops_rank_filter(PyArrayObject *input,
     for (ii = 0; ii < PyArray_SIZE(input); ii++) {
         if (!borders_lookup[ii]) {
             rank_val = 0.0;
-            switch (PyArray_TYPE(input)) {
-                TYPE_CASE_SELECT(NPY_BOOL, npy_bool,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_UBYTE, npy_ubyte,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_USHORT, npy_ushort,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_UINT, npy_uint,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_ULONG, npy_ulong,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_ULONGLONG, npy_ulonglong,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_BYTE, npy_byte,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_SHORT, npy_short,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_INT, npy_int,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_LONG, npy_long,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_LONGLONG, npy_longlong,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_FLOAT, npy_float,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                TYPE_CASE_SELECT(NPY_DOUBLE, npy_double,
-                                 pi, footprint_size, offsets, buffer, rank, rank_val);
-                default:
-                    NPY_END_THREADS;
-                    PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-                    goto exit;
-            }
-            switch (PyArray_TYPE(output)) {
-                TYPE_CASE_VALUE_OUT_F2U(NPY_BOOL, npy_bool, po, rank_val);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_UBYTE, npy_ubyte, po, rank_val);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_USHORT, npy_ushort, po, rank_val);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_UINT, npy_uint, po, rank_val);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONG, npy_ulong, po, rank_val);
-                TYPE_CASE_VALUE_OUT_F2U(NPY_ULONGLONG, npy_ulonglong, po, rank_val);
-                TYPE_CASE_VALUE_OUT(NPY_BYTE, npy_byte, po, rank_val);
-                TYPE_CASE_VALUE_OUT(NPY_SHORT, npy_short, po, rank_val);
-                TYPE_CASE_VALUE_OUT(NPY_INT, npy_int, po, rank_val);
-                TYPE_CASE_VALUE_OUT(NPY_LONG, npy_long, po, rank_val);
-                TYPE_CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, po, rank_val);
-                TYPE_CASE_VALUE_OUT(NPY_FLOAT, npy_float, po, rank_val);
-                TYPE_CASE_VALUE_OUT(NPY_DOUBLE, npy_double, po, rank_val);
-                default:
-                    NPY_END_THREADS;
-                    PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-                    goto exit;
-            }
-            BASE_ITERATOR_NEXT(dptr_o, po);
+            EX_SELECT(num_type_i, pi, offsets_size, offsets, buffer, rank, rank_val);
+            SET_VALUE_TO(num_type_o, po, rank_val);
+            ARRAY_ITER_NEXT(iter_o, po);
         }
-        BASE_ITERATOR_NEXT(dptr_i, pi);
+        ARRAY_ITER_NEXT(iter_i, pi);
     }
     NPY_END_THREADS;
     exit:
-        free(offsets);
-        free(borders_lookup);
+        free(buffer);
         return PyErr_Occurred() ? 0 : 1;
 }
+
+// #####################################################################################################################
+
+//int ops_canny_filter(PyArrayObject *input,
+//                     PyArrayObject *blur_kernel,
+//                     PyArrayObject *output)
+//{
+//    ArrayIter iter_i, iter_o;
+//    char *po = NULL, *pi = NULL;
+//    npy_bool *footprint, *borders_lookup;
+//    int offsets_size, num_type_i, num_type_o;
+//    npy_intp ii, *offsets;
+//    double tmp, *weights;
+//
+//    NPY_BEGIN_THREADS_DEF;
+//
+//
+//
+//    if (!valid_dtype(PyArray_TYPE(input))) {
+//        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+//        goto exit;
+//    }
+//    if (!valid_dtype(PyArray_TYPE(blur_kernel))) {
+//        PyErr_SetString(PyExc_RuntimeError, "blur kernel dtype not supported");
+//        goto exit;
+//    }
+//    if (!valid_dtype(PyArray_TYPE(output))) {
+//        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+//        goto exit;
+//    }
+//
+//
+//
+//}
 
 // #####################################################################################################################

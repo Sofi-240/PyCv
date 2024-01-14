@@ -1,9 +1,8 @@
 #include "ops.h"
-#include "ops_support.h"
+#include "ops_base.h"
 
 #include "filters.h"
 #include "morphology.h"
-#include "query_array.h"
 
 // #####################################################################################################################
 
@@ -64,6 +63,34 @@ PyObject* convolve(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
+PyObject* rank_filter(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *footprint = NULL, *output = NULL;
+    PyArray_Dims origins = {NULL, 0};
+    int rank;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&iO&",
+            Input_To_Array, &input,
+            Input_To_Array, &footprint,
+            Output_To_Array, &output,
+            &rank,
+            PyArray_IntpConverter, &origins)) {
+        goto exit;
+    }
+
+    ops_rank_filter(input, footprint, output, rank, origins.ptr);
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(footprint);
+        Py_XDECREF(output);
+        PyDimMem_FREE(origins.ptr);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
 PyObject* binary_erosion(PyObject* self, PyObject* args)
 {
     PyArrayObject *input = NULL, *strel = NULL, *output = NULL, *mask = NULL;
@@ -85,7 +112,7 @@ PyObject* binary_erosion(PyObject* self, PyObject* args)
 
     ops_binary_erosion(input, strel, output, origins.ptr, iterations, mask, invert);
 
-    PyArray_ResolveWritebackIfCopy(output);
+//    PyArray_ResolveWritebackIfCopy(output);
 
     exit:
         Py_XDECREF(input);
@@ -117,7 +144,7 @@ PyObject* erosion(PyObject* self, PyObject* args)
         goto exit;
     }
 
-    ops_erosion(input, flat_strel, non_flat_strel, output, origins.ptr, mask, cast_value);
+    ops_gray_ero_or_dil(input, flat_strel, non_flat_strel, output, origins.ptr, mask, cast_value, ERO);
 
     PyArray_ResolveWritebackIfCopy(output);
 
@@ -154,7 +181,7 @@ PyObject* dilation(PyObject* self, PyObject* args)
         goto exit;
     }
 
-    ops_dilation(input, flat_strel, non_flat_strel, output, origins.ptr, mask, cast_value);
+    ops_gray_ero_or_dil(input, flat_strel, non_flat_strel, output, origins.ptr, mask, cast_value, DIL);
 
     PyArray_ResolveWritebackIfCopy(output);
 
@@ -167,60 +194,6 @@ PyObject* dilation(PyObject* self, PyObject* args)
         if (mask) {
             Py_XDECREF(mask);
         }
-        Py_XDECREF(output);
-        PyDimMem_FREE(origins.ptr);
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
-}
-
-PyObject* rank_filter(PyObject* self, PyObject* args)
-{
-    PyArrayObject *input = NULL, *footprint = NULL, *output = NULL;
-    PyArray_Dims origins = {NULL, 0};
-    int rank;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&O&iO&",
-            Input_To_Array, &input,
-            Input_To_Array, &footprint,
-            Output_To_Array, &output,
-            &rank,
-            PyArray_IntpConverter, &origins)) {
-        goto exit;
-    }
-
-    ops_rank_filter(input, footprint, output, rank, origins.ptr);
-    PyArray_ResolveWritebackIfCopy(output);
-
-    exit:
-        Py_XDECREF(input);
-        Py_XDECREF(footprint);
-        Py_XDECREF(output);
-        PyDimMem_FREE(origins.ptr);
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
-}
-
-PyObject* is_local_max(PyObject* self, PyObject* args)
-{
-    PyArrayObject *input = NULL, *strel = NULL, *output = NULL;
-    PyArray_Dims origins = {NULL, 0};
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&O&O&",
-            Input_To_Array, &input,
-            Input_To_Array, &strel,
-            Output_To_Array, &output,
-            PyArray_IntpConverter, &origins)) {
-        goto exit;
-    }
-
-    is_local_q(input, strel, output, LOCAL_MAX, origins.ptr);
-    PyArray_ResolveWritebackIfCopy(output);
-
-    exit:
-        Py_XDECREF(input);
-        Py_XDECREF(strel);
         Py_XDECREF(output);
         PyDimMem_FREE(origins.ptr);
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
@@ -253,27 +226,31 @@ PyObject* binary_region_fill(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
-PyObject* binary_labeling(PyObject* self, PyObject* args)
+PyObject* labeling(PyObject* self, PyObject* args)
 {
-    PyArrayObject *input = NULL, *strel = NULL, *output = NULL;
+    PyArrayObject *input = NULL, *output = NULL, *values_map = NULL;
+    int connectivity;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&O&O&",
+            "O&iO&O&",
             Input_To_Array, &input,
-            Input_To_Array, &strel,
+            &connectivity,
+            InputOptional_To_Array, &values_map,
             Output_To_Array, &output)) {
         goto exit;
     }
 
-    ops_binary_labeling(input, strel, output);
+    ops_labeling(input, connectivity, values_map, output);
 
     PyArray_ResolveWritebackIfCopy(output);
 
     exit:
         Py_XDECREF(input);
-        Py_XDECREF(strel);
         Py_XDECREF(output);
+        if (values_map) {
+            Py_XDECREF(values_map);
+        }
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
@@ -283,6 +260,12 @@ static PyMethodDef methods[] = {
     {
         "convolve",
         (PyCFunction)convolve,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "rank_filter",
+        (PyCFunction)rank_filter,
         METH_VARARGS,
         NULL
     },
@@ -305,26 +288,14 @@ static PyMethodDef methods[] = {
         NULL
     },
     {
-        "rank_filter",
-        (PyCFunction)rank_filter,
-        METH_VARARGS,
-        NULL
-    },
-    {
-        "is_local_max",
-        (PyCFunction)is_local_max,
-        METH_VARARGS,
-        NULL
-    },
-    {
         "binary_region_fill",
         (PyCFunction)binary_region_fill,
         METH_VARARGS,
         NULL
     },
     {
-        "binary_labeling",
-        (PyCFunction)binary_labeling,
+        "labeling",
+        (PyCFunction)labeling,
         METH_VARARGS,
         NULL
     },

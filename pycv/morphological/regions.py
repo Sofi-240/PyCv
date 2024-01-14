@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.filters_support.morphology import c_binary_region_fill
+from pycv._lib.filters_support.morphology import c_binary_region_fill, c_labeling
 
 __all__ = [
     'region_fill',
@@ -51,3 +51,14 @@ def region_fill(
 
 
 ########################################################################################################################
+
+def im_label(
+        image: np.ndarray,
+        connectivity: int = 1,
+        rng_mapping_method: str = 'sqr',
+        mod_value: int = 16
+) -> tuple[int, np.ndarray]:
+    if not isinstance(image, np.ndarray):
+        raise TypeError(f'Image need to be type of numpy.ndarray')
+    nlabels, output = c_labeling(image, connectivity, rng_mapping_method, mod_value)
+    return c_labeling(image, connectivity, rng_mapping_method, mod_value)

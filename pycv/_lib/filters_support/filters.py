@@ -1,9 +1,8 @@
 import numpy as np
-import numbers
 from pycv._lib.array_api.array_pad import get_padding_width, pad
 from pycv._lib.array_api.regulator import check_finite
 from pycv._lib.array_api.shapes import output_shape
-from pycv._lib.filters_support.utils import default_axis, fix_kernel_shape, valid_kernels, get_output, valid_kernel_shape_with_ref
+from pycv._lib.filters_support.utils import valid_kernels, get_output, valid_kernel_shape_with_ref
 from pycv._lib.core import ops
 
 FLIPPER = (1, 0, 2)

@@ -1,3 +1,19 @@
+#ifndef OPS_BASE_H
+#define OPS_BASE_H
+
+#define NO_IMPORT_ARRAY
+#include "ops.h"
+#undef NO_IMPORT_ARRAY
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <float.h>
+#include <limits.h>
+#include <assert.h>
+#include <math.h>
+
+#define PI 3.141592654
 
 // #####################################################################################################################
 
@@ -24,61 +40,61 @@ int valid_dtype(int dtype_num);
     int _safe_cast = sizeof(_val) == sizeof(double) ? 1 : 0;                                         \
     if (_safe_cast) {                                                                                \
         switch (_NUM_TYPE) {                                                                         \
-            TYPE_CASE_VALUE_OUT_F2U(NPY_BOOL, npy_bool, _pointer, _val);                             \
-            TYPE_CASE_VALUE_OUT_F2U(NPY_UBYTE, npy_ubyte, _pointer, _val);                           \
-            TYPE_CASE_VALUE_OUT_F2U(NPY_USHORT, npy_ushort, _pointer, _val);                         \
-            TYPE_CASE_VALUE_OUT_F2U(NPY_UINT, npy_uint, _pointer, _val);                             \
-            TYPE_CASE_VALUE_OUT_F2U(NPY_ULONG, npy_ulong, _pointer, _val);                           \
-            TYPE_CASE_VALUE_OUT_F2U(NPY_ULONGLONG, npy_ulonglong, _pointer, _val);                   \
-            TYPE_CASE_VALUE_OUT(NPY_BYTE, npy_byte, _pointer, _val);                                 \
-            TYPE_CASE_VALUE_OUT(NPY_SHORT, npy_short, _pointer, _val);                               \
-            TYPE_CASE_VALUE_OUT(NPY_INT, npy_int, _pointer, _val);                                   \
-            TYPE_CASE_VALUE_OUT(NPY_LONG, npy_long, _pointer, _val);                                 \
-            TYPE_CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, _pointer, _val);                         \
-            TYPE_CASE_VALUE_OUT(NPY_FLOAT, npy_float, _pointer, _val);                               \
-            TYPE_CASE_VALUE_OUT(NPY_DOUBLE, npy_double, _pointer, _val);                             \
+            TYPE_CASE_SET_VALUE_F2U(NPY_BOOL, npy_bool, _pointer, _val);                             \
+            TYPE_CASE_SET_VALUE_F2U(NPY_UBYTE, npy_ubyte, _pointer, _val);                           \
+            TYPE_CASE_SET_VALUE_F2U(NPY_USHORT, npy_ushort, _pointer, _val);                         \
+            TYPE_CASE_SET_VALUE_F2U(NPY_UINT, npy_uint, _pointer, _val);                             \
+            TYPE_CASE_SET_VALUE_F2U(NPY_ULONG, npy_ulong, _pointer, _val);                           \
+            TYPE_CASE_SET_VALUE_F2U(NPY_ULONGLONG, npy_ulonglong, _pointer, _val);                   \
+            TYPE_CASE_SET_VALUE(NPY_BYTE, npy_byte, _pointer, _val);                                 \
+            TYPE_CASE_SET_VALUE(NPY_SHORT, npy_short, _pointer, _val);                               \
+            TYPE_CASE_SET_VALUE(NPY_INT, npy_int, _pointer, _val);                                   \
+            TYPE_CASE_SET_VALUE(NPY_LONG, npy_long, _pointer, _val);                                 \
+            TYPE_CASE_SET_VALUE(NPY_LONGLONG, npy_longlong, _pointer, _val);                         \
+            TYPE_CASE_SET_VALUE(NPY_FLOAT, npy_float, _pointer, _val);                               \
+            TYPE_CASE_SET_VALUE(NPY_DOUBLE, npy_double, _pointer, _val);                             \
             default:                                                                                 \
-                PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");                   \
+                PyErr_SetString(PyExc_RuntimeError, "dtype not supported");                          \
         }                                                                                            \
     } else {                                                                                         \
         switch (_NUM_TYPE) {                                                                         \
-            TYPE_CASE_VALUE_OUT(NPY_BOOL, npy_bool, _pointer, _val);                                 \
-            TYPE_CASE_VALUE_OUT(NPY_UBYTE, npy_ubyte, _pointer, _val);                               \
-            TYPE_CASE_VALUE_OUT(NPY_USHORT, npy_ushort, _pointer, _val);                             \
-            TYPE_CASE_VALUE_OUT(NPY_UINT, npy_uint, _pointer, _val);                                 \
-            TYPE_CASE_VALUE_OUT(NPY_ULONG, npy_ulong, _pointer, _val);                               \
-            TYPE_CASE_VALUE_OUT(NPY_ULONGLONG, npy_ulonglong, _pointer, _val);                       \
-            TYPE_CASE_VALUE_OUT(NPY_BYTE, npy_byte, _pointer, _val);                                 \
-            TYPE_CASE_VALUE_OUT(NPY_SHORT, npy_short, _pointer, _val);                               \
-            TYPE_CASE_VALUE_OUT(NPY_INT, npy_int, _pointer, _val);                                   \
-            TYPE_CASE_VALUE_OUT(NPY_LONG, npy_long, _pointer, _val);                                 \
-            TYPE_CASE_VALUE_OUT(NPY_LONGLONG, npy_longlong, _pointer, _val);                         \
-            TYPE_CASE_VALUE_OUT(NPY_FLOAT, npy_float, _pointer, _val);                               \
-            TYPE_CASE_VALUE_OUT(NPY_DOUBLE, npy_double, _pointer, _val);                             \
+            TYPE_CASE_SET_VALUE(NPY_BOOL, npy_bool, _pointer, _val);                                 \
+            TYPE_CASE_SET_VALUE(NPY_UBYTE, npy_ubyte, _pointer, _val);                               \
+            TYPE_CASE_SET_VALUE(NPY_USHORT, npy_ushort, _pointer, _val);                             \
+            TYPE_CASE_SET_VALUE(NPY_UINT, npy_uint, _pointer, _val);                                 \
+            TYPE_CASE_SET_VALUE(NPY_ULONG, npy_ulong, _pointer, _val);                               \
+            TYPE_CASE_SET_VALUE(NPY_ULONGLONG, npy_ulonglong, _pointer, _val);                       \
+            TYPE_CASE_SET_VALUE(NPY_BYTE, npy_byte, _pointer, _val);                                 \
+            TYPE_CASE_SET_VALUE(NPY_SHORT, npy_short, _pointer, _val);                               \
+            TYPE_CASE_SET_VALUE(NPY_INT, npy_int, _pointer, _val);                                   \
+            TYPE_CASE_SET_VALUE(NPY_LONG, npy_long, _pointer, _val);                                 \
+            TYPE_CASE_SET_VALUE(NPY_LONGLONG, npy_longlong, _pointer, _val);                         \
+            TYPE_CASE_SET_VALUE(NPY_FLOAT, npy_float, _pointer, _val);                               \
+            TYPE_CASE_SET_VALUE(NPY_DOUBLE, npy_double, _pointer, _val);                             \
             default:                                                                                 \
-                PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");                   \
+                PyErr_SetString(PyExc_RuntimeError, "dtype not supported");                          \
         }                                                                                            \
     }                                                                                                \
 }
 
 #define GET_VALUE_AS(_NUM_TYPE, _dtype, _pointer, _val)                                              \
 {                                                                                                    \
-    switch (dtype) {                                                                                 \
-        TYPE_CASE_GET_VALUE_AS(NPY_BOOL, npy_bool, _dtype, pointer, value);                          \
-        TYPE_CASE_GET_VALUE_AS(NPY_UBYTE, npy_ubyte, _dtype, pointer, value);                        \
-        TYPE_CASE_GET_VALUE_AS(NPY_USHORT, npy_ushort, _dtype, pointer, value);                      \
-        TYPE_CASE_GET_VALUE_AS(NPY_UINT, npy_uint, _dtype, pointer, value);                          \
-        TYPE_CASE_GET_VALUE_AS(NPY_ULONG, npy_ulong, _dtype, pointer, value);                        \
-        TYPE_CASE_GET_VALUE_AS(NPY_ULONGLONG, npy_ulonglong, _dtype, pointer, value);                \
-        TYPE_CASE_GET_VALUE_AS(NPY_BYTE, npy_byte, _dtype, pointer, value);                          \
-        TYPE_CASE_GET_VALUE_AS(NPY_SHORT, npy_short, _dtype, pointer, value);                        \
-        TYPE_CASE_GET_VALUE_AS(NPY_INT, npy_int, _dtype, pointer, value);                            \
-        TYPE_CASE_GET_VALUE_AS(NPY_LONG, npy_long, _dtype, pointer, value);                          \
-        TYPE_CASE_GET_VALUE_AS(NPY_LONGLONG, npy_longlong, _dtype, pointer, value);                  \
-        TYPE_CASE_GET_VALUE_AS(NPY_FLOAT, npy_float, _dtype, pointer, value);                        \
-        TYPE_CASE_GET_VALUE_AS(NPY_DOUBLE, npy_double, _dtype, pointer, value);                      \
+    switch (_NUM_TYPE) {                                                                             \
+        TYPE_CASE_GET_VALUE_AS(NPY_BOOL, npy_bool, _dtype, _pointer, _val);                          \
+        TYPE_CASE_GET_VALUE_AS(NPY_UBYTE, npy_ubyte, _dtype, _pointer, _val);                        \
+        TYPE_CASE_GET_VALUE_AS(NPY_USHORT, npy_ushort, _dtype, _pointer, _val);                      \
+        TYPE_CASE_GET_VALUE_AS(NPY_UINT, npy_uint, _dtype, _pointer, _val);                          \
+        TYPE_CASE_GET_VALUE_AS(NPY_ULONG, npy_ulong, _dtype, _pointer, _val);                        \
+        TYPE_CASE_GET_VALUE_AS(NPY_ULONGLONG, npy_ulonglong, _dtype, _pointer, _val);                \
+        TYPE_CASE_GET_VALUE_AS(NPY_BYTE, npy_byte, _dtype, _pointer, _val);                          \
+        TYPE_CASE_GET_VALUE_AS(NPY_SHORT, npy_short, _dtype, _pointer, _val);                        \
+        TYPE_CASE_GET_VALUE_AS(NPY_INT, npy_int, _dtype, _pointer, _val);                            \
+        TYPE_CASE_GET_VALUE_AS(NPY_LONG, npy_long, _dtype, _pointer, _val);                          \
+        TYPE_CASE_GET_VALUE_AS(NPY_LONGLONG, npy_longlong, _dtype, _pointer, _val);                  \
+        TYPE_CASE_GET_VALUE_AS(NPY_FLOAT, npy_float, _dtype, _pointer, _val);                        \
+        TYPE_CASE_GET_VALUE_AS(NPY_DOUBLE, npy_double, _dtype, _pointer, _val);                      \
         default:                                                                                     \
-            PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");                        \
+            PyErr_SetString(PyExc_RuntimeError, "dtype not supported");                              \
     }                                                                                                \
 }
 
@@ -126,11 +142,13 @@ void ArrayIterInit(PyArrayObject *array, ArrayIter *iterator);
     for(_ii = (_iterator1).nd_m1; _ii >= 0; _ii--)                                             \
         if ((_iterator1).coordinates[_ii] < (_iterator1).dims_m1[_ii]) {                       \
             (_iterator1).coordinates[_ii]++;                                                   \
+            (_iterator2).coordinates[_ii]++;                                                   \
             _pointer1 += (_iterator1).strides[_ii];                                            \
             _pointer2 += (_iterator2).strides[_ii];                                            \
             break;                                                                             \
         } else {                                                                               \
             (_iterator1).coordinates[_ii] = 0;                                                 \
+            (_iterator2).coordinates[_ii] = 0;                                                 \
             _pointer1 -= (_iterator1).backstrides[_ii];                                        \
             _pointer2 -= (_iterator2).backstrides[_ii];                                        \
         }                                                                                      \
@@ -142,12 +160,16 @@ void ArrayIterInit(PyArrayObject *array, ArrayIter *iterator);
     for(_ii = (_iterator1).nd_m1; _ii >= 0; _ii--)                                               \
         if ((_iterator1).coordinates[_ii] < (_iterator1).dims_m1[_ii]) {                         \
             (_iterator1).coordinates[_ii]++;                                                     \
+            (_iterator2).coordinates[_ii]++;                                                     \
+            (_iterator3).coordinates[_ii]++;                                                     \
             _pointer1 += (_iterator1).strides[_ii];                                              \
             _pointer2 += (_iterator2).strides[_ii];                                              \
             _pointer3 += (_iterator3).strides[_ii];                                              \
             break;                                                                               \
         } else {                                                                                 \
             (_iterator1).coordinates[_ii] = 0;                                                   \
+            (_iterator2).coordinates[_ii] = 0;                                                   \
+            (_iterator3).coordinates[_ii] = 0;                                                   \
             _pointer1 -= (_iterator1).backstrides[_ii];                                          \
             _pointer2 -= (_iterator2).backstrides[_ii];                                          \
             _pointer3 -= (_iterator3).backstrides[_ii];                                          \
@@ -173,7 +195,7 @@ void ArrayIterInit(PyArrayObject *array, ArrayIter *iterator);
 }
 
 typedef struct {
-    int nd_m1;
+    npy_intp nd_m1;
     npy_intp dims_m1[NPY_MAXDIMS];
     npy_intp coordinates[NPY_MAXDIMS];
 } CoordinatesIter;
@@ -192,6 +214,18 @@ void CoordinatesIterInit(npy_intp nd, npy_intp *shape, CoordinatesIter *iterator
         }                                                                                       \
 }
 
+#define COORDINATES_ITER_BACK_NEXT(_iterator)                                                   \
+{                                                                                               \
+    int _ii;                                                                                    \
+    for(_ii = (_iterator).nd_m1; _ii >= 0; _ii--)                                               \
+        if ((_iterator).coordinates[_ii] > 0 {                                                  \
+            (_iterator).coordinates[_ii]--;                                                     \
+            break;                                                                              \
+        } else {                                                                                \
+            (_iterator).coordinates[_ii] = (_iterator).dims_m1[_ii]);                           \
+        }                                                                                       \
+}
+
 #define COORDINATES_ITER_RESET(_iterator)                                                     \
 {                                                                                             \
     int _ii;                                                                                  \
@@ -200,10 +234,11 @@ void CoordinatesIterInit(npy_intp nd, npy_intp *shape, CoordinatesIter *iterator
     }                                                                                         \
 }
 
-
 // #####################################################################################################################
 
 int array_to_footprint(PyArrayObject *array, npy_bool **footprint, int *non_zeros);
+
+int footprint_for_cc(npy_intp nd, int connectivity, npy_bool **footprint, int *non_zeros);
 
 int copy_data_as_double(PyArrayObject *array, double **line, npy_bool *footprint);
 
@@ -236,3 +271,5 @@ int init_offsets_lut(PyArrayObject *array,
                      npy_intp *offsets_stride);
 
 // #####################################################################################################################
+
+#endif

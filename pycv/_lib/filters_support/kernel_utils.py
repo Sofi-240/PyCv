@@ -490,3 +490,5 @@ def color_mapping_range(
         raise ValueError(f'method need to be "sqr", "log" or "linear"')
 
     return np.array(ranges, dtype=np.uint8)
+
+########################################################################################################################

@@ -8,3 +8,9 @@ cd C:\Users\97254\Documents\MyProjects\PyCv\pycv\_lib\core
 
 printf("offsets is %" NPY_INTP_FMT "\n", (footprint).offsets[jj]);
 printf("value is %.2f", value);
+
+printf("[");
+for (ii = 0; ii < sz; ii++) {
+    printf("%" NPY_INTP_FMT ", ", footprint[ii]);
+}
+printf("]\n");

@@ -1,9 +1,9 @@
 import numpy as np
 import numbers
 from pycv._lib.filters_support.utils import default_axis, fix_kernel_shape, valid_kernels, get_output, valid_kernel_shape_with_ref
-from pycv._lib.filters_support.kernel_utils import default_binary_strel
+from pycv._lib.filters_support.kernel_utils import default_binary_strel, color_mapping_range
 from pycv._lib.decorator import registrate_decorator
-from pycv._lib.array_api.dtypes import as_binary_array, get_dtype_limits
+from pycv._lib.array_api.dtypes import as_binary_array, get_dtype_limits, get_dtype_info
 from pycv._lib.array_api.regulator import np_compliance, check_finite
 from pycv._lib.core import ops
 
@@ -193,3 +193,37 @@ def c_gray_ero_or_dil(
         output = hold_output
 
     return None if input_output else output
+
+########################################################################################################################
+
+
+def c_labeling(
+        image: np.ndarray,
+        connectivity: int = 1,
+        rng_mapping_method: str = 'sqr',
+        mod_value: int = 16
+) -> tuple[int, np.ndarray]:
+    if not check_finite(image):
+        raise ValueError('image must not contain infs or NaNs')
+    if connectivity < 1 or connectivity > image.ndim:
+        raise ValueError(
+            f'Connectivity value must be in the range from 1 (no diagonal elements are neighbors) '
+            f'to ndim (all elements are neighbors)'
+        )
+
+    dt = get_dtype_info(image.dtype)
+    if dt.kind == 'b':
+        values_map = None
+    else:
+        if dt.kind == 'f':
+            if np.min(image) < -1.0 or np.max(image) > 1.0:
+                image = image.astype(np.int64)
+        min_, max_ = np.min(image), np.max(image)
+        if min_ < 0 or max_ > 255:
+            image = ((image - min_) / (max_ - min_)) * 255
+        image = image.astype(np.uint8)
+        values_map = color_mapping_range(image, method=rng_mapping_method, mod_value=mod_value)
+
+    output = np.zeros(image.shape, np.uint8)
+    ops.labeling(image, connectivity, values_map, output)
+    return np.max(output), output
