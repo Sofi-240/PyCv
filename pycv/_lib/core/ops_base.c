@@ -65,6 +65,44 @@ void CoordinatesIterInit(npy_intp nd, npy_intp *shape, CoordinatesIter *iterator
 
 // #####################################################################################################################
 
+int init_uint8_binary_table(unsigned int **binary_table)
+{
+    const unsigned int change_point[8] = {128, 64, 32, 16, 8, 4, 2, 1};
+    unsigned int *bt_run;
+    unsigned int value, counter;
+    int ii, jj;
+
+    *binary_table = calloc(256 * 8, sizeof(unsigned int));
+    if (!*binary_table) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+
+    for (ii = 0; ii < 8; ii++) {
+        value = 0;
+        counter = change_point[ii];
+        bt_run = *binary_table + ii;
+        for (jj = 0; jj < 256; jj++) {
+            bt_run[0] = value;
+            counter -= 1;
+            if (counter == 0) {
+                counter = change_point[ii];
+                value = value ? 0 : 1;
+            }
+            bt_run += 8;
+        }
+    }
+
+    exit:
+        if (PyErr_Occurred()) {
+            free(*binary_table);
+            return 0;
+        }
+       return 1;
+}
+
+// #####################################################################################################################
+
 int array_to_footprint(PyArrayObject *array, npy_bool **footprint, int *non_zeros)
 {
     ArrayIter iter;
@@ -198,6 +236,7 @@ int copy_data_as_double(PyArrayObject *array, double **line, npy_bool *footprint
 }
 
 // #####################################################################################################################
+
 
 int init_offsets_ravel(PyArrayObject *array,
                        npy_intp *kernel_shape,
@@ -370,21 +409,62 @@ int init_borders_lut(npy_intp nd,
         }
 }
 
+int array_offsets_to_list_offsets(PyArrayObject *array, npy_intp *offsets, npy_intp **list_offsets)
+{
+    npy_intp itemsize, ii, *lof;
+    int offsets_size;
+
+    itemsize = PyArray_ITEMSIZE(array);
+    offsets_size = sizeof(offsets) / sizeof(npy_intp);
+
+    *list_offsets = malloc(offsets_size * sizeof(npy_intp));
+    if (!*list_offsets) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    lof = *list_offsets;
+
+    for (ii = 0; ii < offsets_size; ii++) {
+        *lof++ = offsets[ii] / itemsize;
+    }
+
+    exit:
+        if (PyErr_Occurred()) {
+            free(*list_offsets);
+            return 0;
+        } else {
+            return 1;
+        }
+}
+
+#define RAVEL_COORDINATE(_nd, _position, _strides, _valid_offset)                             \
+{                                                                                             \
+    int _ii;                                                                                  \
+    _valid_offset = _position[_nd - 1] * _strides[_nd - 1];                                     \
+    for (_ii = _nd - 2; _ii >= 0; _ii--) {                                                    \
+        _valid_offset += _position[_ii] * _strides[_ii];                                        \
+    }                                                                                         \
+}
+
 int init_offsets_lut(PyArrayObject *array,
                      npy_intp *kernel_shape,
                      npy_intp *kernel_origins,
                      npy_bool *footprint,
                      npy_intp **offsets_lookup,
+                     npy_intp *offsets_stride,
                      npy_intp *offsets_flag,
-                     npy_intp *offsets_stride)
+                     BrdersMode mode)
 {
     CoordinatesIter a_iter, k_iter;
-    npy_intp ii, jj, kk, nd, array_size, kernel_size, offsets_size, flag, stride_pos, max_dims = 0, max_stride = 0;
-    npy_intp origins[NPY_MAXDIMS], k_shape[NPY_MAXDIMS], a_shape[NPY_MAXDIMS], a_stride[NPY_MAXDIMS], position[NPY_MAXDIMS];
-    npy_intp of_run, *lut = NULL, *offsets = NULL;
-    int is_border, is_valid;
+    npy_intp ii, jj, kk, nd, array_size, kernel_size, offsets_size, itemsize;
+    npy_intp flag, stride_pos, max_dims = 0, max_stride = 0;
+    npy_intp origins[NPY_MAXDIMS], k_shape[NPY_MAXDIMS], a_shape[NPY_MAXDIMS], a_stride[NPY_MAXDIMS], pos, position[NPY_MAXDIMS];
+    npy_intp valid_offset = 0, *lut = NULL;
+    int is_valid;
+    int atype = 0;
 
     nd = PyArray_NDIM(array);
+    itemsize = PyArray_ITEMSIZE(array);
     array_size = PyArray_SIZE(array);
     kernel_size = 1;
 
@@ -405,8 +485,8 @@ int init_offsets_lut(PyArrayObject *array,
 
     *offsets_flag = flag = max_stride * max_stride + 1;
 
-    if (!init_offsets_ravel(array, k_shape, origins, footprint, &offsets)) {
-        goto exit;
+    if (mode == BORDER_ATYPE_FLAG || mode == BORDER_ATYPE_REFLECT || mode == BORDER_ATYPE_CONSTANT) {
+        atype = 1;
     }
 
     if (!footprint) {
@@ -430,43 +510,59 @@ int init_offsets_lut(PyArrayObject *array,
         goto exit;
     }
     lut = *offsets_lookup;
-    is_border = 1;
 
     for (ii = 0; ii < array_size; ii++) {
-        of_run = 0;
         for (jj = 0; jj < kernel_size; jj++) {
             if (!footprint || footprint[jj]) {
-                if (is_border) {
-                    is_valid = 1;
-                    for (kk = 0; kk < nd; kk++) {
-                        position[kk] = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
-                        if (position[kk] < 0 || position[kk] >= a_shape[kk]) {
-                            is_valid = 0;
-                            break;
+                switch (mode) {
+                    case BORDER_FLAG:
+                    case BORDER_ATYPE_FLAG:
+                    case BORDER_CONSTANT:
+                    case BORDER_ATYPE_CONSTANT:
+                        is_valid = 1;
+                        for (kk = 0; kk < nd; kk++) {
+                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
+                            if (pos < 0 || pos >= a_shape[kk]) {
+                                is_valid = 0;
+                                break;
+                            }
+                            position[kk] = pos - a_iter.coordinates[kk];
                         }
-                    }
-                    if (is_valid) {
-                        *lut++ = offsets[of_run];
-                    } else {
-                        *lut++ = flag;
-                    }
-                } else {
-                    *lut++ = offsets[of_run];
+                        if (is_valid) {
+                            RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
+                        } else {
+                            valid_offset = flag;
+                        }
+                        break;
+                    case BORDER_REFLECT:
+                    case BORDER_ATYPE_REFLECT:
+                        for (kk = 0; kk < nd; kk++) {
+                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
+                            if (pos < 0) {
+                                pos = abs(pos);
+                                if (pos >= a_shape[kk]) {
+                                    pos = a_shape[kk] - 1;
+                                }
+                            } else if (pos >= a_shape[kk]) {
+                                pos = 2 * a_shape[kk] - pos - 2;
+                                if (pos < 0) {
+                                    pos = 0;
+                                }
+                            }
+                            position[kk] = pos - a_iter.coordinates[kk];
+                        }
+                        RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
+                        break;
                 }
-                of_run++;
+                if (atype) {
+                    valid_offset /= itemsize;
+                }
+                *lut++ = valid_offset;
             }
             COORDINATES_ITER_NEXT(k_iter);
         }
         COORDINATES_ITER_RESET(k_iter);
-
         COORDINATES_ITER_NEXT(a_iter);
-        is_border = 0;
-        for (jj = 0; jj < nd; jj++) {
-            if (a_iter.coordinates[jj] < origins[jj] || a_iter.coordinates[jj] > a_shape[jj] - k_shape[jj] + origins[jj]) {
-                is_border = 1;
-                break;
-            }
-        }
     }
 
     exit:
@@ -476,6 +572,7 @@ int init_offsets_lut(PyArrayObject *array,
         } else {
             return 1;
         }
+
 }
 
 // #####################################################################################################################

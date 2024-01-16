@@ -227,3 +227,23 @@ def c_labeling(
     output = np.zeros(image.shape, np.uint8)
     ops.labeling(image, connectivity, values_map, output)
     return np.max(output), output
+
+########################################################################################################################
+
+def c_skeletonize(
+        image: np.ndarray
+) -> np.ndarray:
+    if not isinstance(image, np.ndarray):
+        raise TypeError(f'Image need to be type of numpy.ndarray')
+    nd = image.ndim
+
+    if not check_finite(image):
+        raise ValueError('image must not contain infs or NaNs')
+
+    if image.dtype != bool:
+        image = as_binary_array(image, 'Image')
+
+    output, _ = get_output(None, image, image.shape)
+
+    ops.skeletonize(image, output)
+    return output

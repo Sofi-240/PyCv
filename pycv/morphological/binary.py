@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.filters_support.morphology import c_binary_erosion
+from pycv._lib.filters_support.morphology import c_binary_erosion, c_skeletonize
 
 __all__ = [
     'binary_erosion',
@@ -7,6 +7,7 @@ __all__ = [
     'binary_opening',
     'binary_closing',
     'binary_edge',
+    'skeletonize',
     'PUBLIC'
 ]
 
@@ -16,6 +17,7 @@ PUBLIC = [
     'binary_opening',
     'binary_closing',
     'binary_edge',
+    'skeletonize',
 ]
 
 
@@ -103,3 +105,10 @@ def binary_edge(
     else:
         output[:] = ero ^ image
     return output
+
+########################################################################################################################
+
+def skeletonize(
+        image: np.ndarray
+) -> np.ndarray:
+    return c_skeletonize(image)

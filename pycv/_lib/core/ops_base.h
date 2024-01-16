@@ -236,6 +236,10 @@ void CoordinatesIterInit(npy_intp nd, npy_intp *shape, CoordinatesIter *iterator
 
 // #####################################################################################################################
 
+int init_uint8_binary_table(unsigned int **binary_table);
+
+// #####################################################################################################################
+
 int array_to_footprint(PyArrayObject *array, npy_bool **footprint, int *non_zeros);
 
 int footprint_for_cc(npy_intp nd, int connectivity, npy_bool **footprint, int *non_zeros);
@@ -243,6 +247,16 @@ int footprint_for_cc(npy_intp nd, int connectivity, npy_bool **footprint, int *n
 int copy_data_as_double(PyArrayObject *array, double **line, npy_bool *footprint);
 
 // #####################################################################################################################
+
+typedef enum {
+    BORDER_FLAG = 1,
+    BORDER_REFLECT = 2,
+    BORDER_CONSTANT = 3,
+    BORDER_ATYPE_FLAG = 4,
+    BORDER_ATYPE_REFLECT = 5,
+    BORDER_ATYPE_CONSTANT = 6,
+} BrdersMode;
+
 
 int init_offsets_ravel(PyArrayObject *array,
                        npy_intp *kernel_shape,
@@ -262,14 +276,19 @@ int init_borders_lut(npy_intp nd,
                      npy_intp *kernel_origins,
                      npy_bool **borders_lookup);
 
+int array_offsets_to_list_offsets(PyArrayObject *array, npy_intp *offsets, npy_intp **list_offsets);
+
 int init_offsets_lut(PyArrayObject *array,
                      npy_intp *kernel_shape,
                      npy_intp *kernel_origins,
                      npy_bool *footprint,
                      npy_intp **offsets_lookup,
+                     npy_intp *offsets_stride,
                      npy_intp *offsets_flag,
-                     npy_intp *offsets_stride);
+                     BrdersMode mode);
+
 
 // #####################################################################################################################
+
 
 #endif

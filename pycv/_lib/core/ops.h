@@ -7,12 +7,21 @@
 #include <numpy/arrayobject.h>
 
 PyObject* convolve(PyObject* self, PyObject* args);
+
 PyObject* binary_erosion(PyObject* self, PyObject* args);
+
 PyObject* erosion(PyObject* self, PyObject* args);
+
 PyObject* dilation(PyObject* self, PyObject* args);
+
 PyObject* rank_filter(PyObject* self, PyObject* args);
+
 PyObject* is_local_max(PyObject* self, PyObject* args);
+
 PyObject* binary_region_fill(PyObject* self, PyObject* args);
+
 PyObject* labeling(PyObject* self, PyObject* args);
+
+PyObject* skeletonize(PyObject* self, PyObject* args);
 
 #endif

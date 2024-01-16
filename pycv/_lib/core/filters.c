@@ -42,7 +42,7 @@ static int flip_kernel(PyArrayObject *kernel, double **kernel_out) {
     size = PyArray_SIZE(kernel);
     num_type = PyArray_TYPE(kernel);
 
-    *kernel_out = calloc(size, sizeof(double));
+    *kernel_out = malloc(size * sizeof(double));;
     if (!*kernel_out) {
         PyErr_NoMemory();
         return 0;
@@ -54,12 +54,11 @@ static int flip_kernel(PyArrayObject *kernel, double **kernel_out) {
 
     for (ii = size - 1; ii >= 0; ii--) {
         GET_VALUE_AS(num_type, double, pointer, tmp);
-        k_run[ii] = tmp;
+        *k_run++ = tmp;
         ARRAY_ITER_NEXT(iter, pointer);
     }
     return 1;
 }
-
 
 int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *output, npy_intp *origins)
 {
@@ -290,36 +289,7 @@ int ops_rank_filter(PyArrayObject *input,
 
 // #####################################################################################################################
 
-//int ops_canny_filter(PyArrayObject *input,
-//                     PyArrayObject *blur_kernel,
-//                     PyArrayObject *output)
-//{
-//    ArrayIter iter_i, iter_o;
-//    char *po = NULL, *pi = NULL;
-//    npy_bool *footprint, *borders_lookup;
-//    int offsets_size, num_type_i, num_type_o;
-//    npy_intp ii, *offsets;
-//    double tmp, *weights;
-//
-//    NPY_BEGIN_THREADS_DEF;
-//
-//
-//
-//    if (!valid_dtype(PyArray_TYPE(input))) {
-//        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-//        goto exit;
-//    }
-//    if (!valid_dtype(PyArray_TYPE(blur_kernel))) {
-//        PyErr_SetString(PyExc_RuntimeError, "blur kernel dtype not supported");
-//        goto exit;
-//    }
-//    if (!valid_dtype(PyArray_TYPE(output))) {
-//        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-//        goto exit;
-//    }
-//
-//
-//
-//}
 
 // #####################################################################################################################
+
+

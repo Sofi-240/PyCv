@@ -254,6 +254,29 @@ PyObject* labeling(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
+PyObject* skeletonize(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *output = NULL;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&",
+            Input_To_Array, &input,
+            Output_To_Array, &output)) {
+        goto exit;
+    }
+
+    ops_skeletonize(input, output);
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(output);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+
 // #####################################################################################################################
 
 static PyMethodDef methods[] = {
@@ -296,6 +319,12 @@ static PyMethodDef methods[] = {
     {
         "labeling",
         (PyCFunction)labeling,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "skeletonize",
+        (PyCFunction)skeletonize,
         METH_VARARGS,
         NULL
     },

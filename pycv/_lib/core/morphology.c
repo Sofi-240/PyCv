@@ -99,7 +99,7 @@ int ops_binary_erosion(PyArrayObject *input,
         goto exit;
     }
 
-    if (!init_offsets_lut(input, PyArray_DIMS(strel), origins, footprint, &offsets_lookup, &offsets_flag, &offsets_stride)) {
+    if (!init_offsets_lut(input, PyArray_DIMS(strel), origins, footprint, &offsets_lookup, &offsets_stride, &offsets_flag, BORDER_FLAG)) {
         goto exit;
     }
 
@@ -272,7 +272,7 @@ int ops_gray_ero_or_dil(PyArrayObject *input,
         goto exit;
     }
 
-    if (!init_offsets_lut(input, PyArray_DIMS(flat_strel), origins, footprint, &offsets_lookup, &offsets_flag, &offsets_stride)) {
+    if (!init_offsets_lut(input, PyArray_DIMS(flat_strel), origins, footprint, &offsets_lookup, &offsets_stride, &offsets_flag, BORDER_FLAG)) {
         goto exit;
     }
 
@@ -497,7 +497,7 @@ int ops_labeling(PyArrayObject *input,
         origins[ii] = 1;
     }
 
-    if (!init_offsets_lut(input, footprint_shape, origins, footprint, &offsets_lookup, &offsets_flag, &offsets_stride)) {
+    if (!init_offsets_lut(input, footprint_shape, origins, footprint, &offsets_lookup, &offsets_stride, &offsets_flag, BORDER_FLAG)) {
         goto exit;
     }
 
@@ -636,4 +636,207 @@ int ops_labeling(PyArrayObject *input,
 
 // #####################################################################################################################
 
+#define SKELETON_LUT_CONDITION_CHECK(_neighbours, _lookup_value)                                                                  \
+{                                                                                                                                 \
+    int _ii, _a_cond = 0, _b_cond = 0, _step_1 = 0, _step_2 = 0;                                                                  \
+    _lookup_value = 0;                                                                                                            \
+    for (_ii = 0; _ii < 8; _ii++) {                                                                                               \
+        if (!_neighbours[_ii] && _neighbours[(_ii + 1) % 8]) {                                                                    \
+            _a_cond += 1;                                                                                                         \
+        }                                                                                                                         \
+        _b_cond += _neighbours[_ii] ? 1 : 0;                                                                                      \
+    }                                                                                                                             \
+    _a_cond = _a_cond == 1 ? 1 : 0;                                                                                               \
+    _b_cond = _b_cond >= 2 && _b_cond <= 6 ? 1 : 0;                                                                               \
+    if (_a_cond && _b_cond) {                                                                                                     \
+        if (!(_neighbours[0] && _neighbours[2] && _neighbours[4]) && !(_neighbours[2] && _neighbours[4] && _neighbours[6])) {     \
+            _step_1 = 1;                                                                                                          \
+        }                                                                                                                         \
+        if (!(_neighbours[0] && _neighbours[2] && _neighbours[6]) && !(_neighbours[0] && _neighbours[4] && _neighbours[6])) {     \
+            _step_2 = 1;                                                                                                          \
+        }                                                                                                                         \
+        if (_step_1 && _step_2) {                                                                                                 \
+            _lookup_value = 3;                                                                                                    \
+        } else if (_step_1) {                                                                                                     \
+            _lookup_value = 1;                                                                                                    \
+        } else if (_step_2) {                                                                                                     \
+            _lookup_value = 2;                                                                                                    \
+        }                                                                                                                         \
+    }                                                                                                                             \
+}
 
+static int init_skeleton_lut(unsigned int **skeleton_lut)
+{
+    unsigned int lookup_value = 0, lut_index;
+    unsigned int *binary_table, *bt_run, *lut_run;
+    int ii, jj;
+
+    if (!init_uint8_binary_table(&binary_table)) {
+        goto exit;
+    }
+
+    *skeleton_lut = calloc(256, sizeof(unsigned int));
+    if (!*skeleton_lut) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+
+    bt_run = binary_table;
+    lut_run = *skeleton_lut;
+
+    for (ii = 0; ii < 256; ii++) {
+        SKELETON_LUT_CONDITION_CHECK(bt_run, lookup_value);
+        if (lookup_value) {
+            lut_index = bt_run[0] +
+                        2 * bt_run[1] +
+                        4 * bt_run[2] +
+                        8 * bt_run[3] +
+                        16 * bt_run[4] +
+                        32 * bt_run[5] +
+                        64 * bt_run[6] +
+                        128 * bt_run[7];
+            lut_run[lut_index] = lookup_value;
+        }
+        bt_run += 8;
+    }
+
+    exit:
+        free(binary_table);
+        if (PyErr_Occurred()) {
+            free(*skeleton_lut);
+            return 0;
+        }
+       return 1;
+}
+
+#define TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(_NUM_TYPE, _type, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel)     \
+case _NUM_TYPE:                                                                                                           \
+{                                                                                                                         \
+    int _index = 0;                                                                                                       \
+    unsigned int _tmp;                                                                                                    \
+    _change_pixel = 0;                                                                                                    \
+    _index = (int)(*((_type *)(_sp + _offsets[1]))) +                                                                     \
+             2 * (int)(*((_type *)(_sp + _offsets[2]))) +                                                                 \
+             4 * (int)(*((_type *)(_sp + _offsets[5]))) +                                                                 \
+             8 * (int)(*((_type *)(_sp + _offsets[8]))) +                                                                 \
+             16 * (int)(*((_type *)(_sp + _offsets[7]))) +                                                                \
+             32 * (int)(*((_type *)(_sp + _offsets[6]))) +                                                                \
+             64 * (int)(*((_type *)(_sp + _offsets[3]))) +                                                                \
+             128 * (int)(*((_type *)(_sp + _offsets[0])));                                                                \
+    _tmp = _skeleton_lut[_index];                                                                                         \
+    if (_tmp == 3 || (_step_num == 0 && _tmp == 1) || (_step_num == 1 && _tmp == 2)) {                                    \
+        _change_pixel = 1;                                                                                                \
+    }                                                                                                                     \
+}                                                                                                                         \
+break
+
+#define EX_SKELETON_GET_LOOKUP_VALUE(_NUM_TYPE, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel)                              \
+{                                                                                                                                    \
+    switch (_NUM_TYPE) {                                                                                                             \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_BOOL, npy_bool, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);             \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_UBYTE, npy_ubyte, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);           \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_USHORT, npy_ushort, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);         \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_UINT, npy_uint, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);             \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_ULONG, npy_ulong, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);           \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_ULONGLONG, npy_ulonglong, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);   \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_BYTE, npy_byte, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);             \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_SHORT, npy_short, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);           \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_INT, npy_int, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);               \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_LONG, npy_long, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);             \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_LONGLONG, npy_longlong, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);     \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_FLOAT, npy_float, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);           \
+        TYPE_CASE_SKELETON_GET_LOOKUP_VALUE(NPY_DOUBLE, npy_double, _skeleton_lut, _offsets, _sp, _step_num, _change_pixel);         \
+    }                                                                                                                                \
+}
+
+
+int ops_skeletonize(PyArrayObject *input, PyArrayObject *output)
+{
+    const npy_intp shape[2] = {3, 3};
+    const npy_intp origins[2] = {1, 1};
+
+    unsigned int *skeleton_lut, to_change_pixel = 0;
+    PyArrayObject *skeleton;
+    ArrayIter iter_o, iter_s;
+    npy_intp nd, ii, ss, num_type, size, tmp, *offsets;
+    char *po_base = NULL, *ps_base = NULL, *po = NULL, *ps = NULL;
+    npy_bool *borders_lookup;
+    int pixel_change = 0, s_val = 0;
+
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+
+    num_type = PyArray_TYPE(input);
+    nd = PyArray_NDIM(input);
+    size = PyArray_SIZE(input);
+
+    if (!init_skeleton_lut(&skeleton_lut)) {
+        goto exit;
+    }
+
+    if (!init_offsets_ravel(input, shape, origins, NULL, &offsets)) {
+        goto exit;
+    }
+
+    if (!init_borders_lut(nd, PyArray_DIMS(input), shape, origins, &borders_lookup)) {
+        goto exit;
+    }
+
+    if (PyArray_CopyInto(output, input)) {
+        goto exit;
+    }
+
+    skeleton = (PyArrayObject *)PyArray_NewLikeArray(output, NPY_KEEPORDER, NULL, 1);
+    if (PyArray_CopyInto(skeleton, input)) {
+        goto exit;
+    }
+
+    ArrayIterInit(output, &iter_o);
+    ArrayIterInit(skeleton, &iter_s);
+
+
+    po_base = po = (void *)PyArray_DATA(output);
+    ps_base = ps = (void *)PyArray_DATA(skeleton);
+
+    do {
+        pixel_change = 0;
+        for (ss = 0; ss < 2; ss++) {
+            for (ii = 0; ii < size; ii++) {
+                if (borders_lookup[ii]) {
+                    ARRAY_ITER_NEXT2(iter_o, po, iter_s, ps);
+                    continue;
+                }
+                GET_VALUE_AS(num_type, int, ps, s_val);
+                if (s_val) {
+                    EX_SKELETON_GET_LOOKUP_VALUE(num_type, skeleton_lut, offsets, ps, ss, to_change_pixel);
+                    if (to_change_pixel) {
+                        SET_VALUE_TO(num_type, po, 0);
+                        pixel_change = 1;
+                    }
+                }
+                ARRAY_ITER_NEXT2(iter_o, po, iter_s, ps);
+            }
+            if (PyArray_CopyInto(skeleton, output)) {
+                goto exit;
+            }
+            ARRAY_ITER_RESET(iter_o);
+            ARRAY_ITER_RESET(iter_s);
+            po = po_base;
+            ps = ps_base;
+        }
+    } while (pixel_change);
+
+
+    exit:
+        free(borders_lookup);
+        free(offsets);
+        return PyErr_Occurred() ? 0 : 1;
+}
+
+// #####################################################################################################################

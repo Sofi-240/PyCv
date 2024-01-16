@@ -32,3 +32,4 @@ def prewitt(
         **pad_kw
 ) -> np.ndarray:
     return edge_filters(image, PREWITT_WEIGHTS, PREWITT_EDGE, axis, preserve_dtype=False, as_float=True, padding_mode=padding_mode, **pad_kw)
+
