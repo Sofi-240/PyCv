@@ -34,7 +34,6 @@ case _NUM_TYPE:                                                                 
 
 int valid_dtype(int dtype_num);
 
-
 #define SET_VALUE_TO(_NUM_TYPE, _pointer, _val)                                                      \
 {                                                                                                    \
     int _safe_cast = sizeof(_val) == sizeof(double) ? 1 : 0;                                         \
@@ -250,13 +249,21 @@ int copy_data_as_double(PyArrayObject *array, double **line, npy_bool *footprint
 
 typedef enum {
     BORDER_FLAG = 1,
-    BORDER_REFLECT = 2,
-    BORDER_CONSTANT = 3,
-    BORDER_ATYPE_FLAG = 4,
-    BORDER_ATYPE_REFLECT = 5,
-    BORDER_ATYPE_CONSTANT = 6,
-} BrdersMode;
-
+    BORDER_VALID = 2,
+    BORDER_REFLECT = 3,
+    BORDER_CONSTANT = 4,
+    BORDER_SYMMETRIC = 5,
+    BORDER_WRAP = 6,
+    BORDER_EDGE = 7,
+    BORDER_BUFFER_ATYPE = 8,
+    BORDER_ATYPE_FLAG = 9,
+    BORDER_ATYPE_VALID = 10,
+    BORDER_ATYPE_REFLECT = 11,
+    BORDER_ATYPE_CONSTANT = 12,
+    BORDER_ATYPE_SYMMETRIC = 13,
+    BORDER_ATYPE_WRAP = 14,
+    BORDER_ATYPE_EDGE = 15
+} BordersMode;
 
 int init_offsets_ravel(PyArrayObject *array,
                        npy_intp *kernel_shape,
@@ -278,6 +285,7 @@ int init_borders_lut(npy_intp nd,
 
 int array_offsets_to_list_offsets(PyArrayObject *array, npy_intp *offsets, npy_intp **list_offsets);
 
+// TODO: change the functions that use borders_lut to use Flag mode
 int init_offsets_lut(PyArrayObject *array,
                      npy_intp *kernel_shape,
                      npy_intp *kernel_origins,
@@ -285,8 +293,9 @@ int init_offsets_lut(PyArrayObject *array,
                      npy_intp **offsets_lookup,
                      npy_intp *offsets_stride,
                      npy_intp *offsets_flag,
-                     BrdersMode mode);
+                     BordersMode mode);
 
+int can_use_same_offsets(PyArrayObject *array1, PyArrayObject *array2);
 
 // #####################################################################################################################
 

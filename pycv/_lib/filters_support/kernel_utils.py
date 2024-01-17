@@ -22,8 +22,13 @@ PUBLIC = []
 
 ########################################################################################################################
 
-def valid_offset(kernel_shape: tuple, offset: tuple | None) -> tuple:
+def valid_offset(
+        kernel_shape: tuple,
+        offset: tuple | None
+) -> tuple:
     if offset is None:
+        if not all((s % 2) != 0 for s in kernel_shape):
+            raise ValueError(f'If kernel dimensions length is even offset must be given')
         return tuple(s // 2 for s in kernel_shape)
     if len(kernel_shape) != len(offset):
         raise ValueError(
@@ -65,7 +70,7 @@ def cast_kernel_dilation(
 
     if isinstance(dilation, numbers.Number):
         if dilation == 1:
-            return kernel
+            return kernel.copy()
         dilation = (int(dilation),) * kernel.ndim
 
     if len(dilation) != kernel.ndim:
@@ -74,7 +79,7 @@ def cast_kernel_dilation(
         )
 
     if all(d == 1 for d in dilation):
-        return kernel
+        return kernel.copy()
 
     casted_kernel = np.zeros(
         tuple(k + ((d - 1) * k) - 1 if d != 1 else k for k, d in zip(kernel.shape, dilation)), dtype=kernel.dtype

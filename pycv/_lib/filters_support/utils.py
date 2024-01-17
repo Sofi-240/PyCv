@@ -4,8 +4,6 @@ from pycv._lib.array_api.regulator import check_finite
 from pycv._lib.array_api.shapes import atleast_nd
 from pycv._lib.filters_support.kernel_utils import cast_kernel_dilation, valid_offset
 
-FLIPPER = (1, 0, 2)
-
 __all__ = [
     'default_axis',
     'fix_kernel_shape',
@@ -15,7 +13,6 @@ __all__ = [
 ]
 PUBLIC = []
 
-MAX_NDIM = 3
 
 ########################################################################################################################
 
@@ -43,18 +40,12 @@ def fix_kernel_shape(shape: int, axis: tuple, nd: int) -> tuple:
 def valid_kernels(
         kernel: np.ndarray,
         array_rank: int,
-        flip: bool = True,
         dilation: int | tuple = 1,
-        offset: int | tuple | None = None,
-        filter_dim_bound: int = MAX_NDIM
+        offset: int | tuple | None = None
 ) -> tuple[np.ndarray, tuple, tuple]:
     if not check_finite(kernel):
         raise ValueError('Kernel must not contain infs or NaNs')
     filter_dim = kernel.ndim
-    if filter_dim > filter_dim_bound:
-        raise ValueError(f'Operation for {filter_dim_bound + 1}D or above is not supported, got rank of {filter_dim}')
-    if flip:
-        kernel = np.flip(kernel, FLIPPER[:filter_dim]) if filter_dim > 1 else np.flip(kernel, 0)
     kernel = cast_kernel_dilation(kernel, dilation)
     if filter_dim == 1 and isinstance(offset, numbers.Number):
         offset = (offset,)
@@ -64,6 +55,7 @@ def valid_kernels(
         for _ in range(kernel.ndim - len(offset)):
             offset = (0,) + offset
     return kernel, kernel.shape, offset
+
 
 def valid_kernel_shape_with_ref(kernel_shape: tuple, image_shape: tuple):
     if not all(na > nk for na, nk in zip(image_shape, kernel_shape)):

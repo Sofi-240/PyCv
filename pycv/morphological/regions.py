@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.filters_support.morphology import c_binary_region_fill, c_labeling
+from pycv._lib.core_support import morphology_py
 
 __all__ = [
     'region_fill',
@@ -34,13 +34,13 @@ def region_fill(
         raise ValueError('Seed point is out of range')
 
     if image.dtype == bool:
-        return c_binary_region_fill(image, seed_point, strel, offset, output, inplace)
+        return morphology_py.binary_region_fill(image, seed_point, strel, offset, output, inplace)
 
     seed_value = image[seed_point]
 
     inputs = np.where((image >= seed_value - value_tol) & (image <= seed_value + value_tol), False, True)
 
-    c_binary_region_fill(inputs, seed_point, strel, offset, None, True)
+    morphology_py.binary_region_fill(inputs, seed_point, strel, offset, None, True)
 
     if inplace:
         output = image
@@ -58,7 +58,4 @@ def im_label(
         rng_mapping_method: str = 'sqr',
         mod_value: int = 16
 ) -> tuple[int, np.ndarray]:
-    if not isinstance(image, np.ndarray):
-        raise TypeError(f'Image need to be type of numpy.ndarray')
-    nlabels, output = c_labeling(image, connectivity, rng_mapping_method, mod_value)
-    return c_labeling(image, connectivity, rng_mapping_method, mod_value)
+    return morphology_py.labeling(image, connectivity, rng_mapping_method, mod_value)

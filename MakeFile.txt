@@ -15,308 +15,71 @@ for (ii = 0; ii < sz; ii++) {
 }
 printf("]\n");
 
-
-
-static int canny_init_array(PyArrayObject *input, PyArrayObject *kernel, double **output)
-{
-    ArrayIter iter;
-    char *pi = NULL;
-    npy_intp num_type, ii, *offsets, offsets_stride, *offsets_run, offsets_flag;
-    double tmp, *kernel_flipted, *po;
-
-    if (!flip_kernel(kernel, &kernel_flipted)) {
-        goto exit;
-    }
-
-    *output = malloc(PyArray_SIZE(input) * sizeof(double));
-    if (!*output) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-    po = *output;
-
-    if (!init_offsets_lut_new(input, PyArray_DIMS(kernel), NULL, NULL, &offsets, &offsets_stride, &offsets_flag, BORDER_REFLECT)) {
-        goto exit;
-    }
-
-    offsets_run = offsets;
-    ArrayIterInit(input, &iter);
-
-    num_type = PyArray_TYPE(input);
-    pi = (void *)PyArray_DATA(input);
-
-    for (ii = 0; ii < PyArray_SIZE(input); ii++) {
-        tmp = 0.0;
-        EX_CONVOLVE(num_type, pi, kernel_flipted, offsets_stride, offsets_run, tmp);
-        *po++ = tmp;
-        ARRAY_ITER_NEXT(iter, pi);
-        offsets_run += offsets_stride;
-    }
-    exit:
-        free(offsets);
-        free(kernel_flipted);
-        if (PyErr_Occurred()) {
-            free(*output);
-            return 0;
-        }
-        return 1;
-}
-
-static int canny_init_magnitude_and_orientation(double *array,
-                                                npy_intp *offsets,
-                                                double **magnitude,
-                                                int **orientation,
-                                                double *trackin_magnitude_max)
-{
-    const double dy_kernel[9] = {-0.25, -0.5, -0.25, 0.0, 0.0, 0.0, 0.25, 0.5, 0.25};
-    const double dx_kernel[9] = {-0.25, 0.0, 0.25, -0.5, 0.0, 0.5, -0.25, 0.0, 0.25};
-
-    int array_size, *ori_run;
-    double dx = 0.0, dy = 0.0, mag, ori, *mag_run, max_magnitude = 0.0;
-    npy_intp ii, jj;
-
-    array_size = sizeof(array) / sizeof(double);
-
-    *magnitude = malloc(array_size * sizeof(double));
-    if (!*magnitude) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-
-    *orientation = malloc(array_size * sizeof(int));
-    if (!*orientation) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-
-    mag_run = *magnitude;
-    ori_run = *orientation;
-
-    for (ii = 0; ii < array_size; ii++) {
-        for (jj = 0; jj < 9; jj++) {
-            dx += dx_kernel[jj] * array[ii + offsets[jj]];
-            dy += dy_kernel[jj] * array[ii + offsets[jj]];
-        }
-
-        ori = (atan2(dy, dx) * 180.0/PI);
-
-        if ((ori <= 22.5 && ori >= -22.5) || (ori <= -157.5) || (ori >= 157.5)) {
-            *ori_run++ = 1;
-        } else if ((ori > 22.5 && ori <= 67.5) || (ori > -157.5 && ori <= -112.5)) {
-            *ori_run++ = 2;
-        } else if ((ori > 67.5 && ori <= 112.5) || (ori >= -112.5 && ori < -67.5)){
-            *ori_run++ = 3;
-        } else {
-            *ori_run++ = 4;
-        }
-
-        dy *= dy;
-        dx *= dx;
-        mag = sqrt(dy + dx);
-        if (mag > max_magnitude) {
-            max_magnitude = mag;
-        }
-        *mag_run++ = mag;
-
-        offsets += 9;
-        dx = dy = 0.0;
-    }
-    *trackin_magnitude_max = max_magnitude;
-
-    exit:
-        if (PyErr_Occurred()) {
-            free(*magnitude);
-            free(*orientation);
-            return 0;
-        }
-        return 1;
-}
-
-#define NON_MAXIMUM_SUPPRESSION(_ii, _orientation, _magnitude, _offsets, _is_max)                               \
-{                                                                                                               \
-    npy_intp _shift1 = 0, _shift2 = 0;                                                                          \
-    _is_max = 0;                                                                                                \
-    switch (_orientation[_ii]) {                                                                                \
-        case 1:                                                                                                 \
-            _shift1 = _ii + _offsets[3];                                                                        \
-            _shift2 = _ii + _offsets[5];                                                                        \
-            break;                                                                                              \
-        case 2:                                                                                                 \
-            _shift1 = _ii + _offsets[2];                                                                        \
-            _shift2 = _ii + _offsets[6];                                                                        \
-            break;                                                                                              \
-        case 3:                                                                                                 \
-            _shift1 = _ii + _offsets[1];                                                                        \
-            _shift2 = _ii + _offsets[7];                                                                        \
-            break;                                                                                              \
-        case 4:                                                                                                 \
-            _shift1 = _ii + _offsets[0];                                                                        \
-            _shift2 = _ii + _offsets[8];                                                                        \
-            break;                                                                                              \
-    }                                                                                                           \
-    if (_magnitude[_ii] > _magnitude[_shift1] && _magnitude[_ii] > _magnitude[_shift2]) {                       \
-        _is_max = 1;                                                                                            \
-    }                                                                                                           \
-}
-
-int ops_canny_filter(PyArrayObject *input,
-                     PyArrayObject *output,
-                     PyArrayObject *bulrkernel,
-                     double min_threshold_r,
-                     double max_threshold_r,
-                     npy_intp *hys_kernel_size)
-{
-    const npy_intp edge_origins[2] = {1, 1};
-    const npy_intp edge_shape[2] = {3, 3};
-
-    // for iterations
-    ArrayIter iter;
-    char *po_base = NULL, *po = NULL;
-    npy_intp num_type, array_size, nd, ii, jj, itemsize;
-    double *array;
-    npy_intp *edge_offsets, edge_stride, flag;
-    npy_intp *offsets_run;
-    // for magnitude and orientation
-    int *orientation;
-    double *magnitude, max_magnitude = 0.0;
-    // for non maximum suppression
-    double max_threshold = 0.0, min_threshold = 0.0;
-    int is_max, po_val;
-    // for edge tracking
-    double week_ref;
-    int *stack, stack_start = 0, stack_end = 0, *stack_fill, *stack_run;
-    npy_intp hys_shape[2], hys_origins[2], pos_ravel;
-    npy_intp shift, *hys_offsets, hys_stride;
-    int in_po;
-    CoordinatesIter k_iter;
-
-//    NPY_BEGIN_THREADS_DEF;
-
-    if (!valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(bulrkernel))) {
-        PyErr_SetString(PyExc_RuntimeError, "kernel dtype not supported");
-        goto exit;
-    }
-
-    array_size = PyArray_SIZE(input);
-    nd = PyArray_NDIM(input);
-    num_type = PyArray_TYPE(output);
-    itemsize = PyArray_ITEMSIZE(output);
-
-    if (nd != 2) {
-        PyErr_SetString(PyExc_RuntimeError, "Canny supported just for 2D arrays");
-        goto exit;
-    }
-
-    if (!canny_init_array(input, bulrkernel, &array)) {
-        goto exit;
-    }
-
-    if (!init_offsets_lut_new(output, edge_shape, edge_origins, NULL, &edge_offsets, &edge_stride, &flag, BORDER_ATYPE_REFLECT)) {
-        goto exit;
-    }
-
-    if (!canny_init_magnitude_and_orientation(array, edge_offsets, &magnitude, &orientation, &max_magnitude)) {
-        goto exit;
-    }
-
-    // stack = [row, col, rav_ind, ....]
-    stack = malloc(array_size * (nd + 1) * sizeof(int));
-    if (!stack) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-
-    for (ii = 0; ii < nd; ii++) {
-        hys_shape[ii] = hys_kernel_size[ii];
-        hys_origins[ii] = hys_shape[ii] / 2;
-    }
-
-    if (hys_shape[0] == edge_shape[0] && hys_shape[1] == edge_shape[1]) {
-        hys_offsets = edge_offsets;
-        hys_stride = edge_stride;
-    } else  {
-        if (!init_offsets_lut_new(output, hys_shape, hys_origins, NULL, &hys_offsets, &hys_stride, &flag, BORDER_ATYPE_REFLECT)) {
-            goto exit;
-        }
-    }
-
-    ArrayIterInit(output, &iter);
-//    NPY_BEGIN_THREADS;
-
-//    po_base = po = (void *)PyArray_DATA(output);
+//int ops_canny_filter(PyArrayObject *input,
+//                     PyArrayObject *output,
+//                     PyArrayObject *smooth_kernel,
+//                     double low_threshold,
+//                     double high_threshold,
+//                     PyArrayObject *mask)
+//{
+//    const npy_intp sobel_shape[2] = {3, 3};
+//    const npy_intp sobel_origins[2] = {1, 1};
+//    const double dy_kernel[9] = {-0.25, -0.5, -0.25, 0.0, 0.0, 0.0, 0.25, 0.5, 0.25};
+//    const double dx_kernel[9] = {-0.25, 0.0, 0.25, -0.5, 0.0, 0.5, -0.25, 0.0, 0.25};
 //
-//    max_threshold = max_magnitude * max_threshold_r;
-//    min_threshold = max_threshold * min_threshold_r;
-//    offsets_run = edge_offsets;
+//    // base
+//    PyArrayObject *smoothed_input;
+//    npy_intp nd, array_size, type_num;
+//    npy_intp *offsets, of_stride, *of_run, flag;
+//    // shift offsets between smooth kernel and sobel kernel if the shapes is different
+//    npy_intp of_shift1, of_shift2, of_counter = 3;
+//    ArrayIter iter_i, iter_o;
+//    char *po_base = NULL, *po = NULL, *pi = NULL;
+//    npy_intp smooth_shape[2], smooth_origins[2];
+//    npy_intp ii, jj;
 //
-//    for (ii = 0; ii < array_size; ii++) {
-//        po_val = 0;
-//        is_max = 0;
-//        if (magnitude[ii] >= min_threshold) {
-//            NON_MAXIMUM_SUPPRESSION(ii, orientation, magnitude, offsets_run, is_max);
-//        }
-//        if (is_max && magnitude[ii] >= max_threshold) {
-//            po_val = 1;
-//            for (jj = 0; jj < nd; jj++) {
-//                *stack_fill++ = iter.coordinates[jj];
-//            }
-//            *stack_fill++ = ii;
-//            stack_end++;
-//            is_max = 0;
-//        }
-//        if (po_val) {
-//            array[ii] = -1;
-//        } else {
-//            array[ii] = is_max ? 1. : 0.;
-//        }
-//        offsets_run += edge_stride;
-//        SET_VALUE_TO(num_type, po, po_val);
-//        ARRAY_ITER_NEXT(iter, po);
+//    if (!valid_dtype(PyArray_TYPE(input))) {
+//        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+//        goto exit;
 //    }
-
-//    stack_run = stack;
-//    offsets_run = hys_offsets;
-//
-//    while (stack_start < stack_end) {
-//        pos_ravel = stack_run[nd];
-//        offsets_run += pos_ravel * hys_stride;
-//        ARRAY_ITER_GOTO(iter, stack_run, po_base, po);
-//
-//        for (ii = 0; ii < hys_stride; ii++) {
-//            if (!offsets_run[ii] || !array[pos_ravel + offsets_run[ii]] < 0) {
-//                COORDINATES_ITER_NEXT(k_iter);
-//                continue;
-//            }
-//            array[pos_ravel + offsets_run[ii]] = -1;
-//            for (jj = 0; jj < nd; jj++) {
-//                *stack_fill++ = iter.coordinates[jj] + k_iter.coordinates[jj] - hys_origins[jj];
-//            }
-//            *stack_fill++ = pos_ravel + offsets_run[ii];
-//            stack_end++;
-//            SET_VALUE_TO(num_type, (po + offsets_run[ii] * itemsize), 1);
-//            COORDINATES_ITER_NEXT(k_iter);
-//        }
-//        COORDINATES_ITER_RESET(k_iter);
-//        stack_run += (nd + 1);
-//        stack_start++;
-//        offsets_run = hys_offsets;
+//    if (!valid_dtype(PyArray_TYPE(output))) {
+//        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+//        goto exit;
+//    }
+//    if (!valid_dtype(PyArray_TYPE(smooth_kernel))) {
+//        PyErr_SetString(PyExc_RuntimeError, "smooth kernel dtype not supported");
+//        goto exit;
 //    }
 //
-//    NPY_END_THREADS;
-    exit:
-        free(magnitude);
-        free(orientation);
-        free(edge_offsets);
-        free(hys_offsets);
-        free(array);
-//        free(stack);
-        return PyErr_Occurred() ? 0 : 1;
-}
+//    nd = PyArray_NDIM(input);
+//    if (nd != 2) {
+//        PyErr_SetString(PyExc_RuntimeError, "canny filter supported just for 2D arrays");
+//        goto exit;
+//    }
+//
+//    if (!can_use_same_offsets(input, output)) {
+//        PyErr_SetString(PyExc_RuntimeError, "input and output need to have same itemsize, shape and order style");
+//        goto exit;
+//    }
+//
+//    for (ii = 0; ii < nd; ii++) {
+//        smooth_shape[ii] = PyArray_DIM(smooth_kernel, ii);
+//        smooth_origins[ii] = smooth_shape[ii] / 2;
+//        if (smooth_shape[ii] < 3) {
+//            PyErr_SetString(PyExc_RuntimeError, "smooth kernel shape need to be minimum 3");
+//            goto exit;
+//        }
+//    }
+//    of_shift1 = smooth_shape[1] * (smooth_origins[0] - 1) + (smooth_origins[1] - 1);
+//    of_shift2 = 2 * (smooth_origins[1] - 1) + 1;
+//
+//    array_size = PyArray_SIZE(output);
+//    type_num = PyArray_TYPE(output);
+//
+//    if (!init_offsets_lut(output, smooth_shape, NULL, NULL, &offsets, &of_stride, &flag, BORDER_REFLECT)) {
+//        goto exit;
+//    }
+//
+//    smoothed_input = (PyArrayObject *)PyArray_NewLikeArray(input, NPY_KEEPORDER, NULL, 1);
+//
+//}

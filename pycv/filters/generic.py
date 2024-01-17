@@ -1,8 +1,9 @@
 import numpy as np
 import numbers
+from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.filters_support.windows import gaussian_kernel
 from pycv.filters._utils import kernel_size_valid, filter_with_convolve
-from pycv._lib.filters_support.filters import c_rank_filter
+from pycv._lib.core_support.filters_py import rank_filter
 from pycv._lib.filters_support.utils import default_axis
 
 
@@ -33,7 +34,7 @@ def gaussian_filter(
         axis: tuple | None = None,
         preserve_dtype: bool = True,
         padding_mode: str = 'reflect',
-        **pad_kw
+        constant_value: float | int | None = 0
 ) -> np.ndarray:
     if axis is None:
         axis = default_axis(image.ndim, min(2 if isinstance(sigma, numbers.Number) else 2, image.ndim))
@@ -51,14 +52,13 @@ def gaussian_filter(
         valid_shape = kernel_size_valid(kernel.shape[0], axis, len(axis))
         if valid_shape != kernel.shape:
             kernel = np.reshape(kernel, valid_shape)
-        output = filter_with_convolve(image, kernel, None, preserve_dtype=preserve_dtype, padding_mode=padding_mode,
-                                      **pad_kw)
+        output = filter_with_convolve(image, kernel, None, preserve_dtype=preserve_dtype, padding_mode=padding_mode, constant_value=constant_value)
     else:
         output = image.copy()
         for ax, s in zip(axis, sigma):
             kernel = gaussian_kernel(s)
             output = filter_with_convolve(output, kernel, None, axis=ax, preserve_dtype=preserve_dtype,
-                                          padding_mode=padding_mode, **pad_kw)
+                                          padding_mode=padding_mode, constant_value=constant_value)
 
     return output
 
@@ -69,7 +69,7 @@ def mean_filter(
         axis: int | tuple | None = None,
         preserve_dtype: bool = True,
         padding_mode: str = 'reflect',
-        **pad_kw
+        constant_value: float | int | None = 0
 ) -> np.ndarray:
     if axis is None:
         axis = default_axis(image.ndim, min(2 if isinstance(kernel_size, numbers.Number) else 2, image.ndim))
@@ -83,7 +83,7 @@ def mean_filter(
 
     kernel = np.ones(kernel_size, np.float64) / np.prod(kernel_size, dtype=np.float64)
 
-    return filter_with_convolve(image, kernel, None, preserve_dtype=preserve_dtype, padding_mode=padding_mode, **pad_kw)
+    return filter_with_convolve(image, kernel, None, preserve_dtype=preserve_dtype, padding_mode=padding_mode, constant_value=constant_value)
 
 
 def median_filter(
@@ -91,8 +91,10 @@ def median_filter(
         kernel_size: int | tuple,
         axis: int | tuple | None = None,
         padding_mode: str = 'reflect',
-        **pad_kw
+        constant_value: float | int | None = 0,
 ) -> np.ndarray:
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
     if axis is None:
         axis = default_axis(image.ndim, min(2 if isinstance(kernel_size, numbers.Number) else 2, image.ndim))
     elif isinstance(axis, numbers.Number):
@@ -103,7 +105,7 @@ def median_filter(
 
     footprint = np.ones(kernel_size, bool)
 
-    return c_rank_filter(image, footprint, rank, padding_mode=padding_mode, **pad_kw)
+    return rank_filter(image, footprint, rank, padding_mode=padding_mode, constant_value=constant_value)
 
 
 def local_min_filter(
@@ -111,8 +113,10 @@ def local_min_filter(
         kernel_size: int | tuple,
         axis: int | tuple | None = None,
         padding_mode: str = 'reflect',
-        **pad_kw
+        constant_value: float | int | None = 0,
 ) -> np.ndarray:
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
     if axis is None:
         axis = default_axis(image.ndim, min(2 if isinstance(kernel_size, numbers.Number) else 2, image.ndim))
     elif isinstance(axis, numbers.Number):
@@ -122,7 +126,7 @@ def local_min_filter(
 
     footprint = np.ones(kernel_size, bool)
 
-    return c_rank_filter(image, footprint, 0, padding_mode=padding_mode, **pad_kw)
+    return rank_filter(image, footprint, 0, padding_mode=padding_mode, constant_value=constant_value)
 
 
 def local_max_filter(
@@ -130,8 +134,10 @@ def local_max_filter(
         kernel_size: int | tuple,
         axis: int | tuple | None = None,
         padding_mode: str = 'reflect',
-        **pad_kw
+        constant_value: float | int | None = 0,
 ) -> np.ndarray:
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
     if axis is None:
         axis = default_axis(image.ndim, min(2 if isinstance(kernel_size, numbers.Number) else 2, image.ndim))
     elif isinstance(axis, numbers.Number):
@@ -141,6 +147,6 @@ def local_max_filter(
 
     footprint = np.ones(kernel_size, bool)
 
-    return c_rank_filter(image, footprint, np.prod(kernel_size) - 1, padding_mode=padding_mode, **pad_kw)
+    return rank_filter(image, footprint, np.prod(kernel_size) - 1, padding_mode=padding_mode, constant_value=constant_value)
 
 ########################################################################################################################

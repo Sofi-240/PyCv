@@ -2,7 +2,9 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 from pycv._lib.core import ops
 from pycv._lib.array_api.shapes import output_shape
+from pycv._lib.core_support.utils import ctype_border_mode
 from pycv._lib.filters_support.kernel_utils import color_mapping_range
+from pycv._lib.array_api.array_pad import get_padding_width, pad
 
 
 class TestFilters_C(object):
@@ -11,7 +13,8 @@ class TestFilters_C(object):
         kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
         offset = tuple(s // 2 for s in kernel.shape)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
-        ops.convolve(inputs, kernel, output, offset)
+        mode = ctype_border_mode('valid')
+        ops.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal([[40, 45, 50, 55]], output)
 
     def test_convolve02(self):
@@ -19,7 +22,8 @@ class TestFilters_C(object):
         kernel = np.array([[1, 0], [0, 1]])
         offset = (0, 0)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
-        ops.convolve(inputs, kernel, output, offset)
+        mode = ctype_border_mode('valid')
+        ops.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal([[8, 10, 12, 14]], output)
 
     def test_convolve03(self):
@@ -27,7 +31,8 @@ class TestFilters_C(object):
         kernel = np.array([[1, 0, 1]])
         offset = (0, 1)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
-        ops.convolve(inputs, kernel, output, offset)
+        mode = ctype_border_mode('valid')
+        ops.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal([[4, 6, 8], [14, 16, 18]], output)
 
     def test_convolve04(self):
@@ -35,7 +40,8 @@ class TestFilters_C(object):
         kernel = np.array([[1], [0], [1]])
         offset = (1, 0)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
-        ops.convolve(inputs, kernel, output, offset)
+        mode = ctype_border_mode('valid')
+        ops.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal([[12, 14, 16, 18, 20]], output)
 
     def test_convolve05(self):
@@ -43,8 +49,25 @@ class TestFilters_C(object):
         kernel = np.array([[1]])
         offset = (0, 0)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
-        ops.convolve(inputs, kernel, output, offset)
+        mode = ctype_border_mode('valid')
+        ops.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal(inputs, output)
+
+    def test_convolve06(self):
+        inputs = np.array([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], [13, 14, 15, 16, 17, 18]])
+        kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
+        offset = tuple(s // 2 for s in kernel.shape)
+
+        output1 = np.zeros(inputs.shape, inputs.dtype)
+        mode = ctype_border_mode('reflect')
+        ops.convolve(inputs, kernel, output1, offset, mode, 0)
+
+        inputs_pad = pad(inputs, get_padding_width(kernel.shape, offset), mode='reflect')
+        output2 = np.zeros(inputs.shape, inputs.dtype)
+        mode = ctype_border_mode('valid')
+        ops.convolve(inputs_pad, kernel, output2, offset, mode, 0)
+
+        assert_array_almost_equal(output1, output2)
 
     def test_rank_filter01(self):
         inputs = np.array([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]])
@@ -55,16 +78,18 @@ class TestFilters_C(object):
         rank_min = 0
         rank_max = np.sum(footprint) - 1
 
+        mode = ctype_border_mode('valid')
+
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_median, rank_median, offset)
+        ops.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
         assert_array_almost_equal([[7, 8, 9]], output_median)
 
         output_min = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_min, rank_min, offset)
+        ops.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
         assert_array_almost_equal([[2, 3, 4]], output_min)
 
         output_max = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_max, rank_max, offset)
+        ops.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
         assert_array_almost_equal([[12, 13, 14]], output_max)
 
     def test_rank_filter02(self):
@@ -75,17 +100,18 @@ class TestFilters_C(object):
         rank_median = footprint.size // 2
         rank_min = 0
         rank_max = footprint.size - 1
+        mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_median, rank_median, offset)
+        ops.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
         assert_array_almost_equal([[6, 7, 8, 9, 10]], output_median)
 
         output_min = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_min, rank_min, offset)
+        ops.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
         assert_array_almost_equal([[1, 2, 3, 4, 5]], output_min)
 
         output_max = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_max, rank_max, offset)
+        ops.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
         assert_array_almost_equal([[11, 12, 13, 14, 15]], output_max)
 
     def test_rank_filter03(self):
@@ -96,17 +122,18 @@ class TestFilters_C(object):
         rank_median = footprint.size // 2
         rank_min = 0
         rank_max = footprint.size - 1
+        mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_median, rank_median, offset)
+        ops.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
         assert_array_almost_equal([[2, 3, 4], [7, 8, 9], [12, 13, 14]], output_median)
 
         output_min = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_min, rank_min, offset)
+        ops.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
         assert_array_almost_equal([[1, 2, 3], [6, 7, 8], [11, 12, 13]], output_min)
 
         output_max = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_max, rank_max, offset)
+        ops.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
         assert_array_almost_equal([[3, 4, 5], [8, 9, 10], [13, 14, 15]], output_max)
 
     def test_rank_filter04(self):
@@ -117,18 +144,39 @@ class TestFilters_C(object):
         rank_median = np.sum(footprint) // 2
         rank_min = 0
         rank_max = np.sum(footprint) - 1
+        mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_median, rank_median, offset)
+        ops.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
         assert_array_almost_equal([[6, 7, 8, 9]], output_median)
 
         output_min = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_min, rank_min, offset)
+        ops.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
         assert_array_almost_equal([[1, 2, 3, 4]], output_min)
 
         output_max = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_max, rank_max, offset)
+        ops.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
         assert_array_almost_equal([[7, 8, 9, 10]], output_max)
+
+    def test_rank_filter06(self):
+        inputs = np.array([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]])
+        footprint = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
+        offset = (1, 1)
+
+        rank_median = np.sum(footprint) // 2
+
+        mode = ctype_border_mode('reflect')
+
+        output1 = np.zeros(inputs.shape, inputs.dtype)
+        ops.rank_filter(inputs, footprint, output1, rank_median, offset, mode, 0)
+
+        inputs_pad = pad(inputs, get_padding_width(footprint.shape, offset), mode='reflect')
+        output2 = np.zeros(inputs.shape, inputs.dtype)
+        mode = ctype_border_mode('valid')
+        ops.rank_filter(inputs_pad, footprint, output2, rank_median, offset, mode, 0)
+
+        assert_array_almost_equal(output1, output2)
+
 
 
 class TestMorphology_C(object):

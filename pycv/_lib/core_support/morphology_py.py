@@ -1,51 +1,44 @@
 import numpy as np
-import numbers
-from pycv._lib.filters_support.utils import default_axis, fix_kernel_shape, valid_kernels, get_output, valid_kernel_shape_with_ref
-from pycv._lib.filters_support.kernel_utils import default_binary_strel, color_mapping_range
-from pycv._lib.decorator import registrate_decorator
-from pycv._lib.array_api.dtypes import as_binary_array, get_dtype_limits, get_dtype_info
-from pycv._lib.array_api.regulator import np_compliance, check_finite
+from pycv._lib.core_support.utils import get_output, get_kernel, valid_kernel_shape_with_ref
 from pycv._lib.core import ops
+from pycv._lib.filters_support.kernel_utils import default_binary_strel, color_mapping_range
+from pycv._lib.array_api.dtypes import as_binary_array, get_dtype_limits, get_dtype_info
+from pycv._lib.array_api.regulator import np_compliance
 
 __all__ = [
     'default_strel',
-    'c_binary_erosion',
-    'RAVEL_ORDER',
-    'MAX_NDIM',
-    'FLIPPER',
+    'binary_erosion',
+    'binary_region_fill',
+    'gray_ero_or_dil',
+    'labeling',
+    'skeletonize',
     'PUBLIC'
 ]
-
 PUBLIC = []
-
-RAVEL_ORDER = 'C'
-MAX_NDIM = 3
-FLIPPER = (1, 0, 2)
 
 
 ########################################################################################################################
-
+# TODO: FLIP!!!!
 def default_strel(
         strel: np.ndarray | None,
         nd: int,
-        flip: bool = True,
         connectivity: int = 1,
         hole: bool = False,
         offset: tuple | None = None
 ) -> tuple[np.ndarray, tuple]:
     if strel is None:
         strel = default_binary_strel(nd, connectivity, hole)
-        flip = False
         hole = False
-    strel, strel_shape, offset = valid_kernels(strel, nd, flip, 1, offset)
+    strel, offset = get_kernel(strel, nd, offset=offset)
     if hole:
         strel = strel.copy()
         strel[offset] = False
     return strel, offset
 
+
 ########################################################################################################################
 
-def c_binary_erosion(
+def binary_erosion(
         image: np.ndarray,
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
@@ -54,12 +47,9 @@ def c_binary_erosion(
         output: np.ndarray | None = None,
         invert: bool | int = False,
 ) -> np.ndarray | None:
-    if not isinstance(image, np.ndarray):
-        raise TypeError(f'Image need to be type of numpy.ndarray')
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
     nd = image.ndim
-
-    if not check_finite(image):
-        raise ValueError('image must not contain infs or NaNs')
 
     if image.dtype != bool:
         image = as_binary_array(image, 'Image')
@@ -74,6 +64,8 @@ def c_binary_erosion(
     input_output = output is not None
 
     output, share_memory = get_output(output, image, image.shape)
+
+    hold_output = None
 
     if share_memory:
         hold_output = output
@@ -100,9 +92,10 @@ def c_binary_erosion(
 
     return None if input_output else output
 
+
 ########################################################################################################################
 
-def c_binary_region_fill(
+def binary_region_fill(
         image: np.ndarray,
         seed_point: tuple,
         strel: np.ndarray | None = None,
@@ -110,10 +103,10 @@ def c_binary_region_fill(
         output: np.ndarray | None = None,
         inplace: bool = False
 ) -> np.ndarray | None:
-    nd = image.ndim
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
 
-    if not check_finite(image):
-        raise ValueError('image must not contain infs or NaNs')
+    nd = image.ndim
 
     if image.dtype != bool:
         image = as_binary_array(image, 'Image')
@@ -133,23 +126,20 @@ def c_binary_region_fill(
 
     return output
 
+
 ########################################################################################################################
 
-def c_gray_ero_or_dil(
+def gray_ero_or_dil(
         op: int,
         image: np.ndarray,
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
-        iterations: int = 1,
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None,
 ) -> np.ndarray | None:
-    if not isinstance(image, np.ndarray):
-        raise TypeError(f'Image need to be type of numpy.ndarray')
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
     nd = image.ndim
-
-    if not check_finite(image):
-        raise ValueError('image must not contain infs or NaNs')
 
     strel, offset = default_strel(strel, nd, offset=offset)
 
@@ -164,6 +154,7 @@ def c_gray_ero_or_dil(
     input_output = output is not None
 
     output, share_memory = get_output(output, image, image.shape)
+    hold_output = None
 
     if share_memory:
         hold_output = output
@@ -194,17 +185,19 @@ def c_gray_ero_or_dil(
 
     return None if input_output else output
 
+
 ########################################################################################################################
 
 
-def c_labeling(
+def labeling(
         image: np.ndarray,
         connectivity: int = 1,
         rng_mapping_method: str = 'sqr',
         mod_value: int = 16
 ) -> tuple[int, np.ndarray]:
-    if not check_finite(image):
-        raise ValueError('image must not contain infs or NaNs')
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
+
     if connectivity < 1 or connectivity > image.ndim:
         raise ValueError(
             f'Connectivity value must be in the range from 1 (no diagonal elements are neighbors) '
@@ -228,17 +221,14 @@ def c_labeling(
     ops.labeling(image, connectivity, values_map, output)
     return np.max(output), output
 
+
 ########################################################################################################################
 
-def c_skeletonize(
+def skeletonize(
         image: np.ndarray
 ) -> np.ndarray:
-    if not isinstance(image, np.ndarray):
-        raise TypeError(f'Image need to be type of numpy.ndarray')
-    nd = image.ndim
-
-    if not check_finite(image):
-        raise ValueError('image must not contain infs or NaNs')
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
 
     if image.dtype != bool:
         image = as_binary_array(image, 'Image')

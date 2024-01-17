@@ -453,7 +453,7 @@ int init_offsets_lut(PyArrayObject *array,
                      npy_intp **offsets_lookup,
                      npy_intp *offsets_stride,
                      npy_intp *offsets_flag,
-                     BrdersMode mode)
+                     BordersMode mode)
 {
     CoordinatesIter a_iter, k_iter;
     npy_intp ii, jj, kk, nd, array_size, kernel_size, offsets_size, itemsize;
@@ -485,7 +485,7 @@ int init_offsets_lut(PyArrayObject *array,
 
     *offsets_flag = flag = max_stride * max_stride + 1;
 
-    if (mode == BORDER_ATYPE_FLAG || mode == BORDER_ATYPE_REFLECT || mode == BORDER_ATYPE_CONSTANT) {
+    if (mode > BORDER_BUFFER_ATYPE) {
         atype = 1;
     }
 
@@ -517,6 +517,8 @@ int init_offsets_lut(PyArrayObject *array,
                 switch (mode) {
                     case BORDER_FLAG:
                     case BORDER_ATYPE_FLAG:
+                    case BORDER_VALID:
+                    case BORDER_ATYPE_VALID:
                     case BORDER_CONSTANT:
                     case BORDER_ATYPE_CONSTANT:
                         is_valid = 1;
@@ -553,6 +555,51 @@ int init_offsets_lut(PyArrayObject *array,
                         }
                         RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
                         break;
+                    case BORDER_SYMMETRIC:
+                    case BORDER_ATYPE_SYMMETRIC:
+                        for (kk = 0; kk < nd; kk++) {
+                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
+                            if (pos < 0) {
+                                pos = abs(pos) - 1;
+                                if (pos >= a_shape[kk]) {
+                                    pos = a_shape[kk] - 1;
+                                }
+                            } else if (pos >= a_shape[kk]) {
+                                pos = 2 * a_shape[kk] - pos - 1;
+                                if (pos < 0) {
+                                    pos = 0;
+                                }
+                            }
+                            position[kk] = pos - a_iter.coordinates[kk];
+                        }
+                        RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
+                        break;
+                    case BORDER_WRAP:
+                    case BORDER_ATYPE_WRAP:
+                        for (kk = 0; kk < nd; kk++) {
+                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
+                            if (pos < 0) {
+                                pos = a_shape[kk] + pos;
+                            } else if (pos >= a_shape[kk]) {
+                                pos -= a_shape[kk];
+                            }
+                            position[kk] = pos - a_iter.coordinates[kk];
+                        }
+                        RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
+                        break;
+                    case BORDER_EDGE:
+                    case BORDER_ATYPE_EDGE:
+                        for (kk = 0; kk < nd; kk++) {
+                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
+                            if (pos < 0) {
+                                pos = 0;
+                            } else if (pos >= a_shape[kk]) {
+                                pos = a_shape[kk] - 1;
+                            }
+                            position[kk] = pos - a_iter.coordinates[kk];
+                        }
+                        RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
+                        break;
                 }
                 if (atype) {
                     valid_offset /= itemsize;
@@ -574,6 +621,27 @@ int init_offsets_lut(PyArrayObject *array,
         }
 
 }
+
+int can_use_same_offsets(PyArrayObject *array1, PyArrayObject *array2)
+{
+    npy_intp nd, ii;
+    int is_same = 1;
+
+    nd = PyArray_NDIM(array1);
+
+    if (nd != PyArray_NDIM(array2)) {
+        return 0;
+    }
+
+    for (ii = 0; ii < nd; ii++) {
+        if ((PyArray_DIM(array1, ii) != PyArray_DIM(array2, ii)) || (PyArray_STRIDE(array1, ii) != PyArray_STRIDE(array2, ii))) {
+            is_same = 0;
+            break;
+        }
+    }
+    return is_same;
+}
+
 
 // #####################################################################################################################
 

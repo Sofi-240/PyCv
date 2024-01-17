@@ -3,35 +3,6 @@
 
 // #####################################################################################################################
 
-#define TYPE_CASE_CONVOLVE(_NUM_TYPE, _type, _pi, _weights, _offsets_size, _offsets, _out)     \
-case _NUM_TYPE:                                                                                \
-{                                                                                              \
-    npy_intp _ii;                                                                              \
-    for (_ii = 0; _ii < _offsets_size; _ii++) {                                                \
-        _out += _weights[_ii] * (double)(*((_type *)(_pi + _offsets[_ii])));                   \
-    }                                                                                          \
-}                                                                                              \
-break
-
-#define EX_CONVOLVE(_NUM_TYPE, _pi, _weights, _offsets_size, _offsets, _out)                                           \
-{                                                                                                                      \
-    switch (_NUM_TYPE) {                                                                                               \
-        TYPE_CASE_CONVOLVE(NPY_BOOL, npy_bool, _pi, _weights, _offsets_size, _offsets, _out);                          \
-        TYPE_CASE_CONVOLVE(NPY_UBYTE, npy_ubyte, _pi, _weights, _offsets_size, _offsets, _out);                        \
-        TYPE_CASE_CONVOLVE(NPY_USHORT, npy_ushort, _pi, _weights, _offsets_size, _offsets, _out);                      \
-        TYPE_CASE_CONVOLVE(NPY_UINT, npy_uint, _pi, _weights, _offsets_size, _offsets, _out);                          \
-        TYPE_CASE_CONVOLVE(NPY_ULONG, npy_ulong, _pi, _weights, _offsets_size, _offsets, _out);                        \
-        TYPE_CASE_CONVOLVE(NPY_ULONGLONG, npy_ulonglong, _pi, _weights, _offsets_size, _offsets, _out);                \
-        TYPE_CASE_CONVOLVE(NPY_BYTE, npy_byte, _pi, _weights, _offsets_size, _offsets, _out);                          \
-        TYPE_CASE_CONVOLVE(NPY_SHORT, npy_short, _pi, _weights, _offsets_size, _offsets, _out);                        \
-        TYPE_CASE_CONVOLVE(NPY_INT, npy_int, _pi, _weights, _offsets_size, _offsets, _out);                            \
-        TYPE_CASE_CONVOLVE(NPY_LONG, npy_long, _pi, _weights, _offsets_size, _offsets, _out);                          \
-        TYPE_CASE_CONVOLVE(NPY_LONGLONG, npy_longlong, _pi, _weights, _offsets_size, _offsets, _out);                  \
-        TYPE_CASE_CONVOLVE(NPY_FLOAT, npy_float, _pi, _weights, _offsets_size, _offsets, _out);                        \
-        TYPE_CASE_CONVOLVE(NPY_DOUBLE, npy_double, _pi, _weights, _offsets_size, _offsets, _out);                      \
-    }                                                                                                                  \
-}
-
 static int flip_kernel(PyArrayObject *kernel, double **kernel_out) {
     ArrayIter iter;
     npy_intp size, ii;
@@ -54,97 +25,143 @@ static int flip_kernel(PyArrayObject *kernel, double **kernel_out) {
 
     for (ii = size - 1; ii >= 0; ii--) {
         GET_VALUE_AS(num_type, double, pointer, tmp);
-        *k_run++ = tmp;
+        k_run[ii] = tmp;
         ARRAY_ITER_NEXT(iter, pointer);
     }
     return 1;
 }
 
-int ops_convolve(PyArrayObject *input, PyArrayObject *kernel, PyArrayObject *output, npy_intp *origins)
+
+#define TYPE_CASE_CONVOLVE(_NUM_TYPE, _type, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border)      \
+case _NUM_TYPE:                                                                                                                              \
+{                                                                                                                                            \
+    npy_intp _ii;                                                                                                                            \
+    _border = 0;                                                                                                                             \
+    _out = 0;                                                                                                                                \
+    for (_ii = 0; _ii < _offsets_size; _ii++) {                                                                                              \
+        if (_offsets[_ii] >= _offsets_flag) {                                                                                                \
+            if (!_use_border) {                                                                                                              \
+                _border = 1;                                                                                                                 \
+                break;                                                                                                                       \
+            }                                                                                                                                \
+            _out += _weights[_ii] * _c_val;                                                                                                  \
+        } else {                                                                                                                             \
+            _out += _weights[_ii] * (double)(*((_type *)(_pi + _offsets[_ii])));                                                             \
+        }                                                                                                                                    \
+    }                                                                                                                                        \
+}                                                                                                                                            \
+break
+
+#define EX_CONVOLVE(_NUM_TYPE, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border)                                           \
+{                                                                                                                                                                   \
+    switch (_NUM_TYPE) {                                                                                                                                            \
+        TYPE_CASE_CONVOLVE(NPY_BOOL, npy_bool, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                          \
+        TYPE_CASE_CONVOLVE(NPY_UBYTE, npy_ubyte, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                        \
+        TYPE_CASE_CONVOLVE(NPY_USHORT, npy_ushort, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                      \
+        TYPE_CASE_CONVOLVE(NPY_UINT, npy_uint, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                          \
+        TYPE_CASE_CONVOLVE(NPY_ULONG, npy_ulong, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                        \
+        TYPE_CASE_CONVOLVE(NPY_ULONGLONG, npy_ulonglong, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                \
+        TYPE_CASE_CONVOLVE(NPY_BYTE, npy_byte, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                          \
+        TYPE_CASE_CONVOLVE(NPY_SHORT, npy_short, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                        \
+        TYPE_CASE_CONVOLVE(NPY_INT, npy_int, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                            \
+        TYPE_CASE_CONVOLVE(NPY_LONG, npy_long, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                          \
+        TYPE_CASE_CONVOLVE(NPY_LONGLONG, npy_longlong, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                  \
+        TYPE_CASE_CONVOLVE(NPY_FLOAT, npy_float, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                        \
+        TYPE_CASE_CONVOLVE(NPY_DOUBLE, npy_double, _pi, _weights, _offsets_size, _offsets_flag, _offsets, _out, _c_val, _border, _use_border);                      \
+    }                                                                                                                                                               \
+}
+
+int ops_convolve(PyArrayObject *input,
+                 PyArrayObject *kernel,
+                 PyArrayObject *output,
+                 npy_intp *origins,
+                 BordersMode mode,
+                 double constant_value)
 {
+    npy_intp array_size, kernel_size;
+    int num_type_i, num_type_o, footprint_size;
+    npy_intp *offsets, of_stride, of_flag, *of_run;
+    npy_bool *footprint;
+    npy_intp ii, jj;
+
     ArrayIter iter_i, iter_o;
     char *po = NULL, *pi = NULL;
-    npy_bool *footprint, *borders_lookup;
-    int offsets_size, num_type_i, num_type_o;
-    npy_intp ii, *offsets;
-    double tmp, *kernel_flipted, *weights, *ww;
+    npy_double *ki = NULL;
+
+    double tmp = 0.0, *kernel_flipped, *weights;
+    int is_border = 0, use_border;
 
     NPY_BEGIN_THREADS_DEF;
 
-    if (!valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(kernel))) {
-        PyErr_SetString(PyExc_RuntimeError, "kernel dtype not supported");
+    array_size = PyArray_SIZE(input);
+    kernel_size = PyArray_SIZE(kernel);
+    num_type_i = PyArray_TYPE(input);
+    num_type_o = PyArray_TYPE(output);
+
+    if (!flip_kernel(kernel, &kernel_flipped)) {
         goto exit;
     }
 
-    if (!flip_kernel(kernel, &kernel_flipted)) {
-        goto exit;
-    }
-
-    footprint = malloc(PyArray_SIZE(kernel) * sizeof(npy_bool));
+    footprint = (npy_bool *)malloc(kernel_size * sizeof(npy_bool));
     if (!footprint) {
         PyErr_NoMemory();
-        goto exit;
+        return 0;
     }
-    offsets_size = 0;
-    for (ii = 0; ii < PyArray_SIZE(kernel); ii++) {
-        if (kernel_flipted[ii]) {
-            footprint[ii] = NPY_TRUE;
-            offsets_size++;
+
+    footprint_size = 0;
+    for (ii = 0; ii < kernel_size; ii++) {
+        if (fabs(kernel_flipped[ii]) > DBL_EPSILON) {
+            footprint_size++;
+            footprint[ii] = 1;
         } else {
-            footprint[ii] = NPY_FALSE;
+            footprint[ii] = 0;
         }
     }
 
-    weights = malloc(offsets_size * sizeof(double));
+    weights = (double *)malloc(footprint_size * sizeof(double));
     if (!weights) {
         PyErr_NoMemory();
-        goto exit;
+        return 0;
     }
-    ww = weights;
-    for (ii = 0; ii < PyArray_SIZE(kernel); ii++) {
+    jj = 0;
+    for (ii = 0; ii < kernel_size; ii++) {
         if (footprint[ii]) {
-            *ww++ = kernel_flipted[ii];
+            weights[jj] = kernel_flipped[ii];
+            jj++;
         }
     }
 
-    if (!init_offsets_ravel(input, PyArray_DIMS(kernel), origins, footprint, &offsets)) {
+    if (!init_offsets_lut(input, PyArray_DIMS(kernel), origins, footprint, &offsets, &of_stride, &of_flag, mode)) {
         goto exit;
     }
-
-    if (!init_borders_lut(PyArray_NDIM(input), PyArray_DIMS(input), PyArray_DIMS(kernel), origins, &borders_lookup)) {
-        goto exit;
-    }
+    use_border = mode == BORDER_VALID ? 0 : 1;
 
     ArrayIterInit(input, &iter_i);
     ArrayIterInit(output, &iter_o);
-
-    num_type_i = PyArray_TYPE(input);
-    num_type_o = PyArray_TYPE(output);
 
     NPY_BEGIN_THREADS;
 
     pi = (void *)PyArray_DATA(input);
     po = (void *)PyArray_DATA(output);
+    of_run = offsets;
 
-    for (ii = 0; ii < PyArray_SIZE(input); ii++) {
-        if (!borders_lookup[ii]) {
-            tmp = 0.0;
-            EX_CONVOLVE(num_type_i, pi, weights, offsets_size, offsets, tmp);
+    for (ii = 0; ii < array_size; ii++) {
+        EX_CONVOLVE(num_type_i, pi, weights, of_stride, of_flag, of_run, tmp, constant_value, is_border, use_border);
+        if (!is_border) {
             SET_VALUE_TO(num_type_o, po, tmp);
             ARRAY_ITER_NEXT(iter_o, po);
         }
         ARRAY_ITER_NEXT(iter_i, pi);
+        of_run += of_stride;
     }
+
     NPY_END_THREADS;
+
     exit:
+        free(offsets);
+        free(footprint);
+        free(weights);
+        free(kernel_flipped);
         return PyErr_Occurred() ? 0 : 1;
 }
 
@@ -185,73 +202,74 @@ static double quick_select(double *buffer, npy_intp low, npy_intp high, int rank
     }
 }
 
-#define TYPE_CASE_SELECT(_NUM_TYPE, _type, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val)   \
-case _NUM_TYPE:                                                                                       \
-{                                                                                                     \
-    npy_intp _ii;                                                                                     \
-    for (_ii = 0; _ii < _offsets_size; _ii++) {                                                       \
-        _buffer[_ii] = (double)(*((_type *)(_pi + _offsets[_ii])));                                   \
-    }                                                                                                 \
-    _rank_val = quick_select(_buffer, 0, _offsets_size - 1, _rank);                                   \
-}                                                                                                     \
+#define TYPE_CASE_SELECT(_NUM_TYPE, _type, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border)   \
+case _NUM_TYPE:                                                                                                                                       \
+{                                                                                                                                                     \
+    npy_intp _ii;                                                                                                                                     \
+    _is_border = 0;                                                                                                                                   \
+    for (_ii = 0; _ii < _offsets_size; _ii++) {                                                                                                       \
+        if (_offsets[_ii] >= _offsets_flag){                                                                                                          \
+            if (_use_border) {                                                                                                                        \
+                _buffer[_ii] = _c_val;                                                                                                                \
+            } else {                                                                                                                                  \
+                _is_border = 1;                                                                                                                       \
+                break;                                                                                                                                \
+            }                                                                                                                                         \
+        } else {                                                                                                                                      \
+            _buffer[_ii] = (double)(*((_type *)(_pi + _offsets[_ii])));                                                                               \
+        }                                                                                                                                             \
+    }                                                                                                                                                 \
+    if (!_is_border) {                                                                                                                                \
+        _rank_val = quick_select(_buffer, 0, _offsets_size - 1, _rank);                                                                               \
+    }                                                                                                                                                 \
+}                                                                                                                                                     \
 break
 
-#define EX_SELECT(_NUM_TYPE, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val)                               \
-{                                                                                                                   \
-    switch (_NUM_TYPE) {                                                                                            \
-        TYPE_CASE_SELECT(NPY_BOOL, npy_bool, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);              \
-        TYPE_CASE_SELECT(NPY_UBYTE, npy_ubyte, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);            \
-        TYPE_CASE_SELECT(NPY_USHORT, npy_ushort, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);          \
-        TYPE_CASE_SELECT(NPY_UINT, npy_uint, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);              \
-        TYPE_CASE_SELECT(NPY_ULONG, npy_ulong, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);            \
-        TYPE_CASE_SELECT(NPY_ULONGLONG, npy_ulonglong, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);    \
-        TYPE_CASE_SELECT(NPY_BYTE, npy_byte, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);              \
-        TYPE_CASE_SELECT(NPY_SHORT, npy_short, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);            \
-        TYPE_CASE_SELECT(NPY_INT, npy_int, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);                \
-        TYPE_CASE_SELECT(NPY_LONG, npy_long, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);              \
-        TYPE_CASE_SELECT(NPY_LONGLONG, npy_longlong, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);      \
-        TYPE_CASE_SELECT(NPY_FLOAT, npy_float, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);            \
-        TYPE_CASE_SELECT(NPY_DOUBLE, npy_double, _pi, _offsets_size, _offsets, _buffer, _rank, _rank_val);          \
-    }                                                                                                               \
+#define EX_SELECT(_NUM_TYPE, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border)                               \
+{                                                                                                                                                                   \
+    switch (_NUM_TYPE) {                                                                                                                                            \
+        TYPE_CASE_SELECT(NPY_BOOL, npy_bool, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);              \
+        TYPE_CASE_SELECT(NPY_UBYTE, npy_ubyte, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);            \
+        TYPE_CASE_SELECT(NPY_USHORT, npy_ushort, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);          \
+        TYPE_CASE_SELECT(NPY_UINT, npy_uint, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);              \
+        TYPE_CASE_SELECT(NPY_ULONG, npy_ulong, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);            \
+        TYPE_CASE_SELECT(NPY_ULONGLONG, npy_ulonglong, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);    \
+        TYPE_CASE_SELECT(NPY_BYTE, npy_byte, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);              \
+        TYPE_CASE_SELECT(NPY_SHORT, npy_short, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);            \
+        TYPE_CASE_SELECT(NPY_INT, npy_int, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);                \
+        TYPE_CASE_SELECT(NPY_LONG, npy_long, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);              \
+        TYPE_CASE_SELECT(NPY_LONGLONG, npy_longlong, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);      \
+        TYPE_CASE_SELECT(NPY_FLOAT, npy_float, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);            \
+        TYPE_CASE_SELECT(NPY_DOUBLE, npy_double, _pi, _offsets_size, _offsets_flag, _offsets, _use_border, _c_val, _buffer, _rank, _rank_val, _is_border);          \
+    }                                                                                                                                                               \
 }
 
 int ops_rank_filter(PyArrayObject *input,
                     PyArrayObject *footprint,
                     PyArrayObject *output,
                     int rank,
-                    npy_intp *origins)
+                    npy_intp *origins,
+                    BordersMode mode,
+                    double constant_value)
 {
     ArrayIter iter_i, iter_o;
     char *po = NULL, *pi = NULL;
-    npy_bool *footprint_arr, *borders_lookup;
-    int offsets_size, num_type_i, num_type_o;
-    npy_intp ii, *offsets;
-    double rank_val, *buffer;
+    npy_bool *footprint_arr;
+    npy_intp *offsets, of_stride, of_flag, *of_run;
+    int num_type_i, num_type_o, non_zeros;
+
+    npy_intp ii;
+    double rank_val = 0.0, *buffer;
+    int is_border = 0, use_border;
 
     NPY_BEGIN_THREADS_DEF;
 
-    if (!valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(footprint))) {
-        PyErr_SetString(PyExc_RuntimeError, "footprint dtype not supported");
+
+    if (!array_to_footprint(footprint, &footprint_arr, &non_zeros)) {
         goto exit;
     }
 
-    if (!array_to_footprint(footprint, &footprint_arr, &offsets_size)) {
-        goto exit;
-    }
-
-    if (!init_offsets_ravel(input, PyArray_DIMS(footprint), origins, footprint_arr, &offsets)) {
-        goto exit;
-    }
-
-    if (!init_borders_lut(PyArray_NDIM(input), PyArray_DIMS(input), PyArray_DIMS(footprint), origins, &borders_lookup)) {
+    if (!init_offsets_lut(input, PyArray_DIMS(footprint), origins, footprint_arr, &offsets, &of_stride, &of_flag, mode)) {
         goto exit;
     }
 
@@ -261,35 +279,43 @@ int ops_rank_filter(PyArrayObject *input,
     num_type_i = PyArray_TYPE(input);
     num_type_o = PyArray_TYPE(output);
 
-    buffer = malloc(offsets_size * sizeof(double));
+    buffer = malloc(of_stride * sizeof(double));
     if (!buffer) {
         PyErr_NoMemory();
         goto exit;
     }
+    use_border = mode == BORDER_VALID ? 0 : 1;
 
     NPY_BEGIN_THREADS;
 
     pi = (void *)PyArray_DATA(input);
     po = (void *)PyArray_DATA(output);
+    of_run = offsets;
 
     for (ii = 0; ii < PyArray_SIZE(input); ii++) {
-        if (!borders_lookup[ii]) {
-            rank_val = 0.0;
-            EX_SELECT(num_type_i, pi, offsets_size, offsets, buffer, rank, rank_val);
+        EX_SELECT(num_type_i, pi, of_stride, of_flag, of_run, use_border, constant_value, buffer, rank, rank_val, is_border);
+        if (!is_border) {
             SET_VALUE_TO(num_type_o, po, rank_val);
             ARRAY_ITER_NEXT(iter_o, po);
         }
         ARRAY_ITER_NEXT(iter_i, pi);
+        of_run += of_stride;
     }
     NPY_END_THREADS;
     exit:
         free(buffer);
+        free(offsets);
+        free(footprint_arr);
         return PyErr_Occurred() ? 0 : 1;
 }
 
 // #####################################################################################################################
 
 
-// #####################################################################################################################
+
+
+
+
+
 
 

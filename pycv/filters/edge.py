@@ -22,7 +22,7 @@ def sobel(
         padding_mode: str = 'reflect',
         **pad_kw
 ) -> np.ndarray:
-    return edge_filters(image, SOBEL_WEIGHTS, SOBEL_EDGE, axis, preserve_dtype=False, as_float=True, padding_mode=padding_mode, **pad_kw)
+    return edge_filters(image, SOBEL_WEIGHTS, SOBEL_EDGE, axis, preserve_dtype=False, padding_mode=padding_mode, **pad_kw)
 
 
 def prewitt(
@@ -31,5 +31,5 @@ def prewitt(
         padding_mode: str = 'reflect',
         **pad_kw
 ) -> np.ndarray:
-    return edge_filters(image, PREWITT_WEIGHTS, PREWITT_EDGE, axis, preserve_dtype=False, as_float=True, padding_mode=padding_mode, **pad_kw)
+    return edge_filters(image, PREWITT_WEIGHTS, PREWITT_EDGE, axis, preserve_dtype=False, padding_mode=padding_mode, **pad_kw)
 

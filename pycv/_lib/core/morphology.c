@@ -78,23 +78,6 @@ int ops_binary_erosion(PyArrayObject *input,
 
     NPY_BEGIN_THREADS_DEF;
 
-    if (!valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (mask && !valid_dtype(PyArray_TYPE(mask))) {
-        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(strel))) {
-        PyErr_SetString(PyExc_RuntimeError, "strel dtype not supported");
-        goto exit;
-    }
-
     if (!array_to_footprint(strel, &footprint, &offsets_size)) {
         goto exit;
     }
@@ -247,27 +230,6 @@ int ops_gray_ero_or_dil(PyArrayObject *input,
 
     NPY_BEGIN_THREADS_DEF;
 
-    if (!valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (mask && !valid_dtype(PyArray_TYPE(mask))) {
-        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(flat_strel))) {
-        PyErr_SetString(PyExc_RuntimeError, "flat strel dtype not supported");
-        goto exit;
-    }
-    if (non_flat_strel && !valid_dtype(PyArray_TYPE(non_flat_strel))) {
-        PyErr_SetString(PyExc_RuntimeError, "non flat strel dtype not supported");
-        goto exit;
-    }
-
     if (!array_to_footprint(flat_strel, &footprint, &offsets_size)) {
         goto exit;
     }
@@ -369,15 +331,6 @@ int ops_binary_region_fill(PyArrayObject *output,
 
     NPY_BEGIN_THREADS_DEF;
 
-    if (!valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(strel))) {
-        PyErr_SetString(PyExc_RuntimeError, "strel dtype not supported");
-        goto exit;
-    }
-
     if (!array_to_footprint(strel, &footprint, &offsets_size)) {
         goto exit;
     }
@@ -418,7 +371,7 @@ int ops_binary_region_fill(PyArrayObject *output,
         for (ii = 0; ii < offsets_size; ii++) {
             is_valid = NPY_TRUE;
             for (jj = 0; jj < nd; jj++) {
-                position[jj] = stack_go[jj] - offsets_run[jj];
+                position[jj] = stack_go[jj] + offsets_run[jj];
                 if (position[jj] < 0 || position[jj] > iter.dims_m1[jj]) {
                     is_valid = NPY_FALSE;
                     break;
@@ -464,23 +417,6 @@ int ops_labeling(PyArrayObject *input,
     int pivot = 0, con = 0, pi_con = 0, buffer_size = 0, n_labels = 1, pivot_rank = -1, con_rank = -1, label, node1, node2;
 
     NPY_BEGIN_THREADS_DEF;
-
-    if (!valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (values_map && !valid_dtype(PyArray_TYPE(values_map))) {
-        PyErr_SetString(PyExc_RuntimeError, "values map dtype not supported");
-        goto exit;
-    }
-    if (values_map && PyArray_NDIM(values_map) > 1) {
-        PyErr_SetString(PyExc_RuntimeError, "values map need to be 1D array");
-        goto exit;
-    }
 
     nd = PyArray_NDIM(input);
     array_size = PyArray_SIZE(input);
@@ -758,19 +694,10 @@ int ops_skeletonize(PyArrayObject *input, PyArrayObject *output)
     unsigned int *skeleton_lut, to_change_pixel = 0;
     PyArrayObject *skeleton;
     ArrayIter iter_o, iter_s;
-    npy_intp nd, ii, ss, num_type, size, tmp, *offsets;
+    npy_intp nd, ii, ss, num_type, size, *offsets;
     char *po_base = NULL, *ps_base = NULL, *po = NULL, *ps = NULL;
     npy_bool *borders_lookup;
     int pixel_change = 0, s_val = 0;
-
-    if (!valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
 
     num_type = PyArray_TYPE(input);
     nd = PyArray_NDIM(input);

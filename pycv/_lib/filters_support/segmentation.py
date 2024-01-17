@@ -4,9 +4,9 @@ import typing
 from pycv._lib.histogram import HIST
 from pycv._lib.decorator import registrate_decorator
 from pycv._lib.filters_support.windows import gaussian_kernel
-from pycv._lib.filters_support.filters import c_convolve, c_rank_filter
-from cvpy._lib._inspect import isfunction
-from cvpy._lib.array_api.dtypes import cast
+from pycv._lib.core_support.filters_py import convolve, rank_filter
+from pycv._lib._inspect import isfunction
+from pycv._lib.array_api.dtypes import cast
 
 __all__ = [
     'PUBLIC',
@@ -216,7 +216,7 @@ def adaptive(
         method_params: typing.Any = None,
         offset_val: int | float = 0,
         padding_mode: str = 'reflect',
-        **pad_kw
+        constant_value: float | int | None = 0,
 ) -> np.ndarray:
     supported_mode = {'mean', 'gaussian', 'median', 'function'}
 
@@ -244,18 +244,18 @@ def adaptive(
         ndim = image.ndim
         for s, r, ax in zip(method_params, kernel_size, (ndim - 2, ndim - 1)):
             kernel = gaussian_kernel(s, radius=r)
-            threshold = c_convolve(threshold, kernel, axis=(ax,), padding_mode=padding_mode, **pad_kw)
+            threshold = convolve(threshold, kernel, axis=(ax,), padding_mode=padding_mode, constant_value=constant_value)
         threshold = cast(threshold, image.dtype)
 
     elif method == 'mean':
         kernel = np.ones(kernel_size, np.float64) / np.prod(kernel_size)
         threshold = cast(image, np.float64)
-        threshold = c_convolve(threshold, kernel, padding_mode=padding_mode, **pad_kw)
+        threshold = convolve(threshold, kernel, padding_mode=padding_mode, constant_value=constant_value)
         threshold = cast(threshold, image.dtype)
     elif method == 'median':
         rank = np.prod(kernel_size) // 2
         footprint = np.ones(kernel_size, bool)
-        threshold = c_rank_filter(image, footprint, rank, padding_mode=padding_mode, **pad_kw)
+        threshold = rank_filter(image, footprint, rank, padding_mode=padding_mode, constant_value=constant_value)
     else:
         raise ValueError(f'{method} is not in supported methods use {supported_mode}')
 

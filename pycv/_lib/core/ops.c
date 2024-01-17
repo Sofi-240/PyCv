@@ -40,18 +40,34 @@ PyObject* convolve(PyObject* self, PyObject* args)
 {
     PyArrayObject *input = NULL, *kernel = NULL, *output = NULL;
     PyArray_Dims origins = {NULL, 0};
+    int mode;
+    double constant_value;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&O&O&O&",
+            "O&O&O&O&id",
             Input_To_Array, &input,
             Input_To_Array, &kernel,
             Output_To_Array, &output,
-            PyArray_IntpConverter, &origins)) {
+            PyArray_IntpConverter, &origins,
+            &mode, &constant_value)) {
         goto exit;
     }
 
-    ops_convolve(input, kernel, output, origins.ptr);
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(kernel))) {
+        PyErr_SetString(PyExc_RuntimeError, "kernel dtype not supported");
+        goto exit;
+    }
+
+    ops_convolve(input, kernel, output, origins.ptr, (BordersMode)mode, constant_value);
 
     PyArray_ResolveWritebackIfCopy(output);
 
@@ -68,19 +84,35 @@ PyObject* rank_filter(PyObject* self, PyObject* args)
     PyArrayObject *input = NULL, *footprint = NULL, *output = NULL;
     PyArray_Dims origins = {NULL, 0};
     int rank;
+    int mode;
+    double constant_value;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&O&O&iO&",
+            "O&O&O&iO&id",
             Input_To_Array, &input,
             Input_To_Array, &footprint,
             Output_To_Array, &output,
             &rank,
-            PyArray_IntpConverter, &origins)) {
+            PyArray_IntpConverter, &origins,
+            &mode, &constant_value)) {
         goto exit;
     }
 
-    ops_rank_filter(input, footprint, output, rank, origins.ptr);
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(footprint))) {
+        PyErr_SetString(PyExc_RuntimeError, "footprint dtype not supported");
+        goto exit;
+    }
+
+    ops_rank_filter(input, footprint, output, rank, origins.ptr, (BordersMode)mode, constant_value);
     PyArray_ResolveWritebackIfCopy(output);
 
     exit:
@@ -110,9 +142,26 @@ PyObject* binary_erosion(PyObject* self, PyObject* args)
         goto exit;
     }
 
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (mask && !valid_dtype(PyArray_TYPE(mask))) {
+        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(strel))) {
+        PyErr_SetString(PyExc_RuntimeError, "strel dtype not supported");
+        goto exit;
+    }
+
     ops_binary_erosion(input, strel, output, origins.ptr, iterations, mask, invert);
 
-//    PyArray_ResolveWritebackIfCopy(output);
+    PyArray_ResolveWritebackIfCopy(output);
 
     exit:
         Py_XDECREF(input);
@@ -141,6 +190,27 @@ PyObject* erosion(PyObject* self, PyObject* args)
             PyArray_IntpConverter, &origins,
             InputOptional_To_Array, &mask,
             &cast_value)) {
+        goto exit;
+    }
+
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (mask && !valid_dtype(PyArray_TYPE(mask))) {
+        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(flat_strel))) {
+        PyErr_SetString(PyExc_RuntimeError, "flat strel dtype not supported");
+        goto exit;
+    }
+    if (non_flat_strel && !valid_dtype(PyArray_TYPE(non_flat_strel))) {
+        PyErr_SetString(PyExc_RuntimeError, "non flat strel dtype not supported");
         goto exit;
     }
 
@@ -181,6 +251,27 @@ PyObject* dilation(PyObject* self, PyObject* args)
         goto exit;
     }
 
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (mask && !valid_dtype(PyArray_TYPE(mask))) {
+        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(flat_strel))) {
+        PyErr_SetString(PyExc_RuntimeError, "flat strel dtype not supported");
+        goto exit;
+    }
+    if (non_flat_strel && !valid_dtype(PyArray_TYPE(non_flat_strel))) {
+        PyErr_SetString(PyExc_RuntimeError, "non flat strel dtype not supported");
+        goto exit;
+    }
+
     ops_gray_ero_or_dil(input, flat_strel, non_flat_strel, output, origins.ptr, mask, cast_value, DIL);
 
     PyArray_ResolveWritebackIfCopy(output);
@@ -215,6 +306,16 @@ PyObject* binary_region_fill(PyObject* self, PyObject* args)
         goto exit;
     }
 
+
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(strel))) {
+        PyErr_SetString(PyExc_RuntimeError, "strel dtype not supported");
+        goto exit;
+    }
+
     ops_binary_region_fill(output, strel, seed_point.ptr, origins.ptr);
     PyArray_ResolveWritebackIfCopy(output);
 
@@ -241,6 +342,24 @@ PyObject* labeling(PyObject* self, PyObject* args)
         goto exit;
     }
 
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (values_map && !valid_dtype(PyArray_TYPE(values_map))) {
+        PyErr_SetString(PyExc_RuntimeError, "values map dtype not supported");
+        goto exit;
+    }
+    if (values_map && PyArray_NDIM(values_map) > 1) {
+        PyErr_SetString(PyExc_RuntimeError, "values map need to be 1D array");
+        goto exit;
+    }
+
+
     ops_labeling(input, connectivity, values_map, output);
 
     PyArray_ResolveWritebackIfCopy(output);
@@ -266,6 +385,15 @@ PyObject* skeletonize(PyObject* self, PyObject* args)
         goto exit;
     }
 
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+
     ops_skeletonize(input, output);
 
     PyArray_ResolveWritebackIfCopy(output);
@@ -275,7 +403,6 @@ PyObject* skeletonize(PyObject* self, PyObject* args)
         Py_XDECREF(output);
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
-
 
 // #####################################################################################################################
 

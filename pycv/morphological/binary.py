@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.filters_support.morphology import c_binary_erosion, c_skeletonize
+from pycv._lib.core_support import morphology_py
 
 __all__ = [
     'binary_erosion',
@@ -32,7 +32,7 @@ def binary_erosion(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None
 ) -> np.ndarray:
-    ret = c_binary_erosion(image, strel, offset, iterations, mask, output, 0)
+    ret = morphology_py.binary_erosion(image, strel, offset, iterations, mask, output, 0)
     return output if ret is None else ret
 
 
@@ -44,7 +44,7 @@ def binary_dilation(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None
 ) -> np.ndarray:
-    ret = c_binary_erosion(image, strel, offset, iterations, mask, output, 1)
+    ret = morphology_py.binary_erosion(image, strel, offset, iterations, mask, output, 1)
     return output if ret is None else ret
 
 
@@ -57,8 +57,8 @@ def binary_opening(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None
 ) -> np.ndarray:
-    ero = c_binary_erosion(image, strel, offset, 1, mask, None, 0)
-    ret = c_binary_erosion(ero, strel, offset, 1, mask, output, 1)
+    ero = morphology_py.binary_erosion(image, strel, offset, 1, mask, None, 0)
+    ret = morphology_py.binary_erosion(ero, strel, offset, 1, mask, output, 1)
     return output if ret is None else ret
 
 
@@ -69,8 +69,8 @@ def binary_closing(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None
 ) -> np.ndarray:
-    dil = c_binary_erosion(image, strel, offset, 1, mask, None, 1)
-    ret = c_binary_erosion(dil, strel, offset, 1, mask, output, 0)
+    dil = morphology_py.binary_erosion(image, strel, offset, 1, mask, None, 1)
+    ret = morphology_py.binary_erosion(dil, strel, offset, 1, mask, output, 0)
     return output if ret is None else ret
 
 
@@ -91,9 +91,9 @@ def binary_edge(
     ero = None
 
     if supported_mode != 'inner':
-        dil = c_binary_erosion(image, strel, offset, 1, mask, None, 1)
+        dil = morphology_py.binary_erosion(image, strel, offset, 1, mask, None, 1)
     if supported_mode != 'outer':
-        ero = c_binary_erosion(image, strel, offset, 1, mask, None, 0)
+        ero = morphology_py.binary_erosion(image, strel, offset, 1, mask, None, 0)
 
     if output is None:
         output = np.zeros_like(dil if dil is not None else ero)
@@ -111,4 +111,4 @@ def binary_edge(
 def skeletonize(
         image: np.ndarray
 ) -> np.ndarray:
-    return c_skeletonize(image)
+    return morphology_py.skeletonize(image)
