@@ -24,7 +24,8 @@ PyObject* labeling(PyObject* self, PyObject* args);
 
 PyObject* skeletonize(PyObject* self, PyObject* args);
 
-PyObject* canny_filter(PyObject* self, PyObject* args);
+PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args);
 
+PyObject* canny_hysteresis_edge_tracking(PyObject* self, PyObject* args);
 
 #endif

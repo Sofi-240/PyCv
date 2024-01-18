@@ -285,7 +285,6 @@ int init_borders_lut(npy_intp nd,
 
 int array_offsets_to_list_offsets(PyArrayObject *array, npy_intp *offsets, npy_intp **list_offsets);
 
-// TODO: change the functions that use borders_lut to use Flag mode
 int init_offsets_lut(PyArrayObject *array,
                      npy_intp *kernel_shape,
                      npy_intp *kernel_origins,
@@ -295,9 +294,7 @@ int init_offsets_lut(PyArrayObject *array,
                      npy_intp *offsets_flag,
                      BordersMode mode);
 
-int can_use_same_offsets(PyArrayObject *array1, PyArrayObject *array2);
 
 // #####################################################################################################################
-
 
 #endif

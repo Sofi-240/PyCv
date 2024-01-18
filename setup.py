@@ -13,6 +13,7 @@ setup(
                 "pycv/_lib/core/ops_base.c",
                 "pycv/_lib/core/filters.c",
                 "pycv/_lib/core/morphology.c",
+                "pycv/_lib/core/image_support.c",
             ],
             include_dirs=[numpy.get_include()],
             define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")]

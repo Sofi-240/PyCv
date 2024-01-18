@@ -13,7 +13,7 @@ static int flip_kernel(PyArrayObject *kernel, double **kernel_out) {
     size = PyArray_SIZE(kernel);
     num_type = PyArray_TYPE(kernel);
 
-    *kernel_out = malloc(size * sizeof(double));;
+    *kernel_out = malloc(size * sizeof(double));
     if (!*kernel_out) {
         PyErr_NoMemory();
         return 0;
@@ -310,7 +310,6 @@ int ops_rank_filter(PyArrayObject *input,
 }
 
 // #####################################################################################################################
-
 
 
 

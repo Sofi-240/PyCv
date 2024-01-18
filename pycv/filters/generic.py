@@ -4,7 +4,6 @@ from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.filters_support.windows import gaussian_kernel
 from pycv.filters._utils import kernel_size_valid, filter_with_convolve
 from pycv._lib.core_support.filters_py import rank_filter
-from pycv._lib.filters_support.utils import default_axis
 
 
 __all__ = [
@@ -37,7 +36,9 @@ def gaussian_filter(
         constant_value: float | int | None = 0
 ) -> np.ndarray:
     if axis is None:
-        axis = default_axis(image.ndim, min(2 if isinstance(sigma, numbers.Number) else 2, image.ndim))
+        axis = tuple()
+        for i in range(min(image.ndim, 2)):
+            axis += (image.ndim - 1 - i,)
     elif isinstance(axis, numbers.Number):
         axis = (axis,)
 
@@ -72,7 +73,9 @@ def mean_filter(
         constant_value: float | int | None = 0
 ) -> np.ndarray:
     if axis is None:
-        axis = default_axis(image.ndim, min(2 if isinstance(kernel_size, numbers.Number) else 2, image.ndim))
+        axis = tuple()
+        for i in range(min(image.ndim, 2)):
+            axis += (image.ndim - 1 - i,)
     elif isinstance(axis, numbers.Number):
         axis = (axis,)
 
@@ -96,7 +99,9 @@ def median_filter(
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)
     if axis is None:
-        axis = default_axis(image.ndim, min(2 if isinstance(kernel_size, numbers.Number) else 2, image.ndim))
+        axis = tuple()
+        for i in range(min(image.ndim, 2)):
+            axis += (image.ndim - 1 - i,)
     elif isinstance(axis, numbers.Number):
         axis = (axis,)
 
@@ -118,7 +123,9 @@ def local_min_filter(
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)
     if axis is None:
-        axis = default_axis(image.ndim, min(2 if isinstance(kernel_size, numbers.Number) else 2, image.ndim))
+        axis = tuple()
+        for i in range(min(image.ndim, 2)):
+            axis += (image.ndim - 1 - i,)
     elif isinstance(axis, numbers.Number):
         axis = (axis,)
 
@@ -139,7 +146,9 @@ def local_max_filter(
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)
     if axis is None:
-        axis = default_axis(image.ndim, min(2 if isinstance(kernel_size, numbers.Number) else 2, image.ndim))
+        axis = tuple()
+        for i in range(min(image.ndim, 2)):
+            axis += (image.ndim - 1 - i,)
     elif isinstance(axis, numbers.Number):
         axis = (axis,)
 

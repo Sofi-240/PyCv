@@ -113,11 +113,11 @@ def cylinder(radius: int, height: int) -> np.ndarray:
 # Edge Kernels
 
 
-SOBEL_EDGE = np.array([1, 0, -1], dtype=np.float32)
-SOBEL_WEIGHTS = np.array([1, 2, 1], dtype=np.float32) / 4
+SOBEL_EDGE = np.array([1, 0, -1], dtype=np.float64)
+SOBEL_WEIGHTS = np.array([1, 2, 1], dtype=np.float64) / 4
 
-PREWITT_EDGE = np.array([1, 0, -1], dtype=np.float32)
-PREWITT_WEIGHTS = np.array([1, 1, 1], dtype=np.float32) / 3
+PREWITT_EDGE = np.array([1, 0, -1], dtype=np.float64)
+PREWITT_WEIGHTS = np.array([1, 1, 1], dtype=np.float64) / 3
 
 
 def edge_kernel(
@@ -150,6 +150,6 @@ def gaussian_kernel(
     h[h < np.finfo(h.dtype).eps * h.max()] = 0
     sum_ = h.sum()
     if sum_ != 0: h /= sum_
-    return cast(h, np.float32)
+    return h
 
 ########################################################################################################################

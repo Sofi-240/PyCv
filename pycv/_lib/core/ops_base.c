@@ -440,9 +440,9 @@ int array_offsets_to_list_offsets(PyArrayObject *array, npy_intp *offsets, npy_i
 #define RAVEL_COORDINATE(_nd, _position, _strides, _valid_offset)                             \
 {                                                                                             \
     int _ii;                                                                                  \
-    _valid_offset = _position[_nd - 1] * _strides[_nd - 1];                                     \
+    _valid_offset = _position[_nd - 1] * _strides[_nd - 1];                                   \
     for (_ii = _nd - 2; _ii >= 0; _ii--) {                                                    \
-        _valid_offset += _position[_ii] * _strides[_ii];                                        \
+        _valid_offset += _position[_ii] * _strides[_ii];                                      \
     }                                                                                         \
 }
 
@@ -485,7 +485,7 @@ int init_offsets_lut(PyArrayObject *array,
 
     *offsets_flag = flag = max_stride * max_stride + 1;
 
-    if (mode > BORDER_BUFFER_ATYPE) {
+    if (mode > (int)BORDER_BUFFER_ATYPE) {
         atype = 1;
     }
 
@@ -621,27 +621,6 @@ int init_offsets_lut(PyArrayObject *array,
         }
 
 }
-
-int can_use_same_offsets(PyArrayObject *array1, PyArrayObject *array2)
-{
-    npy_intp nd, ii;
-    int is_same = 1;
-
-    nd = PyArray_NDIM(array1);
-
-    if (nd != PyArray_NDIM(array2)) {
-        return 0;
-    }
-
-    for (ii = 0; ii < nd; ii++) {
-        if ((PyArray_DIM(array1, ii) != PyArray_DIM(array2, ii)) || (PyArray_STRIDE(array1, ii) != PyArray_STRIDE(array2, ii))) {
-            is_same = 0;
-            break;
-        }
-    }
-    return is_same;
-}
-
 
 // #####################################################################################################################
 

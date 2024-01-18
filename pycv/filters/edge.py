@@ -19,7 +19,7 @@ PUBLIC = [
 def sobel(
         image: np.ndarray,
         axis: tuple | None = None,
-        padding_mode: str = 'reflect',
+        padding_mode: str = 'symmetric',
         **pad_kw
 ) -> np.ndarray:
     return edge_filters(image, SOBEL_WEIGHTS, SOBEL_EDGE, axis, preserve_dtype=False, padding_mode=padding_mode, **pad_kw)
@@ -28,7 +28,7 @@ def sobel(
 def prewitt(
         image: np.ndarray,
         axis: tuple | None = None,
-        padding_mode: str = 'reflect',
+        padding_mode: str = 'symmetric',
         **pad_kw
 ) -> np.ndarray:
     return edge_filters(image, PREWITT_WEIGHTS, PREWITT_EDGE, axis, preserve_dtype=False, padding_mode=padding_mode, **pad_kw)

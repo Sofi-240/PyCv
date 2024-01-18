@@ -78,7 +78,7 @@ def binary_erosion(
         if mask.dtype != bool:
             raise ValueError(f'mask need to have boolean dtype')
 
-        if not (mask.ndim == image.ndim and mask.shape == image.shape):
+        if mask.shape != image.shape:
             raise ValueError(f'image and mask shape does not match {image.shape} != {mask.shape}')
 
     if np.all(image == 0):

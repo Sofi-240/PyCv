@@ -3,9 +3,8 @@ import numbers
 from pycv._lib.array_api.dtypes import cast, get_dtype_info
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.core_support.filters_py import convolve
-from pycv._lib.filters_support.utils import default_axis
 from pycv._lib.filters_support.windows import edge_kernel
-from pycv._lib.filters_support.morphology import c_gray_ero_or_dil
+from pycv._lib.core_support import morphology_py
 from pycv._lib.filters_support.kernel_utils import border_mask
 
 __all__ = [
@@ -27,7 +26,7 @@ def case_pad_is_same_or_constant(
     if padding_mode not in ['same', 'constant']:
         return image
     mask = border_mask(image.shape, kernel_shape)
-    return c_gray_ero_or_dil(0, image, mask=mask)
+    return morphology_py.gray_ero_or_dil(0, image, mask=mask)
 
 
 def kernel_size_valid(
@@ -59,7 +58,7 @@ def edge_filters(
         axis: int | tuple | None = None,
         preserve_dtype: bool = False,
         offset: tuple | None = None,
-        padding_mode: str = 'valid',
+        padding_mode: str = 'symmetric',
         constant_value: float | None = 0.0
 ) -> np.ndarray:
     image = np.asarray(image)
@@ -69,7 +68,9 @@ def edge_filters(
     image = cast(image, np.float64)
 
     if axis is None:
-        axis = default_axis(image.ndim, min(image.ndim, 2))
+        axis = tuple()
+        for i in range(min(image.ndim, 2)):
+            axis += (image.ndim - 1 - i, )
     elif isinstance(axis, numbers.Number):
         axis = (axis,)
     if any(ax >= image.ndim for ax in axis):
@@ -107,7 +108,7 @@ def filter_with_convolve(
         axis: int | None = None,
         preserve_dtype: bool = False,
         offset: int | tuple | None = None,
-        padding_mode: str = 'valid',
+        padding_mode: str = 'symmetric',
         constant_value: float | None = 0.0
 ) -> np.ndarray:
     image = np.asarray(image)
@@ -118,12 +119,12 @@ def filter_with_convolve(
     if get_dtype_info(kernel.dtype).kind != 'f':
         raise ValueError('kernel dtype need to be float')
 
-    ret = convolve(image, kernel, offset=offset, axis=axis, padding_mode=padding_mode, constant_value=constant_value)
+    ret = convolve(image, kernel, output, offset=offset, axis=axis, padding_mode=padding_mode, constant_value=constant_value)
 
     if preserve_dtype:
-        return cast(ret, dtype.type) if ret is not None else cast(output, dtype.type)
+        return cast(ret, dtype.type)
 
-    return output
+    return ret
 
 ########################################################################################################################
 

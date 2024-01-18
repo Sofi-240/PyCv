@@ -3,6 +3,7 @@
 
 #include "filters.h"
 #include "morphology.h"
+#include "image_support.h"
 
 // #####################################################################################################################
 
@@ -122,6 +123,8 @@ PyObject* rank_filter(PyObject* self, PyObject* args)
         PyDimMem_FREE(origins.ptr);
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
+
+// #####################################################################################################################
 
 PyObject* binary_erosion(PyObject* self, PyObject* args)
 {
@@ -406,6 +409,99 @@ PyObject* skeletonize(PyObject* self, PyObject* args)
 
 // #####################################################################################################################
 
+PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args)
+{
+    PyArrayObject *magnitude = NULL, *grad_y = NULL, *grad_x = NULL, *mask = NULL, *output = NULL;
+    double threshold;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&dO&O&",
+            Input_To_Array, &magnitude,
+            Input_To_Array, &grad_y,
+            Input_To_Array, &grad_x,
+            &threshold,
+            InputOptional_To_Array, &mask,
+            Output_To_Array, &output)) {
+        goto exit;
+    }
+
+    if (!valid_dtype(PyArray_TYPE(magnitude))) {
+        PyErr_SetString(PyExc_RuntimeError, "magnitude dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(grad_y))) {
+        PyErr_SetString(PyExc_RuntimeError, "grad_y dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(grad_x))) {
+        PyErr_SetString(PyExc_RuntimeError, "grad_x dtype not supported");
+        goto exit;
+    }
+    if (mask && !valid_dtype(PyArray_TYPE(mask))) {
+        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+
+    ops_canny_nonmaximum_suppression(magnitude, grad_y, grad_x, threshold, mask, output);
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(magnitude);
+        Py_XDECREF(grad_y);
+        Py_XDECREF(grad_x);
+        if (mask) {
+            Py_XDECREF(mask);
+        }
+        Py_XDECREF(output);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+PyObject* canny_hysteresis_edge_tracking(PyObject* self, PyObject* args)
+{
+    PyArrayObject *strong_edge = NULL, *week_edge = NULL, *strel = NULL;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&",
+            Output_To_Array, &strong_edge,
+            Output_To_Array, &week_edge,
+            Input_To_Array, &strel)) {
+        goto exit;
+    }
+
+    if (!valid_dtype(PyArray_TYPE(strong_edge))) {
+        PyErr_SetString(PyExc_RuntimeError, "strong_edge dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(week_edge))) {
+        PyErr_SetString(PyExc_RuntimeError, "week_edge dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(strel))) {
+        PyErr_SetString(PyExc_RuntimeError, "strel dtype not supported");
+        goto exit;
+    }
+
+    ops_canny_hysteresis_edge_tracking(strong_edge, week_edge, strel);
+
+    PyArray_ResolveWritebackIfCopy(strong_edge);
+    PyArray_ResolveWritebackIfCopy(week_edge);
+
+    exit:
+        Py_XDECREF(strong_edge);
+        Py_XDECREF(week_edge);
+        Py_XDECREF(strel);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+// #####################################################################################################################
+
 static PyMethodDef methods[] = {
     {
         "convolve",
@@ -452,6 +548,18 @@ static PyMethodDef methods[] = {
     {
         "skeletonize",
         (PyCFunction)skeletonize,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "canny_nonmaximum_suppression",
+        (PyCFunction)canny_nonmaximum_suppression,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "canny_hysteresis_edge_tracking",
+        (PyCFunction)canny_hysteresis_edge_tracking,
         METH_VARARGS,
         NULL
     },

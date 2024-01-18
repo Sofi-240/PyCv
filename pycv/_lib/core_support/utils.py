@@ -7,7 +7,11 @@ from pycv._lib.filters_support.kernel_utils import valid_offset, cast_kernel_dil
 __all__ = [
     'ctype_border_mode',
     'as_sequence',
+    'fix_kernel_shape',
     'get_output',
+    'get_kernel',
+    'valid_kernel_shape_with_ref',
+    'valid_same_shape',
     'PUBLIC'
 ]
 PUBLIC = []
@@ -20,7 +24,6 @@ def ctype_border_mode(
 ) -> int:
     if mode == 'valid':
         return 2
-        # raise RuntimeError('border mode not supported')
     elif mode == 'reflect':
         return 3
     elif mode == 'constant':
@@ -51,13 +54,13 @@ def as_sequence(
 
 
 def fix_kernel_shape(shape: int, axis: tuple, nd: int) -> tuple:
-    if nd > len(axis):
+    if nd < len(axis):
         raise RuntimeError('n dimensions is smaller then axis size')
     axis_bool = [False] * nd
     for ax in axis:
         if ax >= nd:
             raise RuntimeError('axis is out of range for array dimensions')
-        axis_bool = True
+        axis_bool[ax] = True
     kernel_shape = tuple(shape if ax else 1 for ax in axis_bool)
     return kernel_shape
 
@@ -102,10 +105,9 @@ def get_kernel(
 
     if array_nd != filter_dim and filter_dim == 1:
         if axis is None:
-            axis = (array_nd - 1,)
-        else:
-            axis = (axis,)
-        kernel_shape = fix_kernel_shape(kernel.size, axis, array_nd)
+            axis = array_nd - 1
+
+        kernel_shape = fix_kernel_shape(kernel.size, (axis, ), array_nd)
         kernel = np.reshape(kernel, kernel_shape)
         offset_scalar, offset = offset[0], tuple()
         for i in range(array_nd):
@@ -134,3 +136,12 @@ def valid_kernel_shape_with_ref(kernel_shape: tuple, image_shape: tuple):
             raise RuntimeError(err2)
         if nk > na:
             raise RuntimeError(err3)
+
+
+def valid_same_shape(*arrays: np.ndarray) -> bool:
+    if len(arrays) == 0: return True
+    shape = arrays[0].shape
+    for arr in arrays[1:]:
+        if shape != arr.shape:
+            return False
+    return True
