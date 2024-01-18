@@ -10,10 +10,7 @@ from pycv._lib.filters_support.kernel_utils import border_mask
 __all__ = [
     'edge_filters',
     'filter_with_convolve',
-    'PUBLIC'
 ]
-
-PUBLIC = []
 
 
 ########################################################################################################################

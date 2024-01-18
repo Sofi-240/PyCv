@@ -3,12 +3,7 @@ from pycv._lib.core_support import morphology_py
 
 __all__ = [
     'region_fill',
-    'PUBLIC'
-]
-
-PUBLIC = [
-    'region_fill',
-    'binary_edge',
+    'im_label'
 ]
 
 

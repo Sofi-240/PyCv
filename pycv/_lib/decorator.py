@@ -3,10 +3,7 @@ from pycv._lib._inspect import get_signature, get_params, isfunction, EMPTY, fix
 
 __all__ = [
     'registrate_decorator',
-    'PUBLIC'
 ]
-
-PUBLIC = []
 
 
 ########################################################################################################################

@@ -9,11 +9,8 @@ from pycv._lib.core_support import morphology_py
 
 
 __all__ = [
-    'canny_filter',
-    'PUBLIC'
+    'canny_filter'
 ]
-
-PUBLIC = []
 
 
 ########################################################################################################################

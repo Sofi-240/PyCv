@@ -9,10 +9,7 @@ __all__ = [
     'sliding_window_view',
     'output_shape',
     'RAVEL_ORDER',
-    'PUBLIC'
 ]
-
-PUBLIC = []
 
 RAVEL_ORDER = 'C'
 

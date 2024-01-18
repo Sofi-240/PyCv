@@ -8,18 +8,7 @@ __all__ = [
     'gray_closing',
     'black_top',
     'white_top',
-    'PUBLIC'
 ]
-
-PUBLIC = [
-    'gray_erosion',
-    'gray_dilation',
-    'gray_opening',
-    'gray_closing',
-    'black_top',
-    'white_top',
-]
-
 
 ########################################################################################################################
 

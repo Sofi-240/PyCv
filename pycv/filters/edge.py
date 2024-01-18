@@ -6,14 +6,8 @@ from pycv._lib.filters_support.canny_edge import canny_filter
 __all__ = [
     'sobel',
     'prewitt',
-    'PUBLIC'
+    'canny',
 ]
-
-PUBLIC = [
-    'sobel',
-    'prewitt',
-]
-
 
 ########################################################################################################################
 

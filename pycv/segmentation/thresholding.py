@@ -10,19 +10,7 @@ __all__ = [
     'minimum_error_threshold',
     'mean_threshold',
     'adaptive_threshold',
-    'PUBLIC'
 ]
-
-PUBLIC = [
-    'otsu_threshold',
-    'kapur_threshold',
-    'li_and_lee_threshold',
-    'minimum_threshold',
-    'minimum_error_threshold',
-    'mean_threshold',
-    'adaptive_threshold',
-]
-
 
 ########################################################################################################################
 

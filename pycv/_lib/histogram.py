@@ -11,11 +11,6 @@ __all__ = [
     'histogram',
     'bin_count',
     'cdf',
-    'PUBLIC'
-]
-
-PUBLIC = [
-
 ]
 
 

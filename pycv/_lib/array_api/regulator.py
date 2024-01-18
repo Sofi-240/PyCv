@@ -5,10 +5,7 @@ __all__ = [
     'np_compliance',
     'check_finite',
     'SUPPORTED_NP',
-    'PUBLIC'
 ]
-
-PUBLIC = []
 
 SUPPORTED_NP = (np.ndarray, np.generic)
 

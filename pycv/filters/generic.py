@@ -12,15 +12,6 @@ __all__ = [
     'median_filter',
     'local_max_filter',
     'local_min_filter',
-    'PUBLIC'
-]
-
-PUBLIC = [
-    'gaussian_filter',
-    'mean_filter',
-    'median_filter',
-    'local_max_filter',
-    'local_min_filter',
 ]
 
 

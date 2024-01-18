@@ -2,7 +2,6 @@ import numpy as np
 import math
 import numbers
 from pycv._lib.filters_support.kernel_utils import reshape_1d_kernel, default_binary_strel
-from pycv._lib.array_api.dtypes import cast
 
 __all__ = [
     'binary_strel',
@@ -22,10 +21,8 @@ __all__ = [
     'PREWITT_EDGE',
     'PREWITT_WEIGHTS',
     'edge_kernel',
-    'gaussian_kernel',
-    'PUBLIC'
+    'gaussian_kernel'
 ]
-PUBLIC = []
 
 
 ########################################################################################################################

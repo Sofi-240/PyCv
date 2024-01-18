@@ -8,16 +8,6 @@ __all__ = [
     'binary_closing',
     'binary_edge',
     'skeletonize',
-    'PUBLIC'
-]
-
-PUBLIC = [
-    'binary_erosion',
-    'binary_dilation',
-    'binary_opening',
-    'binary_closing',
-    'binary_edge',
-    'skeletonize',
 ]
 
 

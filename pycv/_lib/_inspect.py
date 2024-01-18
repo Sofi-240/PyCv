@@ -17,10 +17,7 @@ __all__ = [
     'get_signature',
     'get_params',
     'fix_kw_syntax',
-    'PUBLIC'
 ]
-
-PUBLIC = []
 
 ArgSpec = collections.namedtuple('ArgSpec', 'args varargs varkw defaults')
 POS = inspect.Parameter.POSITIONAL_OR_KEYWORD

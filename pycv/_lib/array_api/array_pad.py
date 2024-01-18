@@ -6,10 +6,7 @@ __all__ = [
     'valid_pad_mode',
     'get_padding_width',
     'pad',
-    'PUBLIC'
 ]
-
-PUBLIC = []
 
 # from numpy array pad supported keywords passed for the pad mode
 

@@ -5,10 +5,7 @@ from pycv._lib.array_api.regulator import np_compliance, check_finite
 
 __all__ = [
     'color_dispatcher',
-    'PUBLIC'
 ]
-
-PUBLIC = []
 
 
 ########################################################################################################################

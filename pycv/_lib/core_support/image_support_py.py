@@ -3,9 +3,8 @@ from pycv._lib.core_support.utils import get_output, valid_same_shape
 from pycv._lib.core import ops
 
 __all__ = [
-    'PUBLIC'
+    'canny_nonmaximum_suppression'
 ]
-PUBLIC = []
 
 
 ########################################################################################################################
