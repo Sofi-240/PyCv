@@ -6,7 +6,7 @@ from pycv._lib.filters_support.windows import gaussian_kernel, SOBEL_EDGE, SOBEL
 from pycv._lib.core_support.image_support_py import canny_nonmaximum_suppression
 from pycv._lib.filters_support.kernel_utils import default_binary_strel, border_mask
 from pycv._lib.core_support import morphology_py
-from _debug_utils.timer import Timer
+
 
 __all__ = [
     'canny_filter',
