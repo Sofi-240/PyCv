@@ -546,6 +546,7 @@ int ops_labeling(PyArrayObject *input,
     po = po_base;
     ARRAY_ITER_RESET(iter_o);
     n_labels = 1;
+    pivot = 0;
 
     for (ii = 0; ii < array_size; ii++) {
         GET_VALUE_AS(num_type_o, int, po, pivot);

@@ -233,6 +233,16 @@ void CoordinatesIterInit(npy_intp nd, npy_intp *shape, CoordinatesIter *iterator
     }                                                                                         \
 }
 
+typedef struct {
+    int nd_m1;
+    npy_intp dims_m1[NPY_MAXDIMS];
+    npy_intp coordinates[NPY_MAXDIMS];
+    npy_intp strides[NPY_MAXDIMS];
+    npy_intp backstrides[NPY_MAXDIMS];
+    npy_intp boundaries[NPY_MAXDIMS];
+} NeighborhoodIter;
+
+
 // #####################################################################################################################
 
 int init_uint8_binary_table(unsigned int **binary_table);

@@ -217,7 +217,7 @@ def labeling(
         image = image.astype(np.uint8)
         values_map = color_mapping_range(image, method=rng_mapping_method, mod_value=mod_value)
 
-    output = np.zeros(image.shape, np.uint8)
+    output = np.zeros(image.shape, np.int64)
     ops.labeling(image, connectivity, values_map, output)
     return np.max(output), output
 

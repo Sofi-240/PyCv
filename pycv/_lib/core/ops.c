@@ -462,43 +462,6 @@ PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
-PyObject* canny_hysteresis_edge_tracking(PyObject* self, PyObject* args)
-{
-    PyArrayObject *strong_edge = NULL, *week_edge = NULL, *strel = NULL;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&O&",
-            Output_To_Array, &strong_edge,
-            Output_To_Array, &week_edge,
-            Input_To_Array, &strel)) {
-        goto exit;
-    }
-
-    if (!valid_dtype(PyArray_TYPE(strong_edge))) {
-        PyErr_SetString(PyExc_RuntimeError, "strong_edge dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(week_edge))) {
-        PyErr_SetString(PyExc_RuntimeError, "week_edge dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(strel))) {
-        PyErr_SetString(PyExc_RuntimeError, "strel dtype not supported");
-        goto exit;
-    }
-
-    ops_canny_hysteresis_edge_tracking(strong_edge, week_edge, strel);
-
-    PyArray_ResolveWritebackIfCopy(strong_edge);
-    PyArray_ResolveWritebackIfCopy(week_edge);
-
-    exit:
-        Py_XDECREF(strong_edge);
-        Py_XDECREF(week_edge);
-        Py_XDECREF(strel);
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
-}
 
 // #####################################################################################################################
 
@@ -554,12 +517,6 @@ static PyMethodDef methods[] = {
     {
         "canny_nonmaximum_suppression",
         (PyCFunction)canny_nonmaximum_suppression,
-        METH_VARARGS,
-        NULL
-    },
-    {
-        "canny_hysteresis_edge_tracking",
-        (PyCFunction)canny_hysteresis_edge_tracking,
         METH_VARARGS,
         NULL
     },

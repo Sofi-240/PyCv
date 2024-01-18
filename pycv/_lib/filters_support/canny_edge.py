@@ -3,9 +3,10 @@ from pycv._lib.array_api.dtypes import cast, get_dtype_limits
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.core_support.filters_py import convolve
 from pycv._lib.filters_support.windows import gaussian_kernel, SOBEL_EDGE, SOBEL_WEIGHTS, edge_kernel
-from pycv._lib.core_support.image_support_py import canny_nonmaximum_suppression, canny_hysteresis_edge_tracking
+from pycv._lib.core_support.image_support_py import canny_nonmaximum_suppression
 from pycv._lib.filters_support.kernel_utils import default_binary_strel, border_mask
 from pycv._lib.core_support import morphology_py
+from _debug_utils.timer import Timer
 
 __all__ = [
     'canny_filter',
@@ -17,6 +18,33 @@ PUBLIC = []
 
 ########################################################################################################################
 
+def _valid_threshold(
+        image_dtype: np.dtype,
+        low_threshold: float | None,
+        high_threshold: float | None,
+        as_percentile: bool
+) -> tuple[float, float]:
+    div = get_dtype_limits(image_dtype)[1]
+
+    def routine(th, default):
+        if th is None:
+            th = default
+        elif as_percentile:
+            if not (0.0 <= th <= 1.0):
+                raise ValueError("If as_quantiles is True thresholds must be between 0 and 1.")
+        else:
+            th /= div
+        return th
+
+    low_threshold = routine(low_threshold, 0.1)
+    high_threshold = routine(high_threshold, 0.2)
+
+    if high_threshold < low_threshold:
+        raise ValueError("low_threshold should be lower then high_threshold")
+
+    return low_threshold, high_threshold
+
+
 def _smooth_image(
         image: np.ndarray,
         sigma: float,
@@ -25,7 +53,8 @@ def _smooth_image(
         constant_value: float
 ) -> tuple[np.ndarray, np.ndarray | None]:
     image = cast(image, np.float64)
-    kernel = gaussian_kernel(sigma, ndim=2)
+
+    kernel = gaussian_kernel(sigma, ndim=2, radius=2)
 
     if mask is not None:
         mask = np_compliance(mask, 'Mask').astype(bool)
@@ -57,7 +86,7 @@ def canny_filter(
         sigma: float | tuple = 1.0,
         low_threshold: float | None = None,
         high_threshold: float | None = None,
-        threshold_quantiles: bool = False,
+        as_percentile: bool = False,
         mask: np.ndarray | None = None,
         padding_mode: str = 'constant',
         constant_value: float | None = 0.0
@@ -71,26 +100,7 @@ def canny_filter(
     if padding_mode == 'valid':
         raise ValueError('valid padding mode not supported for canny filter')
 
-    max_val = get_dtype_limits(image.dtype)[1]
-
-    if low_threshold is None:
-        low_threshold = 0.1
-    elif threshold_quantiles:
-        if not (0.0 <= low_threshold <= 1.0):
-            raise ValueError("Quantile thresholds must be between 0 and 1.")
-    else:
-        low_threshold /= max_val
-
-    if high_threshold is None:
-        high_threshold = 0.2
-    elif threshold_quantiles:
-        if not (0.0 <= high_threshold <= 1.0):
-            raise ValueError("Quantile thresholds must be between 0 and 1.")
-    else:
-        high_threshold /= max_val
-
-    if high_threshold < low_threshold:
-        raise ValueError("low_threshold should be lower then high_threshold")
+    low_threshold, high_threshold = _valid_threshold(image.dtype, low_threshold, high_threshold, as_percentile)
 
     blur_image, mask = _smooth_image(image, sigma, mask, padding_mode, constant_value)
 
@@ -99,29 +109,23 @@ def canny_filter(
 
     gy = convolve(blur_image, dy_kernel, padding_mode='symmetric')
     gx = convolve(blur_image, dx_kernel, padding_mode='symmetric')
-
     magnitude = np.hypot(gy, gx)
 
-    if threshold_quantiles:
+    if as_percentile:
         low_threshold, high_threshold = np.percentile(magnitude, [100.0 * low_threshold, 100.0 * high_threshold])
 
     edges = canny_nonmaximum_suppression(magnitude, gy, gx, low_threshold, mask)
 
-    strong_edge = edges >= high_threshold
-    week_edge = (edges > 0) & ~strong_edge
+    edges_mask = edges > 0
+    n_labels, labels = morphology_py.labeling(edges_mask, connectivity=2)
 
-    strong_edge, week_edge = canny_hysteresis_edge_tracking(strong_edge, week_edge)
+    if n_labels == 1:
+        return edges_mask, None
 
-    # edges_mask = edges > 0
-    # n_labels, labels = morphology_py.labeling(edges_mask, connectivity=2)
-    #
-    # if n_labels == 1:
-    #     return edges_mask
-    #
-    # labels_of_strong_edge = np.unique(labels[edges_mask & (edges >= high_threshold)])
-    #
-    # labels_bool = np.zeros((n_labels + 1,), bool)
-    # labels_bool[labels_of_strong_edge] = True
-    # strong_edge = labels_bool[labels]
+    labels_of_strong_edge = np.unique(labels[edges_mask & (edges >= high_threshold)])
+
+    labels_bool = np.zeros((n_labels + 1,), bool)
+    labels_bool[labels_of_strong_edge] = True
+    strong_edge = labels_bool[labels]
 
     return strong_edge
