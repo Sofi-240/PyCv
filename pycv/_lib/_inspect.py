@@ -97,16 +97,22 @@ def fix_kw_syntax(args: tuple, kwargs: dict, signature: SIGNATURE, kw_syntax: bo
 
     params = get_params(signature)
     out_args = tuple()
-
+    out_kwargs = dict()
     i = 0
 
     for par in params:
         if par.default is EMPTY:
-            out_args += (args[i],)
+            if i >= len(args):
+                tmp = kwargs.get(par.name, None)
+                if tmp is None:
+                    raise ValueError(f'missing {par.name} parameter')
+            else:
+                tmp = args[i]
+            out_args += (tmp, )
             i += 1
         else:
-            kwargs[par.name] = kwargs.get(par.name, par.default)
+            out_kwargs[par.name] = kwargs.get(par.name, par.default)
 
-    return out_args, kwargs
+    return out_args, out_kwargs
 
 ########################################################################################################################

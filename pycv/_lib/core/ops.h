@@ -26,5 +26,6 @@ PyObject* skeletonize(PyObject* self, PyObject* args);
 
 PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args);
 
+PyObject* resize_image(PyObject* self, PyObject* args);
 
 #endif

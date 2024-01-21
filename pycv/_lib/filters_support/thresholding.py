@@ -1,45 +1,78 @@
-import numbers
 import numpy as np
 import typing
-from pycv._lib.histogram import HIST
+from pycv._lib.histogram import bin_count, histogram, HIST
 from pycv._lib.decorator import registrate_decorator
-from pycv._lib.filters_support.windows import gaussian_kernel
-from pycv._lib.core_support.filters_py import convolve, rank_filter
-from pycv._lib._inspect import isfunction
 from pycv._lib.array_api.dtypes import cast
+from pycv._lib.array_api.regulator import np_compliance
+from pycv._lib.filters_support.windows import gaussian_kernel, sigma_from_size
+from pycv._lib.core_support.filters_py import convolve, rank_filter
+from pycv._lib.core_support.utils import as_sequence, valid_axis
+from pycv._lib._inspect import isfunction
 
 __all__ = [
     'otsu',
     'li_and_lee',
     'kapur',
     'minimum_error',
+    'minimum',
     'mean',
-    'HIST_TYPE',
-    'ARRAY_TYPE',
-    'BLOCK_TYPE',
-    'METHODS'
+    'adaptive'
 ]
-########################################################################################################################
-
-HIST_TYPE = 1
-ARRAY_TYPE = 2
-BLOCK_TYPE = 3
-
-METHODS = {}
-
-
-def registrate_method(
-        method_type: int,
-        *functions
-) -> None:
-    for func in functions:
-        if not isfunction(func):
-            raise TypeError('func need to be type of function')
-        name = func.__name__
-        METHODS[name] = (method_type, func)
 
 
 ########################################################################################################################
+
+def get_histogram(
+        inputs: np.ndarray,
+) -> HIST:
+    if np.issubdtype(inputs.dtype, np.integer):
+        hist = bin_count(inputs)
+    else:
+        hist = histogram(inputs)
+    return hist
+
+
+########################################################################################################################
+@registrate_decorator(kw_syntax=True)
+def histogram_dispatcher(
+        func, *args, **kwargs,
+):
+    inputs = np_compliance(args[0], 'Image', _check_finite=True)
+    hist = get_histogram(inputs)
+    return func(hist, *args[1:], **kwargs)
+
+
+@registrate_decorator(kw_syntax=True)
+def array_dispatcher(
+        func, *args, **kwargs,
+):
+    inputs = np_compliance(args[0], 'Image', _check_finite=True)
+    return func(inputs, *args[1:], **kwargs)
+
+
+@registrate_decorator(kw_syntax=True)
+def block_dispatcher(
+        func, *args, **kwargs,
+):
+    inputs = np_compliance(args[0], 'Image', _check_finite=True)
+    if inputs.ndim < 2:
+        raise ValueError('image n dimensions need to be at least 2')
+
+    block_size = args[1]
+
+    if block_size is None:
+        raise ValueError('missing block_size parameter')
+
+    try:
+        block_size = as_sequence(block_size, 2)
+    except RuntimeError:
+        raise ValueError('block_size need to be a single int or a tuple of ints with size of 2')
+
+    if not all(s % 2 != 0 for s in block_size):
+        raise ValueError('block dimensions length need to be odd')
+
+    return func(inputs, block_size, *args[2:], **kwargs)
+
 
 @registrate_decorator(kw_syntax=True)
 def nonzero_histogram(
@@ -62,6 +95,7 @@ def nonzero_histogram(
 
 ########################################################################################################################
 # Thresholds by Histogram
+@histogram_dispatcher
 @nonzero_histogram
 def otsu(
         hist: HIST,
@@ -78,6 +112,7 @@ def otsu(
     return th
 
 
+@histogram_dispatcher
 @nonzero_histogram
 def li_and_lee(
         hist: HIST,
@@ -96,6 +131,7 @@ def li_and_lee(
     return th
 
 
+@histogram_dispatcher
 @nonzero_histogram
 def kapur(
         hist: HIST,
@@ -116,6 +152,7 @@ def kapur(
     return th
 
 
+@histogram_dispatcher
 @nonzero_histogram
 def minimum_error(
         hist: HIST,
@@ -141,6 +178,7 @@ def minimum_error(
     return th
 
 
+@histogram_dispatcher
 @nonzero_histogram
 def minimum(
         hist: HIST,
@@ -185,77 +223,77 @@ def minimum(
     return th
 
 
-registrate_method(HIST_TYPE, otsu, li_and_lee, kapur, minimum_error, minimum)
-
-
 ########################################################################################################################
 # Thresholds on Array
-
+@array_dispatcher
 def mean(
         image: np.ndarray
 ) -> float:
     return np.mean(image)
 
 
-registrate_method(ARRAY_TYPE, mean)
-
-
 ########################################################################################################################
-
 # Thresholds on block
 
+@block_dispatcher
 def adaptive(
         image: np.ndarray,
-        kernel_size: tuple,
+        block_size: tuple | int,
         method: str = 'gaussian',
         method_params: typing.Any = None,
         offset_val: int | float = 0,
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0,
+        axis: tuple | None = None
 ) -> np.ndarray:
-    supported_mode = {'mean', 'gaussian', 'median', 'function'}
-
+    supported_mode = {'gaussian', 'mean', 'median'}
     if padding_mode == 'valid':
         raise ValueError('valid padding is not supported for adaptive threshold')
 
-    if len(kernel_size) != 2:
-        raise ValueError('kernel_size need to be size of 2')
+    axis = valid_axis(image.ndim, axis, 2)
+    if len(axis) != 2:
+        raise ValueError('axis need to be tuple of ints with size of 2 or None')
 
     if method == 'function':
         raise RuntimeError(f'{method} is currently unsupported')
-
     elif method == 'gaussian':
         if method_params is None:
-            sigma = lambda n: 0.3 * (n / 2 - 1) + 0.8
-            method_params = tuple(sigma(nn) for nn in kernel_size)
-        elif isinstance(method_params, numbers.Number):
-            method_params = (method_params, method_params)
+            method_params = tuple(sigma_from_size(nn) for nn in block_size)
+        else:
+            try:
+                method_params = as_sequence(method_params, 2)
+            except RuntimeError:
+                raise ValueError('method_params: (sigma) need to be a single float or a tuple of floats with size of 2')
 
-        if len(method_params) != 2:
-            raise ValueError('method_params: (sigma) need to be a single float or a tuple of floats with size of 2')
-
-        threshold = cast(image, np.float64)
-
-        ndim = image.ndim
-        for s, r, ax in zip(method_params, kernel_size, (ndim - 2, ndim - 1)):
-            kernel = gaussian_kernel(s, radius=r)
-            threshold = convolve(threshold, kernel, axis=(ax,), padding_mode=padding_mode, constant_value=constant_value)
+        if block_size[0] == block_size[1]:
+            kernel = gaussian_kernel(method_params[0], ndim=2, radius=block_size[0] // 2)
+            kernel = kernel.reshape(tuple(1 if ax not in axis else block_size[0] for ax in range(image.ndim)))
+            threshold = convolve(cast(image, np.float64), kernel, padding_mode=padding_mode,
+                                 constant_value=constant_value)
+        else:
+            threshold = cast(image, np.float64)
+            for s, r, ax in zip(method_params, block_size, axis):
+                kernel = gaussian_kernel(s, radius=r // 2)
+                threshold = convolve(threshold, kernel, axis=ax, padding_mode=padding_mode,
+                                     constant_value=constant_value)
         threshold = cast(threshold, image.dtype)
-
     elif method == 'mean':
-        kernel = np.ones(kernel_size, np.float64) / np.prod(kernel_size)
         threshold = cast(image, np.float64)
+        iter_shape = iter(block_size)
+        kernel_shape = tuple(next(iter_shape) if ax in axis else 1 for ax in range(image.ndim))
+        kernel = np.ones(kernel_shape, np.float64) / np.prod(kernel_shape)
         threshold = convolve(threshold, kernel, padding_mode=padding_mode, constant_value=constant_value)
         threshold = cast(threshold, image.dtype)
     elif method == 'median':
-        rank = np.prod(kernel_size) // 2
-        footprint = np.ones(kernel_size, bool)
+        iter_shape = iter(block_size)
+        kernel_shape = tuple(next(iter_shape) if ax in axis else 1 for ax in range(image.ndim))
+        rank = np.prod(kernel_shape) // 2
+        footprint = np.ones(kernel_shape, bool)
         threshold = rank_filter(image, footprint, rank, padding_mode=padding_mode, constant_value=constant_value)
     else:
-        raise ValueError(f'{method} is not in supported methods use {supported_mode}')
+        raise RuntimeError(f'{method} is not in supported methods use {supported_mode}')
 
     return threshold - offset_val
 
-
-registrate_method(BLOCK_TYPE, adaptive)
 ########################################################################################################################
+

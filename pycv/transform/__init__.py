@@ -1,3 +1,3 @@
-from pycv.segmentation.thresholding import *
+from pycv.transform.resize import *
 
 __all__ = [s for s in dir() if not s.startswith('_')]

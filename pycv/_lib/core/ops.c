@@ -4,6 +4,7 @@
 #include "filters.h"
 #include "morphology.h"
 #include "image_support.h"
+#include "resize.h"
 
 // #####################################################################################################################
 
@@ -462,6 +463,51 @@ PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
+// #####################################################################################################################
+
+PyObject* resize_image(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *output = NULL;
+    int mode;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&i",
+            Input_To_Array, &input,
+            Output_To_Array, &output,
+            &mode)) {
+        goto exit;
+    }
+
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+
+    switch ((ResizeMode)mode) {
+        case RESIZE_BILINEAR:
+            ops_resize_bilinear(input, output);
+            break;
+        case RESIZE_NN:
+            ops_resize_nearest_neighbor(input, output);
+            break;
+        default:
+            PyErr_SetString(PyExc_RuntimeError, "mode is not supported");
+            goto exit;
+    }
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(output);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
 
 // #####################################################################################################################
 
@@ -517,6 +563,12 @@ static PyMethodDef methods[] = {
     {
         "canny_nonmaximum_suppression",
         (PyCFunction)canny_nonmaximum_suppression,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "resize_image",
+        (PyCFunction)resize_image,
         METH_VARARGS,
         NULL
     },

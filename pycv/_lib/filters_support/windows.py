@@ -21,6 +21,7 @@ __all__ = [
     'PREWITT_EDGE',
     'PREWITT_WEIGHTS',
     'edge_kernel',
+    'sigma_from_size',
     'gaussian_kernel'
 ]
 
@@ -131,6 +132,12 @@ def edge_kernel(
 
 ########################################################################################################################
 # Gaussian
+
+def sigma_from_size(
+        size: int
+) -> float:
+    return 0.3 * (size / 2 - 1) + 0.8
+
 
 def gaussian_kernel(
         sigma: float,

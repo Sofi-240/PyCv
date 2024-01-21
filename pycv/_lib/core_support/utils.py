@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Iterable, Any
+import numbers
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.array_api.shapes import atleast_nd
 from pycv._lib.filters_support.kernel_utils import valid_offset, cast_kernel_dilation
@@ -8,10 +9,12 @@ __all__ = [
     'ctype_border_mode',
     'as_sequence',
     'fix_kernel_shape',
+    'axis_transpose_to_last',
     'get_output',
     'get_kernel',
     'valid_kernel_shape_with_ref',
     'valid_same_shape',
+    'valid_axis',
 ]
 
 
@@ -51,16 +54,60 @@ def as_sequence(
     return sequence
 
 
-def fix_kernel_shape(shape: int, axis: tuple, nd: int) -> tuple:
+def fix_kernel_shape(
+        shape: tuple | int,
+        axis: tuple,
+        nd: int
+) -> tuple:
     if nd < len(axis):
         raise RuntimeError('n dimensions is smaller then axis size')
-    axis_bool = [False] * nd
-    for ax in axis:
-        if ax >= nd:
-            raise RuntimeError('axis is out of range for array dimensions')
-        axis_bool[ax] = True
-    kernel_shape = tuple(shape if ax else 1 for ax in axis_bool)
+
+    if isinstance(shape, numbers.Number):
+        axis = valid_axis(nd, axis, 1)
+        kernel_shape = tuple(shape if ax in axis else 1 for ax in range(nd))
+    else:
+        axis = valid_axis(nd, axis, len(shape))
+        iter_shape = iter(shape)
+        kernel_shape = tuple(next(iter_shape) if ax in axis else 1 for ax in range(nd))
+
     return kernel_shape
+
+
+def axis_transpose_to_last(
+        nd: int,
+        axis: tuple | None,
+        default_nd: int
+) -> tuple[bool, tuple, tuple]:
+    need_transpose = False
+    transpose_forward = tuple()
+    transpose_back = tuple()
+
+    if axis is not None:
+        if len(axis) != default_nd:
+            raise ValueError(f'axis need to be None or tuple of ints with size of {default_nd}')
+        axis = valid_axis(nd, axis, default_nd)
+
+        for i, ax in enumerate(axis):
+            if ax != nd - default_nd + i:
+                need_transpose = True
+                break
+
+    if need_transpose:
+        prev_ax = 0
+
+        for ax in range(nd):
+            if ax not in axis:
+                transpose_forward += (ax,)
+                transpose_back += (prev_ax,)
+                prev_ax += 1
+            else:
+                for i, _ax in enumerate(axis):
+                    if _ax == ax:
+                        transpose_back += (nd - default_nd + i,)
+                        break
+        transpose_forward += axis
+
+    return need_transpose, transpose_forward, transpose_back
 
 
 ########################################################################################################################
@@ -99,13 +146,11 @@ def get_kernel(
 
     if offset is not None:
         offset = as_sequence(offset, filter_dim)
+
     offset = valid_offset(kernel.shape, offset)
 
     if array_nd != filter_dim and filter_dim == 1:
-        if axis is None:
-            axis = array_nd - 1
-
-        kernel_shape = fix_kernel_shape(kernel.size, (axis, ), array_nd)
+        kernel_shape = fix_kernel_shape(kernel.size, (axis,), array_nd)
         kernel = np.reshape(kernel, kernel_shape)
         offset_scalar, offset = offset[0], tuple()
         for i in range(array_nd):
@@ -115,14 +160,17 @@ def get_kernel(
         offset = (0,) * (array_nd - filter_dim) + offset
 
     if not kernel.flags.contiguous:
-        kernel = kernel.copy()
+        kernel = kernel.copy(order='C')
 
     return kernel, offset
 
 
 ########################################################################################################################
 
-def valid_kernel_shape_with_ref(kernel_shape: tuple, image_shape: tuple):
+def valid_kernel_shape_with_ref(
+        kernel_shape: tuple,
+        image_shape: tuple
+) -> None:
     err1 = "Kernel shape cannot be negative."
     err2 = "Kernel shape cannot be zero."
     err3 = "Kernel dimensions cannot be larger than the input array's dimensions."
@@ -136,10 +184,35 @@ def valid_kernel_shape_with_ref(kernel_shape: tuple, image_shape: tuple):
             raise RuntimeError(err3)
 
 
-def valid_same_shape(*arrays: np.ndarray) -> bool:
+def valid_same_shape(
+        *arrays: np.ndarray
+) -> bool:
     if len(arrays) == 0: return True
     shape = arrays[0].shape
     for arr in arrays[1:]:
         if shape != arr.shape:
             return False
     return True
+
+
+def valid_axis(
+        nd: int,
+        axis: Iterable | int | None,
+        default_nd: int
+) -> tuple:
+    if axis is None:
+        out = tuple()
+        for i in range(min(default_nd, nd)):
+            out += (nd - i - 1, )
+    elif isinstance(axis, numbers.Number):
+        out = (axis % nd if axis < 0 else axis, )
+    elif isinstance(axis, Iterable):
+        for ax in axis:
+            if ax < -nd or ax > nd - 1:
+                raise ValueError(f'axis {ax} is out of range for array with {nd} dimensions')
+        out = tuple(ax % nd if ax < 0 else ax for ax in axis)
+    else:
+        raise ValueError('axis must be an int, iterable of ints, or None')
+    if len(tuple(set(out))) != len(out):
+        raise ValueError("axis must be unique")
+    return out
