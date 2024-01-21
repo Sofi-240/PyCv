@@ -142,6 +142,52 @@ int array_to_footprint(PyArrayObject *array, npy_bool **footprint, int *non_zero
         }
 }
 
+int footprint_as_con(npy_intp nd, int connectivity, npy_bool **footprint, int *non_zeros, int hole)
+{
+    npy_intp ii, jj, tmp, footprint_size, shape[NPY_MAXDIMS];
+    CoordinatesIter iter;
+    npy_bool *fpo;
+    int nz;
+
+    footprint_size = 1;
+    for (ii = 0; ii < nd; ii++) {
+        footprint_size *= 3;
+        shape[ii] = 3;
+    }
+
+    CoordinatesIterInit(nd, shape, &iter);
+
+    *footprint = malloc(footprint_size * sizeof(npy_bool));
+    if (!*footprint) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    fpo = *footprint;
+    nz = 0;
+    for (ii = 0; ii < footprint_size; ii++) {
+        tmp = 0;
+        for (jj = 0; jj < nd; jj++) {
+            tmp += abs(iter.coordinates[jj] - 1);
+        }
+        if (tmp <= connectivity && (!hole || tmp != 0)) {
+            *fpo++ = NPY_TRUE;
+            nz++;
+        } else {
+            *fpo++ = NPY_FALSE;
+        }
+        COORDINATES_ITER_NEXT(iter);
+    }
+    *non_zeros = nz;
+
+    exit:
+        if (PyErr_Occurred()) {
+            free(*footprint);
+            return 0;
+        } else {
+            return 1;
+        }
+}
+
 int footprint_for_cc(npy_intp nd, int connectivity, npy_bool **footprint, int *non_zeros)
 {
     npy_intp ii, jj, tmp, mid, footprint_size, shape[NPY_MAXDIMS];
@@ -237,7 +283,6 @@ int copy_data_as_double(PyArrayObject *array, double **line, npy_bool *footprint
 
 // #####################################################################################################################
 
-
 int init_offsets_ravel(PyArrayObject *array,
                        npy_intp *kernel_shape,
                        npy_intp *kernel_origins,
@@ -246,7 +291,7 @@ int init_offsets_ravel(PyArrayObject *array,
 {
     CoordinatesIter iter;
     npy_intp ii, jj, nd, kernel_size, non_zeros, index_ravel;
-    npy_intp array_strides[NPY_MAXDIMS], origins[NPY_MAXDIMS], position[NPY_MAXDIMS];
+    npy_intp array_strides[NPY_MAXDIMS], origins[NPY_MAXDIMS], position;
     npy_intp *of_po;
 
     nd = PyArray_NDIM(array);
@@ -258,8 +303,6 @@ int init_offsets_ravel(PyArrayObject *array,
 
         kernel_size *= kernel_shape[ii];
         origins[ii] = kernel_origins ? *kernel_origins++ : kernel_shape[ii] / 2;
-
-        position[ii] = 0;
     }
 
     if (!footprint) {
@@ -282,12 +325,10 @@ int init_offsets_ravel(PyArrayObject *array,
 
     for (ii = 0; ii < kernel_size; ii++) {
         if (!footprint || footprint[ii]) {
-            for (jj = 0; jj < nd; jj++) {
-                position[jj] = iter.coordinates[jj] - origins[jj];
-            }
-            index_ravel = position[nd - 1] * array_strides[nd - 1];
-            for(jj = nd - 2; jj >= 0; jj--) {
-                index_ravel += position[jj] * array_strides[jj];
+            index_ravel = 0;
+            for(jj = 0; jj < nd; jj++) {
+                position = iter.coordinates[jj] - origins[jj];
+                index_ravel += position * array_strides[jj];
             }
             *of_po++ = index_ravel;
         }
@@ -364,7 +405,7 @@ int init_borders_lut(npy_intp nd,
 {
     CoordinatesIter iter;
     npy_intp ii, jj, array_size;
-    npy_intp origins[NPY_MAXDIMS], k_shape[NPY_MAXDIMS], a_shape[NPY_MAXDIMS], position[NPY_MAXDIMS];
+    npy_intp origins[NPY_MAXDIMS], k_shape[NPY_MAXDIMS], a_shape[NPY_MAXDIMS];
     npy_bool *lut;
     int is_border;
 
@@ -378,8 +419,6 @@ int init_borders_lut(npy_intp nd,
 
         k_shape[ii] = *kernel_shape++;
         origins[ii] = kernel_origins ? *kernel_origins++ : k_shape[ii] / 2;
-
-        position[ii] = 0;
     }
 
     *borders_lookup = malloc(array_size * sizeof(npy_bool));
@@ -440,8 +479,8 @@ int array_offsets_to_list_offsets(PyArrayObject *array, npy_intp *offsets, npy_i
 #define RAVEL_COORDINATE(_nd, _position, _strides, _valid_offset)                             \
 {                                                                                             \
     int _ii;                                                                                  \
-    _valid_offset = _position[_nd - 1] * _strides[_nd - 1];                                   \
-    for (_ii = _nd - 2; _ii >= 0; _ii--) {                                                    \
+    _valid_offset = 0;                                                                        \
+    for (_ii = 0; _ii < _nd; _ii++) {                                                         \
         _valid_offset += _position[_ii] * _strides[_ii];                                      \
     }                                                                                         \
 }

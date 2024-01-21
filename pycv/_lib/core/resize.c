@@ -18,7 +18,7 @@ int ops_resize_bilinear(PyArrayObject *input, PyArrayObject *output)
 {
     npy_intp nd, from_height, from_width, to_height, to_width, new_size, array_size, ii, count;
     int num_type_i, num_type_o;
-    npy_intp i, j, position[NPY_MAXDIMS];
+    npy_intp i, j, position[NPY_MAXDIMS], index_shift1, index_shift2, index_c;
     double y_scale, x_scale, y, x;
     double val1 = 0.0, val2 = 0.0, val3 = 0.0, val4 = 0.0, out = 0.0, q1 = 0.0, q2 = 0.0;
     npy_intp y_low = 0, x_low = 0, y_high = 0, x_high = 0, shift_y = 0, shift_x = 0;
@@ -54,51 +54,55 @@ int ops_resize_bilinear(PyArrayObject *input, PyArrayObject *output)
     pi_base = pi = (void *)PyArray_DATA(input);
     po = (void *)PyArray_DATA(output);
 
+
     while (count) {
-        for (ii = 0; ii < nd - 2; ii++) {
+        for (ii = 0; ii < nd; ii++) {
             position[ii] = iter_o.coordinates[ii];
         }
+        ARRAY_ITER_GOTO(iter_i, position, pi_base, pi);
+
         for (i = 0; i < to_height; i++) {
             y = (double)i * y_scale;
             RESIZE_BILINEAR_GET_POINT(y, from_height, y_low, y_high);
-            position[nd - 2] = y_low;
+            index_shift1 = y_low * iter_i.strides[nd - 2];
 
             for (j = 0; j < to_width; j++) {
                 x = (double)j * x_scale;
                 RESIZE_BILINEAR_GET_POINT(x, from_width, x_low, x_high);
-                position[nd - 1] = x_low;
-                ARRAY_ITER_GOTO(iter_i, position, pi_base, pi);
+                index_shift2 = x_low * iter_i.strides[nd - 1];
+
+                index_c = index_shift1 + index_shift2;
 
                 if (y_low == y_high && x_low == x_high) {
 
-                    GET_VALUE_AS(num_type_i, double, pi, out);
+                    GET_VALUE_AS(num_type_i, double, (pi + index_c), out);
                 } else if (x_low == x_high) {
 
-                    GET_VALUE_AS(num_type_i, double, pi, val1);
+                    GET_VALUE_AS(num_type_i, double, (pi + index_c), val1);
 
                     shift_y = (y_high - y_low) * iter_i.strides[nd - 2];
-                    GET_VALUE_AS(num_type_i, double, (pi + shift_y), val2);
+                    GET_VALUE_AS(num_type_i, double, (pi + index_c + shift_y), val2);
 
                     out = val1 * ((double)y_high - y) + val2 * (y - (double)y_low);
                 } else if (y_low == y_high) {
 
-                    GET_VALUE_AS(num_type_i, double, pi, val1);
+                    GET_VALUE_AS(num_type_i, double, (pi + index_c), val1);
 
                     shift_x = (x_high - x_low) * iter_i.strides[nd - 1];
-                    GET_VALUE_AS(num_type_i, double, (pi + shift_x), val2);
+                    GET_VALUE_AS(num_type_i, double, (pi + index_c + shift_x), val2);
 
                     out = val1 * ((double)x_high - x) + val2 * (x - (double)x_low);
                 } else {
 
-                    GET_VALUE_AS(num_type_i, double, pi, val1);
+                    GET_VALUE_AS(num_type_i, double, (pi + index_c), val1);
 
                     shift_y = (y_high - y_low) * iter_i.strides[nd - 2];
                     shift_x = (x_high - x_low) * iter_i.strides[nd - 1];
 
-                    GET_VALUE_AS(num_type_i, double, (pi + shift_x), val2);
-                    GET_VALUE_AS(num_type_i, double, (pi + shift_y), val3);
+                    GET_VALUE_AS(num_type_i, double, (pi + index_c + shift_x), val2);
+                    GET_VALUE_AS(num_type_i, double, (pi + index_c + shift_y), val3);
 
-                    GET_VALUE_AS(num_type_i, double, (pi + shift_y + shift_x), val4);
+                    GET_VALUE_AS(num_type_i, double, (pi + index_c + shift_y + shift_x), val4);
 
                     q1 = val1 * ((double)x_high - x) + val2 * (x - (double)x_low);
                     q2 = val3 * ((double)x_high - x) + val4 * (x - (double)x_low);
@@ -116,13 +120,14 @@ int ops_resize_bilinear(PyArrayObject *input, PyArrayObject *output)
         return PyErr_Occurred() ? 0 : 1;
 }
 
+
 // #####################################################################################################################
 
 int ops_resize_nearest_neighbor(PyArrayObject *input, PyArrayObject *output)
 {
     npy_intp nd, from_height, from_width, to_height, to_width, new_size, array_size, count, ii;
     int num_type_i, num_type_o;
-    npy_intp i, j, position[NPY_MAXDIMS];
+    npy_intp i, j, position[NPY_MAXDIMS], index_shift1, index_shift2;
     double y_scale, x_scale, out = 0.0;
     npy_intp proj_y = 0, proj_x = 0, shift = 0;
     char *pi_base = NULL, *pi = NULL, *po = NULL;
@@ -161,23 +166,18 @@ int ops_resize_nearest_neighbor(PyArrayObject *input, PyArrayObject *output)
         for (ii = 0; ii < nd; ii++) {
             position[ii] = iter_o.coordinates[ii];
         }
+        ARRAY_ITER_GOTO(iter_i, position, pi_base, pi);
 
         for (i = 0; i < to_height; i++) {
             proj_y = (npy_intp)((double)i * y_scale);
-
-            position[nd - 2] = proj_y;
-            ARRAY_ITER_GOTO(iter_i, position, pi_base, pi);
+            index_shift1 = proj_y * iter_i.strides[nd - 2];
 
             for (j = 0; j < to_width; j++) {
 
                 proj_x = (npy_intp)((double)j * x_scale);
+                index_shift2 = proj_x * iter_i.strides[nd - 1];
 
-                if (proj_x != position[nd - 1]) {
-                    pi += (proj_x - position[nd - 1]) * iter_i.strides[nd - 1];
-                    position[nd - 1] = proj_x;
-                }
-
-                GET_VALUE_AS(num_type_i, double, pi, out);
+                GET_VALUE_AS(num_type_i, double, (pi + index_shift1 + index_shift2), out);
 
                 SET_VALUE_TO(num_type_o, po, out);
                 ARRAY_ITER_NEXT(iter_o, po);

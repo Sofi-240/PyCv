@@ -6,6 +6,11 @@ typedef enum {
     DIL = 1,
 } ERO_OR_DIL_OP;
 
+typedef enum {
+    LABEL_BY_NLABELS = 1,
+    LABEL_BY_INDEX = 2,
+} LabelMode;
+
 // #####################################################################################################################
 
 int ops_binary_erosion(PyArrayObject *input,
@@ -15,7 +20,6 @@ int ops_binary_erosion(PyArrayObject *input,
                        int iterations,
                        PyArrayObject *mask,
                        int invert);
-
 
 int ops_gray_ero_or_dil(PyArrayObject *input,
                         PyArrayObject *flat_strel,
@@ -34,7 +38,8 @@ int ops_binary_region_fill(PyArrayObject *output,
 int ops_labeling(PyArrayObject *input,
                  int connectivity,
                  PyArrayObject *values_map,
-                 PyArrayObject *output);
+                 PyArrayObject *output,
+                 LabelMode label_mode);
 
 // #####################################################################################################################
 

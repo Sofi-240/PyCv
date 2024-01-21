@@ -223,3 +223,190 @@ int ops_canny_nonmaximum_suppression(PyArrayObject *magnitude,
 }
 
 // #####################################################################################################################
+
+//int ops_build_max_tree(PyArrayObject *input,
+//                       PyArrayObject *traverser,
+//                       PyArrayObject *parent,
+//                       int connectivity,
+//                       PyArrayObject *values_map)
+//{
+//
+//}
+
+
+int ops_build_max_tree(PyArrayObject *input, PyArrayObject *traverser, PyArrayObject *parent)
+{
+    int contiguous_i, contiguous_t, contiguous_p;
+    int num_type_i, num_type_t, num_type_p;
+    npy_intp itemsize_i, itemsize_t, itemsize_p, size, nd, *strides, *dims;
+    char *pi = NULL, *pt = NULL, *pp = NULL, *pi_base = NULL, *pp_base = NULL;
+
+    npy_intp *trav, ii;
+    PyArray_ArgSortFunc *argsort_func;
+
+    npy_bool *footprint = NULL;
+    npy_intp *offsets, *offsets_cc;
+    int footprint_size;
+    npy_intp shape[NPY_MAXDIMS];
+
+    npy_intp *nodes, jj;
+    npy_intp idx, cc, cci, outside = 0;
+    npy_intp ind, ind_n, node, root, q, qq;
+    int undef = -1;
+    double val1 = 0, val2 = 0;
+
+    contiguous_i = PyArray_ISCONTIGUOUS(input);
+    contiguous_t = PyArray_ISCONTIGUOUS(traverser);
+    contiguous_p = PyArray_ISCONTIGUOUS(parent);
+
+    if (!contiguous_i || !contiguous_t || !contiguous_p) {
+        PyErr_SetString(PyExc_RuntimeError, "all the inputs need to be contiguous\n");
+        return 0;
+    }
+
+    size = PyArray_SIZE(input);
+    nd = PyArray_NDIM(input);
+
+    itemsize_i = PyArray_ITEMSIZE(input);
+    itemsize_t = PyArray_ITEMSIZE(traverser);
+    itemsize_p = PyArray_ITEMSIZE(parent);
+
+    num_type_i = PyArray_TYPE(input);
+    num_type_t = PyArray_TYPE(traverser);
+    num_type_p = PyArray_TYPE(parent);
+
+    strides = PyArray_STRIDES(input);
+    dims = PyArray_DIMS(input);
+
+    trav = (npy_intp*)malloc(size * sizeof(npy_intp));
+    if (!trav) {
+        PyErr_NoMemory();
+        return 0;
+    }
+
+    pi_base = pi = (void *)PyArray_DATA(input);
+    pt = (void *)PyArray_DATA(traverser);
+    pp_base = pp = (void *)PyArray_DATA(parent);
+
+    nodes = (npy_intp*)malloc(size * sizeof(npy_intp));
+    if (!nodes) {
+        PyErr_NoMemory();
+        return 0;
+    }
+
+    for (ii = 0; ii < size; ii++) {
+        SET_VALUE_TO(num_type_p, pp, undef);
+        pp += itemsize_p;
+        nodes[ii] = undef;
+        trav[ii] = ii;
+    }
+
+    argsort_func = PyArray_DESCR(input)->f->argsort[NPY_MERGESORT];
+    if (argsort_func == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "argsort_func not supported\n");
+        goto exit;
+    }
+
+    if (argsort_func(pi, trav, size, input) < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: Couldn't perform argsort.\n");
+        goto exit;
+    }
+
+    if (!footprint_as_con(nd, 2, &footprint, &footprint_size, 1)) {
+        goto exit;
+    }
+    for (ii = 0; ii < nd; ii++) {
+        shape[ii] = 3;
+    }
+
+    if (!init_offsets_ravel(input, shape, NULL, footprint, &offsets)){
+        goto exit;
+    }
+
+    for (ii = 0; ii < footprint_size; ii++) {
+        offsets[ii] /= itemsize_i;
+    }
+
+    if (!init_offsets_coordinates(nd, shape, NULL, footprint, &offsets_cc)){
+        goto exit;
+    }
+
+    for (ii = size - 1; ii >= 0; ii--) {
+        ind = trav[ii];
+
+        pp = pp_base + ind * itemsize_p;
+        SET_VALUE_TO(num_type_p, pp, ind);
+
+        nodes[ind] = ind;
+
+        for (jj = 0; jj < footprint_size; jj++) {
+
+            /* check if the neighbor is within the extent of the array: */
+            idx = ind * itemsize_i;
+            outside = 0;
+            for (cci = 0; cci < nd; cci++) {
+                cc = idx / strides[cci];
+                cc += offsets_cc[jj * nd + cci];
+                if (cc < 0 || cc >= dims[cci]) {
+                    outside = 1;
+                    break;
+                }
+                idx -= (cc - offsets_cc[jj * nd + cci]) * strides[cci];
+            }
+            ind_n = ind + offsets[jj];
+
+            if (!outside) {
+
+                if (nodes[ind_n] != undef) {
+                    node = ind_n;
+
+                    while (nodes[node] != nodes[nodes[node]]) {
+                        nodes[node] = nodes[nodes[node]];
+                    }
+                    root = nodes[node];
+
+                    if (root != ind) {
+                        pp = pp_base + root * itemsize_p;
+                        SET_VALUE_TO(num_type_p, pp, ind);
+                        nodes[root] = ind;
+                    }
+                }
+            }
+        }
+    }
+
+    for (ii = 0; ii < size; ii++) {
+        ind = trav[ii];
+
+        SET_VALUE_TO(num_type_t, pt, ind);
+        pt += itemsize_t;
+
+        pp = pp_base + ind * itemsize_p;
+        GET_VALUE_AS(num_type_p, npy_intp, pp, q) ;
+
+        pp = pp_base + q * itemsize_p;
+        GET_VALUE_AS(num_type_p, npy_intp, pp, qq) ;
+
+        pi = pi_base + q * itemsize_i;
+        GET_VALUE_AS(num_type_i, double, pi, val1) ;
+
+        pi = pi_base + qq * itemsize_i;
+        GET_VALUE_AS(num_type_i, double, pi, val2) ;
+
+        if (val1 == val2) {
+            pp = pp_base + ind * itemsize_p;
+            SET_VALUE_TO(num_type_p, pp, qq);
+        }
+    }
+
+    exit:
+        free(trav);
+        free(offsets_cc);
+        free(offsets);
+        free(nodes);
+        return PyErr_Occurred() ? 0 : 1;
+}
+
+
+
+

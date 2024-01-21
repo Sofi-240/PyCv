@@ -100,7 +100,7 @@ def binary_region_fill(
         offset: tuple | None = None,
         output: np.ndarray | None = None,
         inplace: bool = False
-) -> np.ndarray | None:
+) -> np.ndarray:
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)
 
@@ -109,13 +109,14 @@ def binary_region_fill(
     if image.dtype != bool:
         image = as_binary_array(image, 'Image')
 
-    strel, offset = default_strel(strel, nd, offset=offset)
+    strel, offset = default_strel(strel, nd, offset=offset, hole=True)
     valid_kernel_shape_with_ref(strel.shape, image.shape)
 
     if inplace:
         output = image
     else:
         output, _ = get_output(output, image, image.shape)
+        output[...] = image
 
     if np.all(image == 0):
         output[...] = 0
@@ -216,7 +217,7 @@ def labeling(
         values_map = color_mapping_range(image, method=rng_mapping_method, mod_value=mod_value)
 
     output = np.zeros(image.shape, np.int64)
-    ops.labeling(image, connectivity, values_map, output)
+    ops.labeling(image, connectivity, values_map, output, 1)
     return np.max(output), output
 
 

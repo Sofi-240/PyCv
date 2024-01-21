@@ -41,7 +41,9 @@ def region_fill(
         output = image
     elif not output:
         output = np.zeros_like(image)
+
     output[inputs] = fill_value if fill_value is not None else seed_value
+
     return output
 
 

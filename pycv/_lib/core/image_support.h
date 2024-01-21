@@ -10,6 +10,8 @@ int ops_canny_nonmaximum_suppression(PyArrayObject *magnitude,
                                      PyArrayObject *mask,
                                      PyArrayObject *output);
 
+int ops_build_max_tree(PyArrayObject *input, PyArrayObject *output);
+
 // #####################################################################################################################
 
 

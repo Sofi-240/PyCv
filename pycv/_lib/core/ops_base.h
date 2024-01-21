@@ -253,6 +253,8 @@ int array_to_footprint(PyArrayObject *array, npy_bool **footprint, int *non_zero
 
 int footprint_for_cc(npy_intp nd, int connectivity, npy_bool **footprint, int *non_zeros);
 
+int footprint_as_con(npy_intp nd, int connectivity, npy_bool **footprint, int *non_zeros, int hole);
+
 int copy_data_as_double(PyArrayObject *array, double **line, npy_bool *footprint);
 
 // #####################################################################################################################

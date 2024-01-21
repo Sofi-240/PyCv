@@ -335,14 +335,16 @@ PyObject* labeling(PyObject* self, PyObject* args)
 {
     PyArrayObject *input = NULL, *output = NULL, *values_map = NULL;
     int connectivity;
+    int mode;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&iO&O&",
+            "O&iO&O&i",
             Input_To_Array, &input,
             &connectivity,
             InputOptional_To_Array, &values_map,
-            Output_To_Array, &output)) {
+            Output_To_Array, &output,
+            &mode)) {
         goto exit;
     }
 
@@ -364,7 +366,7 @@ PyObject* labeling(PyObject* self, PyObject* args)
     }
 
 
-    ops_labeling(input, connectivity, values_map, output);
+    ops_labeling(input, connectivity, values_map, output, (LabelMode)mode);
 
     PyArray_ResolveWritebackIfCopy(output);
 
@@ -460,6 +462,44 @@ PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args)
             Py_XDECREF(mask);
         }
         Py_XDECREF(output);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+PyObject* build_max_tree(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *traverser = NULL, *parent = NULL;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&",
+            Input_To_Array, &input,
+            Output_To_Array, &traverser,
+            Output_To_Array, &parent)) {
+        goto exit;
+    }
+
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(traverser))) {
+        PyErr_SetString(PyExc_RuntimeError, "traverser dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(parent))) {
+        PyErr_SetString(PyExc_RuntimeError, "parent dtype not supported");
+        goto exit;
+    }
+
+    ops_build_max_tree(input, traverser, parent);
+
+    PyArray_ResolveWritebackIfCopy(traverser);
+    PyArray_ResolveWritebackIfCopy(parent);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(traverser);
+        Py_XDECREF(parent);
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
@@ -563,6 +603,12 @@ static PyMethodDef methods[] = {
     {
         "canny_nonmaximum_suppression",
         (PyCFunction)canny_nonmaximum_suppression,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "build_max_tree",
+        (PyCFunction)build_max_tree,
         METH_VARARGS,
         NULL
     },

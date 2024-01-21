@@ -322,12 +322,12 @@ int ops_binary_region_fill(PyArrayObject *output,
                            npy_intp *seed_point,
                            npy_intp *origins)
 {
-    ArrayIter iter;
-    char *po = NULL, *po_base = NULL;
+    char *po = NULL;
     int offsets_size, num_type;
-    npy_intp nd, ii, jj, array_size, *offsets, *offsets_run;
-    npy_bool is_valid, val, *footprint;
-    npy_intp position[NPY_MAXDIMS], stack_start = 0, stack_end = 0, *stack, *stack_fill, *stack_go;
+    npy_intp nd, ii, jj, array_size, *offsets, index, index_ch, cc, position;
+    npy_bool val, *footprint;
+    int outside;
+    npy_intp stack_start = 0, stack_end = 0, *stack, *stack_fill, *strides, *dims;
 
     NPY_BEGIN_THREADS_DEF;
 
@@ -336,63 +336,65 @@ int ops_binary_region_fill(PyArrayObject *output,
     }
 
     nd = PyArray_NDIM(output);
-    if (!init_offsets_coordinates(nd, PyArray_DIMS(strel), origins, footprint, &offsets)) {
+    array_size = PyArray_SIZE(output);
+    strides = PyArray_STRIDES(output);
+    dims = PyArray_DIMS(output);
+
+    if (!init_offsets_coordinates(nd, PyArray_DIMS(strel), origins, footprint, &offsets)){
         goto exit;
     }
 
-    array_size = PyArray_SIZE(output);
-
-    stack = (npy_intp *)malloc(array_size * nd * sizeof(npy_intp));
+    stack = (npy_intp *)malloc(array_size * sizeof(npy_intp));
     if (!stack) {
         PyErr_NoMemory();
         goto exit;
     }
     stack_fill = stack;
-    stack_go = stack;
 
-    for (ii = 0; ii < nd; ii++) {
-        position[ii] = 0;
-        *stack_fill++ = seed_point[ii];
+    index = 0;
+    for (jj = 0; jj < nd; jj++) {
+        index += seed_point[jj] * strides[jj];
     }
+    *stack_fill++ = index;
     stack_end = 1;
 
-    ArrayIterInit(output, &iter);
     num_type = PyArray_TYPE(output);
 
     NPY_BEGIN_THREADS;
-    po_base = po = (void *)PyArray_DATA(output);
+    po = (void *)PyArray_DATA(output);
 
-    ARRAY_ITER_GOTO(iter, stack_go, po_base, po);
-    SET_VALUE_TO(num_type, po, NPY_TRUE);
+    SET_VALUE_TO(num_type, (po + index), NPY_TRUE);
 
     while (stack_start < stack_end) {
-        offsets_run = offsets;
 
         for (ii = 0; ii < offsets_size; ii++) {
-            is_valid = NPY_TRUE;
+            outside = 0;
+            index = 0;
+
+            index_ch = stack[stack_start];
+
             for (jj = 0; jj < nd; jj++) {
-                position[jj] = stack_go[jj] + offsets_run[jj];
-                if (position[jj] < 0 || position[jj] > iter.dims_m1[jj]) {
-                    is_valid = NPY_FALSE;
+                cc = index_ch / strides[jj];
+                cc += offsets[ii * nd + jj];
+                if (cc < 0 || cc >= dims[jj]) {
+                    outside = 1;
                     break;
                 }
+                index += cc * strides[jj];
+                index_ch -= (cc - offsets[ii * nd + jj]) * strides[jj];
             }
-            if (is_valid) {
-                ARRAY_ITER_GOTO(iter, position, po_base, po);
+
+            if (!outside) {
                 val = NPY_TRUE;
-                GET_VALUE_AS(num_type, npy_bool, po, val);
+                GET_VALUE_AS(num_type, npy_bool, (po + index), val);
                 if (!val) {
-                    SET_VALUE_TO(num_type, po, NPY_TRUE);
-                    for (jj = 0; jj < nd; jj++) {
-                        *stack_fill++ = position[jj];
-                    }
+                    SET_VALUE_TO(num_type, (po + index), NPY_TRUE);
+                    *stack_fill++ = index;
                     stack_end++;
                 }
             }
-            offsets_run += nd;
         }
         stack_start++;
-        stack_go += nd;
     }
     NPY_END_THREADS;
     exit:
@@ -405,7 +407,8 @@ int ops_binary_region_fill(PyArrayObject *output,
 int ops_labeling(PyArrayObject *input,
                  int connectivity,
                  PyArrayObject *values_map,
-                 PyArrayObject *output)
+                 PyArrayObject *output,
+                 LabelMode label_mode)
 {
     ArrayIter iter_i, iter_o;
     npy_intp nd, ii, jj, array_size, values_map_size, footprint_shape[NPY_MAXDIMS], origins[NPY_MAXDIMS];
@@ -449,7 +452,7 @@ int ops_labeling(PyArrayObject *input,
         goto exit;
     }
 
-    labels = (int *)calloc(array_size, sizeof(int));
+    labels = malloc(array_size * sizeof(int));
     if (!labels) {
         PyErr_NoMemory();
         goto exit;
@@ -472,7 +475,9 @@ int ops_labeling(PyArrayObject *input,
     offsets_run = offsets_lookup;
 
     for (ii = 0; ii < array_size; ii++) {
+        labels[ii] = -1;
         GET_VALUE_AS(num_type_i, int, pi, pivot);
+
         if (!pivot) {
             SET_VALUE_TO(num_type_o, po, pivot);
             offsets_run += offsets_stride;
@@ -505,7 +510,6 @@ int ops_labeling(PyArrayObject *input,
                 }
                 GET_VALUE_AS(num_type_vm, int, vm + pi_con, con_rank);
             }
-
             if (con_rank == pivot_rank) {
                 buffer[buffer_size] = con;
                 buffer_size++;
@@ -554,9 +558,16 @@ int ops_labeling(PyArrayObject *input,
             while (parent[pivot]) {
                 pivot = parent[pivot];
             }
-            if (!labels[pivot]) {
-                labels[pivot] = n_labels;
-                n_labels++;
+            if (labels[pivot] < 0) {
+                switch (label_mode) {
+                    case LABEL_BY_NLABELS:
+                        labels[pivot] = n_labels;
+                        n_labels++;
+                        break;
+                    case LABEL_BY_INDEX:
+                        labels[pivot] = ii;
+                        break;
+                }
             }
             label = labels[pivot];
             SET_VALUE_TO(num_type_o, po, label);
