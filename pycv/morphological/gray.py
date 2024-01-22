@@ -102,3 +102,5 @@ def area_close(
         connectivity: int = 1,
 ) -> np.ndarray:
     return morphology_py.area_open_close('close', image, threshold=threshold, connectivity=connectivity)
+
+########################################################################################################################

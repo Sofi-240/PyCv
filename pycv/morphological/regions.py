@@ -56,3 +56,17 @@ def im_label(
         mod_value: int = 16
 ) -> tuple[int, np.ndarray]:
     return morphology_py.labeling(image, connectivity, rng_mapping_method, mod_value)
+
+
+########################################################################################################################
+
+def remove_small_objects(
+        image: np.ndarray,
+        threshold: int = 32,
+        connectivity: int = 1,
+        rng_mapping_method: str = 'sqr',
+        mod_value: int = 16
+) -> tuple[int, np.ndarray]:
+    return
+
+########################################################################################################################

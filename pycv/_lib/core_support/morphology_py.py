@@ -14,6 +14,7 @@ __all__ = [
     'labeling',
     'skeletonize',
     'area_open_close',
+    'remove_small_objects',
 ]
 
 
@@ -272,4 +273,40 @@ def area_open_close(
         output = invert_values(output)
     return output
 
+
 ########################################################################################################################
+
+def remove_small_objects(
+        image: np.ndarray,
+        threshold: int = 32,
+        connectivity: int = 1,
+        invert: int = 0
+) -> np.ndarray:
+    inv_img = image.copy()
+    bool_cast = False
+
+    if image.dtype != bool:
+        inv_img = as_binary_array(inv_img, 'Image')
+
+    if invert:
+        inv_img = ~inv_img
+
+    n_labels, labels = labeling(inv_img, connectivity)
+
+    area = np.bincount(labels.ravel())
+
+    area_bool = np.where(area > threshold, True, False)
+    area_bool[0] = False
+
+    labels_bool = area_bool[labels]
+
+    if invert:
+        labels_bool = ~labels_bool
+
+    if not bool_cast:
+        return labels_bool
+
+    output, _ = get_output(None, image)
+    output[labels_bool] = np.max(image)
+
+    return output

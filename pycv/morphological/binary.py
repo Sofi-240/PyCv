@@ -8,6 +8,8 @@ __all__ = [
     'binary_closing',
     'binary_edge',
     'skeletonize',
+    'remove_small_objects',
+    'remove_small_holes'
 ]
 
 
@@ -64,7 +66,6 @@ def binary_closing(
     return output if ret is None else ret
 
 
-
 def binary_edge(
         image: np.ndarray,
         edge_mode: str = 'inner',
@@ -96,9 +97,30 @@ def binary_edge(
         output[:] = ero ^ image
     return output
 
+
 ########################################################################################################################
 
 def skeletonize(
         image: np.ndarray
 ) -> np.ndarray:
     return morphology_py.skeletonize(image)
+
+
+########################################################################################################################
+
+def remove_small_objects(
+        image: np.ndarray,
+        threshold: int = 32,
+        connectivity: int = 1
+) -> np.ndarray:
+    return morphology_py.remove_small_objects(image, threshold, connectivity)
+
+
+def remove_small_holes(
+        image: np.ndarray,
+        threshold: int = 32,
+        connectivity: int = 1
+) -> np.ndarray:
+    return morphology_py.remove_small_objects(image, threshold, connectivity, invert=1)
+
+########################################################################################################################
