@@ -8,6 +8,8 @@ __all__ = [
     'gray_closing',
     'black_top',
     'white_top',
+    'area_open',
+    'area_close'
 ]
 
 ########################################################################################################################
@@ -82,3 +84,21 @@ def white_top(
     op = gray_opening(image, strel, offset=offset, mask=mask, output=output)
     op = image - op
     return op
+
+
+########################################################################################################################
+
+def area_open(
+        image: np.ndarray,
+        threshold: int = 32,
+        connectivity: int = 1,
+) -> np.ndarray:
+    return morphology_py.area_open_close('open', image, threshold=threshold, connectivity=connectivity)
+
+
+def area_close(
+        image: np.ndarray,
+        threshold: int = 32,
+        connectivity: int = 1,
+) -> np.ndarray:
+    return morphology_py.area_open_close('close', image, threshold=threshold, connectivity=connectivity)

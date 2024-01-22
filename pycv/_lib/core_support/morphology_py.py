@@ -1,5 +1,6 @@
 import numpy as np
-from pycv._lib.core_support.utils import get_output, get_kernel, valid_kernel_shape_with_ref
+from pycv._lib.core_support.utils import get_output, get_kernel, valid_kernel_shape_with_ref, ctype_label_mode, \
+    invert_values
 from pycv._lib.core import ops
 from pycv._lib.filters_support.kernel_utils import default_binary_strel, color_mapping_range
 from pycv._lib.array_api.dtypes import as_binary_array, get_dtype_limits, get_dtype_info
@@ -12,6 +13,7 @@ __all__ = [
     'gray_ero_or_dil',
     'labeling',
     'skeletonize',
+    'area_open_close',
 ]
 
 
@@ -192,7 +194,7 @@ def labeling(
         image: np.ndarray,
         connectivity: int = 1,
         rng_mapping_method: str = 'sqr',
-        mod_value: int = 16
+        mod_value: int = 16,
 ) -> tuple[int, np.ndarray]:
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)
@@ -217,7 +219,10 @@ def labeling(
         values_map = color_mapping_range(image, method=rng_mapping_method, mod_value=mod_value)
 
     output = np.zeros(image.shape, np.int64)
-    ops.labeling(image, connectivity, values_map, output, 1)
+
+    label_mode = ctype_label_mode('nlabels')
+    ops.labeling(image, connectivity, values_map, output, label_mode)
+
     return np.max(output), output
 
 
@@ -236,3 +241,35 @@ def skeletonize(
 
     ops.skeletonize(image, output)
     return output
+
+
+########################################################################################################################
+
+def area_open_close(
+        op: str,
+        image: np.ndarray,
+        threshold: int = 32,
+        connectivity: int = 1,
+) -> np.ndarray:
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
+
+    if connectivity < 1 or connectivity > image.ndim:
+        raise ValueError(
+            f'Connectivity value must be in the range from 1 (no diagonal elements are neighbors) '
+            f'to ndim (all elements are neighbors)'
+        )
+
+    if op == 'close':
+        image_op = invert_values(image)
+    else:
+        image_op = image.copy()
+
+    output = image_op.copy()
+    ops.area_threshold(image_op, connectivity, threshold, output, None, None)
+
+    if op == 'close':
+        output = invert_values(output)
+    return output
+
+########################################################################################################################

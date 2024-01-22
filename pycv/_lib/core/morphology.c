@@ -411,7 +411,7 @@ int ops_labeling(PyArrayObject *input,
                  LabelMode label_mode)
 {
     ArrayIter iter_i, iter_o;
-    npy_intp nd, ii, jj, array_size, values_map_size, footprint_shape[NPY_MAXDIMS], origins[NPY_MAXDIMS];
+    npy_intp nd, ii, jj, array_size, values_map_size, footprint_shape[NPY_MAXDIMS], origins[NPY_MAXDIMS], itemsize_vm;
     npy_intp offsets_flag, offsets_stride, *offsets_lookup, *offsets_run;
     npy_bool *footprint = NULL;
     char *po = NULL, *po_base = NULL, *pi = NULL, *vm = NULL;
@@ -423,7 +423,16 @@ int ops_labeling(PyArrayObject *input,
 
     nd = PyArray_NDIM(input);
     array_size = PyArray_SIZE(input);
-    values_map_size = values_map ? PyArray_SIZE(values_map) : -1;
+
+    if (values_map && !PyArray_ISCONTIGUOUS(values_map)) {
+        PyErr_SetString(PyExc_RuntimeError, "values map need to be contiguous\n");
+        return 0;
+    }
+
+    if (values_map) {
+        itemsize_vm = PyArray_ITEMSIZE(values_map);
+        values_map_size = PyArray_SIZE(values_map);
+    }
 
     if (!footprint_for_cc(nd, connectivity, &footprint, &footprint_size)) {
         goto exit;
@@ -490,7 +499,7 @@ int ops_labeling(PyArrayObject *input,
                 NPY_END_THREADS;
                 goto exit;
             }
-            GET_VALUE_AS(num_type_vm, int, vm + pivot, pivot_rank);
+            GET_VALUE_AS(num_type_vm, int, (vm + pivot * itemsize_vm), pivot_rank);
         }
         buffer_size = 0;
         for (jj = 0; jj < offsets_stride; jj++) {
@@ -508,7 +517,7 @@ int ops_labeling(PyArrayObject *input,
                     NPY_END_THREADS;
                     goto exit;
                 }
-                GET_VALUE_AS(num_type_vm, int, vm + pi_con, con_rank);
+                GET_VALUE_AS(num_type_vm, int, (vm + pi_con * itemsize_vm), con_rank);
             }
             if (con_rank == pivot_rank) {
                 buffer[buffer_size] = con;

@@ -224,189 +224,349 @@ int ops_canny_nonmaximum_suppression(PyArrayObject *magnitude,
 
 // #####################################################################################################################
 
-//int ops_build_max_tree(PyArrayObject *input,
-//                       PyArrayObject *traverser,
-//                       PyArrayObject *parent,
-//                       int connectivity,
-//                       PyArrayObject *values_map)
-//{
-//
-//}
+#define MAX_TREE_GET_INDEX(_index, _index_strides, _is_contiguous, _itemsize, _nd, _strides, _out)                     \
+{                                                                                                                      \
+    if (_is_contiguous) {                                                                                              \
+        _out = _index * _itemsize;                                                                                     \
+    } else {                                                                                                           \
+        int _ii;                                                                                                       \
+        npy_intp _tmp_idx = _index;                                                                                    \
+        npy_intp _cc;                                                                                                  \
+        _out = 0;                                                                                                      \
+        for (_ii = 0; _ii < _nd; _ii++) {                                                                              \
+            _cc = _tmp_idx / _index_strides[_ii];                                                                      \
+            _tmp_idx -= _cc * _index_strides[_ii];                                                                     \
+            _out += _cc * _strides[_ii];                                                                               \
+        }                                                                                                              \
+    }                                                                                                                  \
+}
 
+#define MAX_TREE_GET_INDEX_OFFSET(_index, _index_strides, _offsets, _nd, _dims, _strides, _out, _is_outside)           \
+{                                                                                                                      \
+    int _ii;                                                                                                           \
+    npy_intp _tmp_idx = _index;                                                                                        \
+    npy_intp _cc;                                                                                                      \
+    _out = 0;                                                                                                          \
+    _is_outside = 0;                                                                                                   \
+    for (_ii = 0; _ii < _nd; _ii++) {                                                                                  \
+        _cc = _tmp_idx / _index_strides[_ii];                                                                          \
+        _tmp_idx -= _cc * _index_strides[_ii];                                                                         \
+        _cc += _offsets[_ii];                                                                                          \
+        if (_cc < 0 || _cc >= _dims[_ii]) {                                                                            \
+            _is_outside = 1;                                                                                           \
+            break;                                                                                                     \
+        }                                                                                                              \
+        _out += _cc * _strides[_ii];                                                                                   \
+    }                                                                                                                  \
+}
 
-int ops_build_max_tree(PyArrayObject *input, PyArrayObject *traverser, PyArrayObject *parent)
+int ops_build_max_tree(PyArrayObject *input,
+                       PyArrayObject *traverser,
+                       PyArrayObject *parent,
+                       int connectivity,
+                       PyArrayObject *values_map)
 {
-    int contiguous_i, contiguous_t, contiguous_p;
-    int num_type_i, num_type_t, num_type_p;
-    npy_intp itemsize_i, itemsize_t, itemsize_p, size, nd, *strides, *dims;
-    char *pi = NULL, *pt = NULL, *pp = NULL, *pi_base = NULL, *pp_base = NULL;
-
-    npy_intp *trav, ii;
-    PyArray_ArgSortFunc *argsort_func;
+    char *pi = NULL, *pi_base = NULL, *pt = NULL, *pp = NULL, *vm = NULL;
+    int is_contiguous_p, num_type_p, num_type_t, num_type_i, num_type_vm;
+    npy_intp itemsize_vm, itemsize_p, itemsize_i;
+    npy_intp size, nd, index_strides[NPY_MAXDIMS], vm_size, *strides_p, *dims;
+    ArrayIter iter_t;
 
     npy_bool *footprint = NULL;
-    npy_intp *offsets, *offsets_cc;
-    int footprint_size;
+    npy_intp *offsets, *offsets_run;
+    int offsets_size, is_outside = 0;
     npy_intp shape[NPY_MAXDIMS];
 
-    npy_intp *nodes, jj;
-    npy_intp idx, cc, cci, outside = 0;
-    npy_intp ind, ind_n, node, root, q, qq;
+    npy_intp *traver, *nodes, ii, jj, index, index_p = 0, index_n = 0, index_t = 0, node, root;
+    PyArrayObject *input_flt;
+    PyArray_ArgSortFunc *arg_sort_func;
     int undef = -1;
-    double val1 = 0, val2 = 0;
 
-    contiguous_i = PyArray_ISCONTIGUOUS(input);
-    contiguous_t = PyArray_ISCONTIGUOUS(traverser);
-    contiguous_p = PyArray_ISCONTIGUOUS(parent);
+    npy_intp c_q = 0, c_qq = 0, c_qi = 0, c_qqi = 0;
+    double c_vq = 0, c_vqq = 0;
+    npy_intp c_rq = 0, c_rqq = 0, c_ivq = 0, c_ivqq = 0;
 
-    if (!contiguous_i || !contiguous_t || !contiguous_p) {
-        PyErr_SetString(PyExc_RuntimeError, "all the inputs need to be contiguous\n");
-        return 0;
+    NPY_BEGIN_THREADS_DEF;
+
+    if (values_map && !PyArray_ISCONTIGUOUS(values_map)) {
+        PyErr_SetString(PyExc_RuntimeError, "values map need to be contiguous\n");
+        goto exit;
+    } else if (values_map) {
+        itemsize_vm = PyArray_ITEMSIZE(values_map);
+        num_type_vm = PyArray_TYPE(values_map);
+        vm_size = PyArray_SIZE(values_map);
     }
 
     size = PyArray_SIZE(input);
     nd = PyArray_NDIM(input);
-
-    itemsize_i = PyArray_ITEMSIZE(input);
-    itemsize_t = PyArray_ITEMSIZE(traverser);
-    itemsize_p = PyArray_ITEMSIZE(parent);
-
+    dims = PyArray_DIMS(input);
     num_type_i = PyArray_TYPE(input);
-    num_type_t = PyArray_TYPE(traverser);
+    itemsize_i = PyArray_ITEMSIZE(input);
+
+    index_strides[nd - 1] = 1;
+    shape[nd - 1] = 3;
+    for (ii = nd - 2; ii >= 0; ii--) {
+        index_strides[ii] = index_strides[ii + 1] * PyArray_DIM(input, ii + 1);
+        shape[ii] = 3;
+    }
+
+    is_contiguous_p = PyArray_ISCONTIGUOUS(parent);
+    itemsize_p = PyArray_ITEMSIZE(parent);
+    strides_p = PyArray_STRIDES(parent);
     num_type_p = PyArray_TYPE(parent);
 
-    strides = PyArray_STRIDES(input);
-    dims = PyArray_DIMS(input);
+    num_type_t = PyArray_TYPE(traverser);
+    input_flt = (PyArrayObject *)PyArray_GETCONTIGUOUS(input);
 
-    trav = (npy_intp*)malloc(size * sizeof(npy_intp));
-    if (!trav) {
+    traver = (npy_intp *)malloc(size * sizeof(npy_intp));
+    if (!traver) {
         PyErr_NoMemory();
-        return 0;
-    }
-
-    pi_base = pi = (void *)PyArray_DATA(input);
-    pt = (void *)PyArray_DATA(traverser);
-    pp_base = pp = (void *)PyArray_DATA(parent);
-
-    nodes = (npy_intp*)malloc(size * sizeof(npy_intp));
-    if (!nodes) {
-        PyErr_NoMemory();
-        return 0;
-    }
-
-    for (ii = 0; ii < size; ii++) {
-        SET_VALUE_TO(num_type_p, pp, undef);
-        pp += itemsize_p;
-        nodes[ii] = undef;
-        trav[ii] = ii;
-    }
-
-    argsort_func = PyArray_DESCR(input)->f->argsort[NPY_MERGESORT];
-    if (argsort_func == NULL) {
-        PyErr_SetString(PyExc_RuntimeError, "argsort_func not supported\n");
         goto exit;
     }
 
-    if (argsort_func(pi, trav, size, input) < 0) {
+    nodes = (npy_intp *)malloc(size * sizeof(npy_intp));
+    if (!nodes) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+
+    for (ii = 0; ii < size; ii++) {
+        traver[ii] = ii;
+        nodes[ii] = undef;
+    }
+
+    pi_base = pi = (void *)PyArray_DATA(input_flt);
+    pt = (void *)PyArray_DATA(traverser);
+    pp = (void *)PyArray_DATA(parent);
+    if (values_map) {
+        vm = (void *)PyArray_DATA(values_map);
+    }
+
+    arg_sort_func = PyArray_DESCR(input_flt)->f->argsort[NPY_MERGESORT];
+
+    if (!arg_sort_func || arg_sort_func(pi, traver, size, input_flt) < 0) {
         PyErr_SetString(PyExc_RuntimeError, "Error: Couldn't perform argsort.\n");
         goto exit;
     }
 
-    if (!footprint_as_con(nd, 2, &footprint, &footprint_size, 1)) {
-        goto exit;
-    }
-    for (ii = 0; ii < nd; ii++) {
-        shape[ii] = 3;
-    }
-
-    if (!init_offsets_ravel(input, shape, NULL, footprint, &offsets)){
+    if (!footprint_as_con(nd, connectivity, &footprint, &offsets_size, 1)) {
         goto exit;
     }
 
-    for (ii = 0; ii < footprint_size; ii++) {
-        offsets[ii] /= itemsize_i;
-    }
-
-    if (!init_offsets_coordinates(nd, shape, NULL, footprint, &offsets_cc)){
+    if (!init_offsets_coordinates(nd, shape, NULL, footprint, &offsets)){
         goto exit;
     }
+
+    ArrayIterInit(traverser, &iter_t);
+
+    NPY_BEGIN_THREADS;
 
     for (ii = size - 1; ii >= 0; ii--) {
-        ind = trav[ii];
+        index = traver[ii];
+        nodes[index] = index;
 
-        pp = pp_base + ind * itemsize_p;
-        SET_VALUE_TO(num_type_p, pp, ind);
+        MAX_TREE_GET_INDEX(index, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, index_p);
+        SET_VALUE_TO(num_type_p, (pp + index_p), index);
 
-        nodes[ind] = ind;
+        offsets_run = offsets;
 
-        for (jj = 0; jj < footprint_size; jj++) {
+        for (jj = 0; jj < offsets_size; jj++) {
+            MAX_TREE_GET_INDEX_OFFSET(index, index_strides, offsets_run, nd, dims, index_strides, index_n, is_outside);
 
-            /* check if the neighbor is within the extent of the array: */
-            idx = ind * itemsize_i;
-            outside = 0;
-            for (cci = 0; cci < nd; cci++) {
-                cc = idx / strides[cci];
-                cc += offsets_cc[jj * nd + cci];
-                if (cc < 0 || cc >= dims[cci]) {
-                    outside = 1;
-                    break;
+            if (!is_outside && nodes[index_n] != undef) {
+                node = index_n;
+                while (nodes[node] != nodes[nodes[node]]) {
+                    nodes[node] = nodes[nodes[node]];
                 }
-                idx -= (cc - offsets_cc[jj * nd + cci]) * strides[cci];
-            }
-            ind_n = ind + offsets[jj];
 
-            if (!outside) {
-
-                if (nodes[ind_n] != undef) {
-                    node = ind_n;
-
-                    while (nodes[node] != nodes[nodes[node]]) {
-                        nodes[node] = nodes[nodes[node]];
-                    }
-                    root = nodes[node];
-
-                    if (root != ind) {
-                        pp = pp_base + root * itemsize_p;
-                        SET_VALUE_TO(num_type_p, pp, ind);
-                        nodes[root] = ind;
-                    }
+                root = nodes[node];
+                if (root != index) {
+                    nodes[root] = index;
+                    MAX_TREE_GET_INDEX(root, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, index_p);
+                    SET_VALUE_TO(num_type_p, (pp + index_p), index);
                 }
             }
+            offsets_run += nd;
         }
     }
 
     for (ii = 0; ii < size; ii++) {
-        ind = trav[ii];
+        index = traver[ii];
 
-        SET_VALUE_TO(num_type_t, pt, ind);
-        pt += itemsize_t;
+        // traverser[ii] = index
+        SET_VALUE_TO(num_type_t, pt, index);
+        ARRAY_ITER_NEXT(iter_t, pt);
 
-        pp = pp_base + ind * itemsize_p;
-        GET_VALUE_AS(num_type_p, npy_intp, pp, q) ;
+        MAX_TREE_GET_INDEX(index, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, c_qi);
+        // c_q = parent[index]
+        GET_VALUE_AS(num_type_p, npy_intp, (pp + c_qi), c_q);
 
-        pp = pp_base + q * itemsize_p;
-        GET_VALUE_AS(num_type_p, npy_intp, pp, qq) ;
+        MAX_TREE_GET_INDEX(c_q, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, c_qqi);
+        // c_qq = parent[parent[index]] = parent[c_q]
+        GET_VALUE_AS(num_type_p, npy_intp, (pp + c_qqi), c_qq);
 
-        pi = pi_base + q * itemsize_i;
-        GET_VALUE_AS(num_type_i, double, pi, val1) ;
+        if (values_map) {
+            GET_VALUE_AS(num_type_i, npy_intp, (pi_base + c_q * itemsize_i), c_ivq);
+            GET_VALUE_AS(num_type_i, npy_intp, (pi_base + c_qq * itemsize_i), c_ivqq);
 
-        pi = pi_base + qq * itemsize_i;
-        GET_VALUE_AS(num_type_i, double, pi, val2) ;
+            if (c_ivq >= vm_size || c_ivqq >= vm_size) {
+                PyErr_SetString(PyExc_RuntimeError, "con out of range for value map");
+                NPY_END_THREADS;
+                goto exit;
+            }
 
-        if (val1 == val2) {
-            pp = pp_base + ind * itemsize_p;
-            SET_VALUE_TO(num_type_p, pp, qq);
+            GET_VALUE_AS(num_type_vm, npy_intp, (vm + c_ivq * itemsize_vm), c_rq);
+            GET_VALUE_AS(num_type_vm, npy_intp, (vm + c_ivqq * itemsize_vm), c_rqq);
+
+            if (c_rq == c_rqq) {
+                SET_VALUE_TO(num_type_p, (pp + c_qi), c_qq);
+            }
+
+        } else {
+            GET_VALUE_AS(num_type_i, double, (pi_base + c_q * itemsize_i), c_vq);
+            GET_VALUE_AS(num_type_i, double, (pi_base + c_qq * itemsize_i), c_vqq);
+
+            if (c_vq == c_vqq) {
+                SET_VALUE_TO(num_type_p, (pp + c_qi), c_qq);
+            }
         }
+
+    }
+
+    NPY_END_THREADS;
+
+    exit:
+        free(traver);
+        free(nodes);
+        free(footprint);
+        free(offsets);
+        return PyErr_Occurred() ? 0 : 1;
+}
+
+int ops_area_threshold(PyArrayObject *input,
+                       int connectivity,
+                       int threshold,
+                       PyArrayObject *output,
+                       PyArrayObject *traverser,
+                       PyArrayObject *parent)
+{
+    char *pi = NULL, *pt = NULL, *pp = NULL, *po = NULL;
+    npy_intp itemsize_p, itemsize_t, itemsize_i, itemsize_o, *o_strides, size, nd, index_strides[NPY_MAXDIMS], ii;
+    int num_type_t, num_type_p, num_type_i, num_type_o;
+    int o_is_contiguous;
+    PyArrayObject *traverser_c, *parent_c, *input_c;
+
+    npy_intp *area;
+    // node = traverser[ii], c_p = parent[node], c_q = parent[parent[node]]
+    npy_intp node = 0, c_p = 0, c_q = 0;
+    // c_pv = pi[node], c_qv = pi[pi[node]], c_nv = pi[node]
+    double out_val = 0, c_pv = 0, c_qv = 0, c_nv = 0;
+    // root_t = traverser[0], p_index = index for root
+    npy_intp root_t = 0, p_index = 0;
+
+    nd = PyArray_NDIM(input);
+    size = PyArray_SIZE(input);
+    if (!traverser || !parent) {
+        const npy_intp pt_dims[1] = {size};
+        traverser_c = (PyArrayObject *)PyArray_EMPTY(1, pt_dims, NPY_INT64, 0);
+        parent_c = (PyArrayObject *)PyArray_EMPTY(1, pt_dims, NPY_INT64, 0);
+        if (!ops_build_max_tree(input, traverser_c, parent_c, connectivity, NULL)) {
+            PyErr_SetString(PyExc_RuntimeError, "Error: ops_build_max_tree \n");
+            goto exit;
+        }
+    } else {
+        traverser_c = (PyArrayObject *)PyArray_GETCONTIGUOUS(traverser);
+        parent_c = (PyArrayObject *)PyArray_GETCONTIGUOUS(parent);
+    }
+    o_strides = PyArray_STRIDES(output);
+    o_is_contiguous = PyArray_ISCONTIGUOUS(output);
+
+    index_strides[nd - 1] = 1;
+    for (ii = nd - 2; ii >= 0; ii--) {
+        index_strides[ii] = index_strides[ii + 1] * PyArray_DIM(input, ii + 1);
+    }
+
+    area = (npy_intp *)malloc(size * sizeof(npy_intp));
+    if (!area) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+
+    for (ii = 0; ii < size; ii++) {
+        area[ii] = 1;
+    }
+
+    input_c = (PyArrayObject *)PyArray_GETCONTIGUOUS(input);
+
+    itemsize_t = PyArray_ITEMSIZE(traverser_c);
+    itemsize_p = PyArray_ITEMSIZE(parent_c);
+    itemsize_i = PyArray_ITEMSIZE(input_c);
+    itemsize_o = PyArray_ITEMSIZE(output);
+
+    num_type_t = PyArray_TYPE(traverser_c);
+    num_type_p = PyArray_TYPE(parent_c);
+    num_type_i = PyArray_TYPE(input_c);
+    num_type_o = PyArray_TYPE(output);
+
+    pi = (void *)PyArray_DATA(input_c);
+    pt = (void *)PyArray_DATA(traverser_c);
+    pp = (void *)PyArray_DATA(parent_c);
+    po = (void *)PyArray_DATA(output);
+
+
+    GET_VALUE_AS(num_type_p, npy_intp, pt, root_t);
+    MAX_TREE_GET_INDEX(root_t, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
+
+    for (ii = size - 1; ii >= 0; ii--) {
+        GET_VALUE_AS(num_type_t, npy_intp, (pt + ii * itemsize_t), node);
+
+        if (node == root_t) {
+            continue;
+        }
+        GET_VALUE_AS(num_type_p, npy_intp, (pp + node * itemsize_p), c_p);
+        area[c_p] += area[node];
+
+    }
+
+    if (area[root_t] >= threshold) {
+        GET_VALUE_AS(num_type_i, double, (pi + root_t * itemsize_i), out_val);
+        SET_VALUE_TO(num_type_o, (po + p_index), out_val);
+    } else {
+        SET_VALUE_TO(num_type_o, (po + p_index), 0);
+    }
+
+    for (ii = 0; ii < size; ii++) {
+        GET_VALUE_AS(num_type_t, npy_intp, pt, node);
+
+        if (node != root_t) {
+            GET_VALUE_AS(num_type_p, npy_intp, (pp + node * itemsize_p), c_p);
+
+            GET_VALUE_AS(num_type_i, double, (pi + node * itemsize_i), c_nv);
+            GET_VALUE_AS(num_type_i, double, (pi + c_p * itemsize_i), c_pv);
+
+            if (c_nv == c_pv || area[node] < threshold) {
+
+                MAX_TREE_GET_INDEX(c_p, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
+                GET_VALUE_AS(num_type_o, double, (po + p_index), out_val);
+
+                MAX_TREE_GET_INDEX(node, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
+                SET_VALUE_TO(num_type_o, (po + p_index), out_val);
+
+            } else {
+                MAX_TREE_GET_INDEX(node, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
+
+                SET_VALUE_TO(num_type_o, (po + p_index), c_nv);
+            }
+        }
+        pt += itemsize_t;
     }
 
     exit:
-        free(trav);
-        free(offsets_cc);
-        free(offsets);
-        free(nodes);
+        free(area);
         return PyErr_Occurred() ? 0 : 1;
 }
 
 
+// #####################################################################################################################
 
 

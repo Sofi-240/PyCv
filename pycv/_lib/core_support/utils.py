@@ -3,6 +3,7 @@ from typing import Iterable, Any
 import numbers
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.array_api.shapes import atleast_nd
+from pycv._lib.array_api.dtypes import get_dtype_info
 from pycv._lib.filters_support.kernel_utils import valid_offset, cast_kernel_dilation
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     'valid_kernel_shape_with_ref',
     'valid_same_shape',
     'valid_axis',
+    'invert_values'
 ]
 
 
@@ -37,6 +39,17 @@ def ctype_border_mode(
         return 7
     else:
         raise RuntimeError('border mode not supported')
+
+
+def ctype_label_mode(
+        mode: str
+) -> int:
+    if mode == 'nlabels':
+        return 1
+    elif mode == 'index':
+        return 2
+    else:
+        raise RuntimeError('label mode not supported')
 
 
 ########################################################################################################################
@@ -203,9 +216,9 @@ def valid_axis(
     if axis is None:
         out = tuple()
         for i in range(min(default_nd, nd)):
-            out += (nd - i - 1, )
+            out += (nd - i - 1,)
     elif isinstance(axis, numbers.Number):
-        out = (axis % nd if axis < 0 else axis, )
+        out = (axis % nd if axis < 0 else axis,)
     elif isinstance(axis, Iterable):
         for ax in axis:
             if ax < -nd or ax > nd - 1:
@@ -215,4 +228,21 @@ def valid_axis(
         raise ValueError('axis must be an int, iterable of ints, or None')
     if len(tuple(set(out))) != len(out):
         raise ValueError("axis must be unique")
+    return out
+
+
+########################################################################################################################
+
+def invert_values(
+        inputs: np.ndarray
+) -> np.ndarray:
+    dt = get_dtype_info(inputs.dtype)
+
+    if dt.kind == 'b':
+        out = ~inputs
+    elif dt.kind == 'u':
+        out = np.subtract(dt.max_val, inputs, dtype=inputs.dtype)
+    else:
+        out = -inputs
+
     return out

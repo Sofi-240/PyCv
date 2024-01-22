@@ -467,14 +467,17 @@ PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args)
 
 PyObject* build_max_tree(PyObject* self, PyObject* args)
 {
-    PyArrayObject *input = NULL, *traverser = NULL, *parent = NULL;
+    PyArrayObject *input = NULL, *traverser = NULL, *parent = NULL, *values_map = NULL;
+    int connectivity;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&O&O&",
+            "O&O&O&iO&",
             Input_To_Array, &input,
             Output_To_Array, &traverser,
-            Output_To_Array, &parent)) {
+            Output_To_Array, &parent,
+            &connectivity,
+            InputOptional_To_Array, &values_map)) {
         goto exit;
     }
 
@@ -490,8 +493,12 @@ PyObject* build_max_tree(PyObject* self, PyObject* args)
         PyErr_SetString(PyExc_RuntimeError, "parent dtype not supported");
         goto exit;
     }
+    if (values_map && !valid_dtype(PyArray_TYPE(values_map))) {
+        PyErr_SetString(PyExc_RuntimeError, "values_map dtype not supported");
+        goto exit;
+    }
 
-    ops_build_max_tree(input, traverser, parent);
+    ops_build_max_tree(input, traverser, parent, connectivity, values_map);
 
     PyArray_ResolveWritebackIfCopy(traverser);
     PyArray_ResolveWritebackIfCopy(parent);
@@ -500,6 +507,59 @@ PyObject* build_max_tree(PyObject* self, PyObject* args)
         Py_XDECREF(input);
         Py_XDECREF(traverser);
         Py_XDECREF(parent);
+        if (values_map) {
+            Py_XDECREF(values_map);
+        }
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+PyObject* area_threshold(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *traverser = NULL, *parent = NULL, *output = NULL;
+    int connectivity, threshold;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&iiO&O&O&",
+            Input_To_Array, &input,
+            &connectivity,
+            &threshold,
+            Output_To_Array, &output,
+            InputOptional_To_Array, &traverser,
+            InputOptional_To_Array, &parent)) {
+        goto exit;
+    }
+
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (traverser && !valid_dtype(PyArray_TYPE(traverser))) {
+        PyErr_SetString(PyExc_RuntimeError, "traverser dtype not supported");
+        goto exit;
+    }
+    if (parent && !valid_dtype(PyArray_TYPE(parent))) {
+        PyErr_SetString(PyExc_RuntimeError, "parent dtype not supported");
+        goto exit;
+    }
+
+    ops_area_threshold(input, connectivity, threshold, output, traverser, parent);
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(output);
+        if (traverser) {
+            Py_XDECREF(traverser);
+        }
+        if (parent) {
+            Py_XDECREF(parent);
+        }
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
@@ -547,7 +607,6 @@ PyObject* resize_image(PyObject* self, PyObject* args)
         Py_XDECREF(output);
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
-
 
 // #####################################################################################################################
 
@@ -609,6 +668,12 @@ static PyMethodDef methods[] = {
     {
         "build_max_tree",
         (PyCFunction)build_max_tree,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "area_threshold",
+        (PyCFunction)area_threshold,
         METH_VARARGS,
         NULL
     },
