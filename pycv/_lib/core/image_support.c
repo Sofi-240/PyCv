@@ -224,42 +224,6 @@ int ops_canny_nonmaximum_suppression(PyArrayObject *magnitude,
 
 // #####################################################################################################################
 
-#define MAX_TREE_GET_INDEX(_index, _index_strides, _is_contiguous, _itemsize, _nd, _strides, _out)                     \
-{                                                                                                                      \
-    if (_is_contiguous) {                                                                                              \
-        _out = _index * _itemsize;                                                                                     \
-    } else {                                                                                                           \
-        int _ii;                                                                                                       \
-        npy_intp _tmp_idx = _index;                                                                                    \
-        npy_intp _cc;                                                                                                  \
-        _out = 0;                                                                                                      \
-        for (_ii = 0; _ii < _nd; _ii++) {                                                                              \
-            _cc = _tmp_idx / _index_strides[_ii];                                                                      \
-            _tmp_idx -= _cc * _index_strides[_ii];                                                                     \
-            _out += _cc * _strides[_ii];                                                                               \
-        }                                                                                                              \
-    }                                                                                                                  \
-}
-
-#define MAX_TREE_GET_INDEX_OFFSET(_index, _index_strides, _offsets, _nd, _dims, _strides, _out, _is_outside)           \
-{                                                                                                                      \
-    int _ii;                                                                                                           \
-    npy_intp _tmp_idx = _index;                                                                                        \
-    npy_intp _cc;                                                                                                      \
-    _out = 0;                                                                                                          \
-    _is_outside = 0;                                                                                                   \
-    for (_ii = 0; _ii < _nd; _ii++) {                                                                                  \
-        _cc = _tmp_idx / _index_strides[_ii];                                                                          \
-        _tmp_idx -= _cc * _index_strides[_ii];                                                                         \
-        _cc += _offsets[_ii];                                                                                          \
-        if (_cc < 0 || _cc >= _dims[_ii]) {                                                                            \
-            _is_outside = 1;                                                                                           \
-            break;                                                                                                     \
-        }                                                                                                              \
-        _out += _cc * _strides[_ii];                                                                                   \
-    }                                                                                                                  \
-}
-
 int ops_build_max_tree(PyArrayObject *input,
                        PyArrayObject *traverser,
                        PyArrayObject *parent,
@@ -365,13 +329,13 @@ int ops_build_max_tree(PyArrayObject *input,
         index = traver[ii];
         nodes[index] = index;
 
-        MAX_TREE_GET_INDEX(index, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, index_p);
+        GET_INDEX_AS_CONTIGUOUS(index, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, index_p);
         SET_VALUE_TO(num_type_p, (pp + index_p), index);
 
         offsets_run = offsets;
 
         for (jj = 0; jj < offsets_size; jj++) {
-            MAX_TREE_GET_INDEX_OFFSET(index, index_strides, offsets_run, nd, dims, index_strides, index_n, is_outside);
+            GET_INDEX_AS_CONTIGUOUS_WITH_OFFSET(index, index_strides, offsets_run, nd, dims, index_strides, index_n, is_outside);
 
             if (!is_outside && nodes[index_n] != undef) {
                 node = index_n;
@@ -382,7 +346,7 @@ int ops_build_max_tree(PyArrayObject *input,
                 root = nodes[node];
                 if (root != index) {
                     nodes[root] = index;
-                    MAX_TREE_GET_INDEX(root, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, index_p);
+                    GET_INDEX_AS_CONTIGUOUS(root, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, index_p);
                     SET_VALUE_TO(num_type_p, (pp + index_p), index);
                 }
             }
@@ -397,11 +361,11 @@ int ops_build_max_tree(PyArrayObject *input,
         SET_VALUE_TO(num_type_t, pt, index);
         ARRAY_ITER_NEXT(iter_t, pt);
 
-        MAX_TREE_GET_INDEX(index, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, c_qi);
+        GET_INDEX_AS_CONTIGUOUS(index, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, c_qi);
         // c_q = parent[index]
         GET_VALUE_AS(num_type_p, npy_intp, (pp + c_qi), c_q);
 
-        MAX_TREE_GET_INDEX(c_q, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, c_qqi);
+        GET_INDEX_AS_CONTIGUOUS(c_q, index_strides, is_contiguous_p, itemsize_p, nd, strides_p, c_qqi);
         // c_qq = parent[parent[index]] = parent[c_q]
         GET_VALUE_AS(num_type_p, npy_intp, (pp + c_qqi), c_qq);
 
@@ -515,7 +479,7 @@ int ops_area_threshold(PyArrayObject *input,
 
 
     GET_VALUE_AS(num_type_p, npy_intp, pt, root_t);
-    MAX_TREE_GET_INDEX(root_t, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
+    GET_INDEX_AS_CONTIGUOUS(root_t, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
 
     for (ii = size - 1; ii >= 0; ii--) {
         GET_VALUE_AS(num_type_t, npy_intp, (pt + ii * itemsize_t), node);
@@ -546,14 +510,14 @@ int ops_area_threshold(PyArrayObject *input,
 
             if (c_nv == c_pv || area[node] < threshold) {
 
-                MAX_TREE_GET_INDEX(c_p, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
+                GET_INDEX_AS_CONTIGUOUS(c_p, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
                 GET_VALUE_AS(num_type_o, double, (po + p_index), out_val);
 
-                MAX_TREE_GET_INDEX(node, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
+                GET_INDEX_AS_CONTIGUOUS(node, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
                 SET_VALUE_TO(num_type_o, (po + p_index), out_val);
 
             } else {
-                MAX_TREE_GET_INDEX(node, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
+                GET_INDEX_AS_CONTIGUOUS(node, index_strides, o_is_contiguous, itemsize_o, nd, o_strides, p_index);
 
                 SET_VALUE_TO(num_type_o, (po + p_index), c_nv);
             }
@@ -566,7 +530,255 @@ int ops_area_threshold(PyArrayObject *input,
         return PyErr_Occurred() ? 0 : 1;
 }
 
+// #####################################################################################################################
+
+#define DRAW_SET_YX(_y, _x, _pointer)                     \
+{                                                         \
+    *(npy_longlong *)_pointer = (npy_longlong)_y;         \
+    _pointer += 8;                                        \
+    *(npy_longlong *)_pointer = (npy_longlong)_x;         \
+    _pointer += 8;                                        \
+}
+
+#define DRAW_SWAP_ARGS(_a1, _a2)                     \
+{                                                    \
+    npy_intp _tmp = _a1;                             \
+    _a1 = _a2;                                       \
+    _a2 = _tmp;                                      \
+}
+
+PyArrayObject *ops_draw_line(npy_intp *point1, npy_intp *point2)
+{
+    npy_intp size, y1, y2, x1, x2, dy, dx, step_y, step_x, p, yy, xx, m, ii;
+    npy_intp p_dims[2];
+    int flag;
+
+    PyArrayObject *yx;
+    char *pyx = NULL;
+
+    NPY_BEGIN_THREADS_DEF;
+
+    y1 = point1[0];
+    x1 = point1[1];
+
+    y2 = point2[0];
+    x2 = point2[1];
+
+    dy = abs(y2 - y1);
+    dx = abs(x2 - x1);
+
+    size = dx > dy ? dx + 1 : dy + 1;
+
+    p_dims[0] = size;
+    p_dims[1] = 2;
+
+    yx = (PyArrayObject *)PyArray_EMPTY(2, p_dims, NPY_INT64, 0);
+
+    if (!yx) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: creating array \n");
+        goto exit;
+    }
+
+    step_y = y2 - y1 > 0 ? 1 : -1;
+    step_x = x2 - x1 > 0 ? 1 : -1;
+
+    flag = dy > dx ? 1 : 0;
+
+    if (flag) {
+        DRAW_SWAP_ARGS(x1, y1);
+        DRAW_SWAP_ARGS(dx, dy);
+        DRAW_SWAP_ARGS(step_x, step_y);
+    }
+
+    p = 2 * dy - dx;
+    yy = y1;
+    xx = x1;
+
+    NPY_BEGIN_THREADS;
+
+    pyx = (void *)PyArray_DATA(yx);
+
+    for (ii = 0; ii <= dx; ii++) {
+        if (flag) {
+            DRAW_SET_YX(xx, yy, pyx);
+        } else {
+            DRAW_SET_YX(yy, xx, pyx);
+        }
+
+        xx += step_x;
+        m = p >= 0 ? 1 : 0;
+
+        p += (2 * dy) - (2 * dx) * m;
+        yy += step_y * m;
+    }
+
+    NPY_END_THREADS;
+
+    exit:
+        return PyErr_Occurred() ? NULL : yx;
+}
+
+PyArrayObject *ops_draw_circle(npy_intp *center_point, int radius)
+{
+    npy_intp y0, x0, xx, yy = 0, size, ii, err = 0;
+
+    npy_intp p_dims[2];
+    PyArrayObject *yx;
+    char *pyx = NULL;
+
+    NPY_BEGIN_THREADS_DEF;
+
+    y0 = center_point[0];
+    x0 = center_point[1];
+
+    xx = radius;
+
+    size = (radius * 8) + 8;
+
+    p_dims[0] = size;
+    p_dims[1] = 2;
+
+    yx = (PyArrayObject *)PyArray_EMPTY(2, p_dims, NPY_INT64, 0);
+
+    if (!yx) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: creating array \n");
+        goto exit;
+    }
+
+    NPY_BEGIN_THREADS;
+
+    pyx = (void *)PyArray_DATA(yx);
+
+    for (ii = 0; ii <= radius; ii++) {
+
+        DRAW_SET_YX(y0 + yy, x0 + xx, pyx);
+        DRAW_SET_YX(y0 + xx, x0 + yy, pyx);
+        DRAW_SET_YX(y0 + xx, x0 - yy, pyx);
+        DRAW_SET_YX(y0 + yy, x0 - xx, pyx);
+        DRAW_SET_YX(y0 - yy, x0 - xx, pyx);
+        DRAW_SET_YX(y0 - xx, x0 - yy, pyx);
+        DRAW_SET_YX(y0 - xx, x0 + yy, pyx);
+        DRAW_SET_YX(y0 - yy, x0 + xx, pyx);
+
+        if (err + yy + 1 > xx) {
+            err += 1 - 2 * xx;
+            xx -= 1;
+        } else {
+            err += 1 + 2 * yy;
+            yy += 1;
+        }
+    }
+
+    NPY_END_THREADS;
+    exit:
+        return PyErr_Occurred() ? NULL : yx;
+}
+
+#define DRAW_ELLIPSE_PUSH_POINTS(_y0, _x0, _yy, _xx, _buffer, _buffer_end)                     \
+{                                                                                              \
+    _buffer[_buffer_end] = _y0 + _yy;                                                          \
+    _buffer[_buffer_end + 1] = _x0 + _xx;                                                      \
+    _buffer[_buffer_end + 2] = _y0 + _yy;                                                      \
+    _buffer[_buffer_end + 3] = _x0 - _xx;                                                      \
+    _buffer[_buffer_end + 4] = _y0 - _yy;                                                      \
+    _buffer[_buffer_end + 5] = _x0 + _xx;                                                      \
+    _buffer[_buffer_end + 6] = _y0 - _yy;                                                      \
+    _buffer[_buffer_end + 7] = _x0 - _xx;                                                      \
+    _buffer_end += 8;                                                                          \
+}
+
+PyArrayObject *ops_draw_ellipse(npy_intp *center_point, int a, int b)
+{
+    npy_intp y0, x0, ry, rx, tr_y, tr_x, yy, xx = 0, py, px = 0, ii, jj, p;
+    npy_intp *buffer, max_size, buffer_end = 0, size;
+
+    npy_intp p_dims[2];
+    PyArrayObject *yx;
+    char *pyx = NULL;
+
+    y0 = center_point[0];
+    x0 = center_point[1];
+
+    rx = a * a;
+    ry = b * b;
+
+    tr_x = rx + rx;
+    tr_y = ry + ry;
+
+    yy = b;
+    py = tr_x * yy;
+
+    max_size = a > b ? a : b;
+    max_size = max_size * 8 + 8;
+
+    buffer = (npy_intp *)malloc(max_size * 2 * sizeof(npy_intp));
+    if (!buffer) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+
+    DRAW_ELLIPSE_PUSH_POINTS(y0, x0, yy, xx, buffer, buffer_end);
+
+    p = (npy_intp)((float)ry - (float)(rx * b) + (0.25 * (float)rx));
+
+    while (px < py) {
+        xx += 1;
+        px += tr_y;
+        if (p < 0) {
+            p += ry + px;
+        } else {
+            yy -= 1;
+            py -= tr_x;
+            p += ry + px - py;
+        }
+        DRAW_ELLIPSE_PUSH_POINTS(y0, x0, yy, xx, buffer, buffer_end);
+    }
+
+    p = (npy_intp)((float)ry * ((float)xx + 0.5) * ((float)xx + 0.5) + (float)(rx * (yy - 1) * (yy - 1)) - (float)(rx * ry));
+
+    while (yy > 0) {
+        yy -= 1;
+        py -= tr_x;
+        if (p > 0) {
+            p += rx - py;
+        } else {
+            xx += 1;
+            px += tr_y;
+            p += rx - py + px;
+        }
+        DRAW_ELLIPSE_PUSH_POINTS(y0, x0, yy, xx, buffer, buffer_end);
+    }
+
+    size = buffer_end / 2;
+    p_dims[0] = size;
+    p_dims[1] = 2;
+
+    yx = (PyArrayObject *)PyArray_EMPTY(2, p_dims, NPY_INT64, 0);
+
+    if (!yx) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: creating array \n");
+        goto exit;
+    }
+
+    pyx = (void *)PyArray_DATA(yx);
+
+    for (ii = 0; ii < size; ii++) {
+        DRAW_SET_YX(buffer[ii * 2], buffer[ii * 2 + 1], pyx);
+    }
+
+    exit:
+        free(buffer);
+        return PyErr_Occurred() ? NULL : yx;
+}
 
 // #####################################################################################################################
+
+
+
+
+
+
+
+
 
 

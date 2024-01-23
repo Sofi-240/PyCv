@@ -1,9 +1,14 @@
 from _debug_utils.im_load import load_image, load_defualt_binary_image
 from _debug_utils.im_viz import show_collection
 import numpy as np
-from pycv.segmentation import im_threshold
-from pycv.morphological import im_label, remove_small_holes, remove_small_objects
 from pycv._lib.core import ops
+from pycv.draw import draw_line, draw_ellipse, draw_circle
+
+
+inputs = np.zeros((25, 25), bool)
+inputs = draw_circle((12, 12), 3, output=inputs)
+
+show_collection([inputs], 1, 1)
 
 
 # rng = np.random.default_rng()
@@ -13,12 +18,3 @@ from pycv._lib.core import ops
 
 # inputs = load_image('lena.jpg')
 # show_collection([inputs, output_b, output_nn], 1, 3)
-
-inputs = load_image('coins.png')[85:, :]
-
-bin_image, th = im_threshold(inputs, 'kapur')
-
-clean = remove_small_holes(bin_image, 500)
-clean = remove_small_objects(clean, 100)
-
-show_collection([inputs, bin_image, clean], 1, 3)

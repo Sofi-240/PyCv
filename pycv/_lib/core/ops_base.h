@@ -233,15 +233,41 @@ void CoordinatesIterInit(npy_intp nd, npy_intp *shape, CoordinatesIter *iterator
     }                                                                                         \
 }
 
-typedef struct {
-    int nd_m1;
-    npy_intp dims_m1[NPY_MAXDIMS];
-    npy_intp coordinates[NPY_MAXDIMS];
-    npy_intp strides[NPY_MAXDIMS];
-    npy_intp backstrides[NPY_MAXDIMS];
-    npy_intp boundaries[NPY_MAXDIMS];
-} NeighborhoodIter;
+#define GET_INDEX_AS_CONTIGUOUS(_index, _index_strides, _is_contiguous, _itemsize, _nd, _strides, _out)                \
+{                                                                                                                      \
+    if (_is_contiguous) {                                                                                              \
+        _out = _index * _itemsize;                                                                                     \
+    } else {                                                                                                           \
+        int _ii;                                                                                                       \
+        npy_intp _tmp_idx = _index;                                                                                    \
+        npy_intp _cc;                                                                                                  \
+        _out = 0;                                                                                                      \
+        for (_ii = 0; _ii < _nd; _ii++) {                                                                              \
+            _cc = _tmp_idx / _index_strides[_ii];                                                                      \
+            _tmp_idx -= _cc * _index_strides[_ii];                                                                     \
+            _out += _cc * _strides[_ii];                                                                               \
+        }                                                                                                              \
+    }                                                                                                                  \
+}
 
+#define GET_INDEX_AS_CONTIGUOUS_WITH_OFFSET(_index, _index_strides, _offsets, _nd, _dims, _strides, _out, _is_outside) \
+{                                                                                                                      \
+    int _ii;                                                                                                           \
+    npy_intp _tmp_idx = _index;                                                                                        \
+    npy_intp _cc;                                                                                                      \
+    _out = 0;                                                                                                          \
+    _is_outside = 0;                                                                                                   \
+    for (_ii = 0; _ii < _nd; _ii++) {                                                                                  \
+        _cc = _tmp_idx / _index_strides[_ii];                                                                          \
+        _tmp_idx -= _cc * _index_strides[_ii];                                                                         \
+        _cc += _offsets[_ii];                                                                                          \
+        if (_cc < 0 || _cc >= _dims[_ii]) {                                                                            \
+            _is_outside = 1;                                                                                           \
+            break;                                                                                                     \
+        }                                                                                                              \
+        _out += _cc * _strides[_ii];                                                                                   \
+    }                                                                                                                  \
+}
 
 // #####################################################################################################################
 

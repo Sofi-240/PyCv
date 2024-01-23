@@ -36,6 +36,15 @@ static int Output_To_Array(PyObject *object, PyArrayObject **output)
     return *output != NULL;
 }
 
+static int OutputOptional_To_Array(PyObject *object, PyArrayObject **output)
+{
+    if (object == Py_None) {
+        *output = NULL;
+        return 1;
+    }
+    return Output_To_Array(object, output);
+}
+
 // #####################################################################################################################
 
 PyObject* convolve(PyObject* self, PyObject* args)
@@ -563,6 +572,66 @@ PyObject* area_threshold(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
+PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords)
+{
+    int draw_mode;
+    static char* kwlist[] = {"", "point1", "point2", "center_point", "radius", "a", "b", NULL};
+    PyArrayObject *output = NULL;
+    PyArray_Dims point1 = {NULL, 0};
+    PyArray_Dims point2 = {NULL, 0};
+    PyArray_Dims center_point = {NULL, 0};
+    int radius = NULL, a = NULL, b = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(
+            args, keywords,
+            "i|O&O&O&iii", kwlist,
+            &draw_mode,
+            PyArray_IntpConverter, &point1,
+            PyArray_IntpConverter, &point2,
+            PyArray_IntpConverter, &center_point,
+            &radius, &a, &b)) {
+        PyErr_SetString(PyExc_RuntimeError, "invalid args or keywords");
+        goto exit;
+    }
+
+    switch ((DrawMode)draw_mode) {
+        case DRAW_LINE:
+            if (!point1.ptr || !point2.ptr) {
+                PyErr_SetString(PyExc_RuntimeError, "missing point1 or point2 arguments");
+                goto exit;
+            }
+            output = ops_draw_line(point1.ptr, point2.ptr);
+            break;
+        case DRAW_CIRCLE:
+            if (!center_point.ptr || radius == NULL) {
+                PyErr_SetString(PyExc_RuntimeError, "missing center_point or radius arguments");
+                goto exit;
+            }
+            output = ops_draw_circle(center_point.ptr, radius);
+            break;
+        case DRAW_ELLIPSE:
+            if (!center_point.ptr || a == NULL || b == NULL) {
+                PyErr_SetString(PyExc_RuntimeError, "missing center_point or a or b arguments");
+                goto exit;
+            }
+            if (a == b) {
+                output = ops_draw_circle(center_point.ptr, a);
+            } else {
+                output = ops_draw_ellipse(center_point.ptr, a, b);
+            }
+            break;
+        default:
+            PyErr_SetString(PyExc_RuntimeError, "draw mode not supported");
+            goto exit;
+    }
+
+    exit:
+        PyDimMem_FREE(point1.ptr);
+        PyDimMem_FREE(point2.ptr);
+        PyDimMem_FREE(center_point.ptr);
+        return PyErr_Occurred() ? NULL : (PyObject *)output;
+}
+
 // #####################################################################################################################
 
 PyObject* resize_image(PyObject* self, PyObject* args)
@@ -675,6 +744,12 @@ static PyMethodDef methods[] = {
         "area_threshold",
         (PyCFunction)area_threshold,
         METH_VARARGS,
+        NULL
+    },
+    {
+        "draw",
+        (PyCFunction)draw,
+        METH_VARARGS|METH_KEYWORDS,
         NULL
     },
     {

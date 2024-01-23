@@ -8,6 +8,7 @@ from pycv._lib.filters_support.kernel_utils import valid_offset, cast_kernel_dil
 
 __all__ = [
     'ctype_border_mode',
+    'ctype_label_mode',
     'as_sequence',
     'fix_kernel_shape',
     'axis_transpose_to_last',
