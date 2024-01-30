@@ -1,3 +1,3 @@
-from pycv.transform.resize import *
+from pycv.transform.coord_t import *
 
 __all__ = [s for s in dir() if not s.startswith('_')]
