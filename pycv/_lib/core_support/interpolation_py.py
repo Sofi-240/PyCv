@@ -47,7 +47,7 @@ def resize(
     if anti_alias_filter:
         sigma = sigma is sigma if not None else np.max(scale_factor)
         kernel = gaussian_kernel(sigma, inputs.ndim)
-        inputs = convolve(inputs, kernel, output, padding_mode=padding_mode, constant_value=constant_value)
+        inputs = convolve(inputs, kernel, padding_mode=padding_mode, constant_value=constant_value)
 
     ops.resize(inputs, output, order, 1, mode, constant_value)
 
