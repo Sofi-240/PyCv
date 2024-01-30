@@ -4,7 +4,7 @@
 #include "filters.h"
 #include "morphology.h"
 #include "image_support.h"
-#include "resize.h"
+#include "interpolation.h"
 
 // #####################################################################################################################
 
@@ -634,17 +634,18 @@ PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords)
 
 // #####################################################################################################################
 
-PyObject* resize_image(PyObject* self, PyObject* args)
+PyObject* resize(PyObject* self, PyObject* args)
 {
     PyArrayObject *input = NULL, *output = NULL;
-    int mode;
+    int mode, order, grid_mode;
+    double constant_value;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&O&i",
+            "O&O&iiid",
             Input_To_Array, &input,
             Output_To_Array, &output,
-            &mode)) {
+            &order, &grid_mode, &mode, &constant_value)) {
         goto exit;
     }
 
@@ -657,23 +658,81 @@ PyObject* resize_image(PyObject* self, PyObject* args)
         goto exit;
     }
 
-    switch ((ResizeMode)mode) {
-        case RESIZE_BILINEAR:
-            ops_resize_bilinear(input, output);
-            break;
-        case RESIZE_NN:
-            ops_resize_nearest_neighbor(input, output);
-            break;
-        default:
-            PyErr_SetString(PyExc_RuntimeError, "mode is not supported");
-            goto exit;
-    }
+    ops_resize(input, output, order, grid_mode, (BordersMode)mode, constant_value);
 
     PyArray_ResolveWritebackIfCopy(output);
 
     exit:
         Py_XDECREF(input);
         Py_XDECREF(output);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+PyObject* geometric_transform(PyObject* self, PyObject* args)
+{
+    PyArrayObject *matrix = NULL, *input = NULL, *output = NULL, *src = NULL, *dst = NULL;
+    int mode, order;
+    double constant_value;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&O&O&iid",
+            Input_To_Array, &matrix,
+            InputOptional_To_Array, &input,
+            OutputOptional_To_Array, &output,
+            InputOptional_To_Array, &src,
+            OutputOptional_To_Array, &dst,
+            &order, &mode, &constant_value)) {
+        goto exit;
+    }
+
+    if (!valid_dtype(PyArray_TYPE(matrix))) {
+        PyErr_SetString(PyExc_RuntimeError, "matrix dtype not supported");
+        goto exit;
+    }
+
+    if (input && !valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (output && !valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+
+    if (src && !valid_dtype(PyArray_TYPE(src))) {
+        PyErr_SetString(PyExc_RuntimeError, "src dtype not supported");
+        goto exit;
+    }
+    if (dst && !valid_dtype(PyArray_TYPE(dst))) {
+        PyErr_SetString(PyExc_RuntimeError, "dst dtype not supported");
+        goto exit;
+    }
+
+    ops_geometric_transform(matrix, input, output, src, dst, order, (BordersMode)mode, constant_value);
+
+    if (output) {
+        PyArray_ResolveWritebackIfCopy(output);
+    }
+    if (dst) {
+        PyArray_ResolveWritebackIfCopy(dst);
+    }
+
+
+    exit:
+        Py_XDECREF(matrix);
+        if (input) {
+            Py_XDECREF(input);
+        }
+        if (output) {
+            Py_XDECREF(output);
+        }
+        if (src) {
+            Py_XDECREF(src);
+        }
+        if (dst) {
+            Py_XDECREF(dst);
+        }
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
@@ -753,8 +812,14 @@ static PyMethodDef methods[] = {
         NULL
     },
     {
-        "resize_image",
-        (PyCFunction)resize_image,
+        "resize",
+        (PyCFunction)resize,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "geometric_transform",
+        (PyCFunction)geometric_transform,
         METH_VARARGS,
         NULL
     },

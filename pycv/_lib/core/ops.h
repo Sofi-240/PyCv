@@ -36,7 +36,9 @@ PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords);
 
 // #####################################################################################################################
 
-PyObject* resize_image(PyObject* self, PyObject* args);
+PyObject* resize(PyObject* self, PyObject* args);
+
+PyObject* geometric_transform(PyObject* self, PyObject* args);
 
 // #####################################################################################################################
 

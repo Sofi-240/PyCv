@@ -285,6 +285,18 @@ int copy_data_as_double(PyArrayObject *array, double **line, npy_bool *footprint
 
 // #####################################################################################################################
 
+/*
+    same as numpy pad
+                          pad   |  image  |  pad
+       pos           : -4-3-2-1 | 0 1 2 3 | 4 5 6 7
+    ___________________________________________________
+    3. REFLECT       :  3 4 3 2 | 1 2 3 4 | 3 2 1 2
+    4. CONSTANT(c=0) :  0 0 0 0 | 1 2 3 4 | 0 0 0 0
+    5. SYMMETRIC     :  4 3 2 1 | 1 2 3 4 | 4 3 2 1
+    6. WRAP          :  1 2 3 4 | 1 2 3 4 | 1 2 3 4
+    7. EDGE          :  1 1 1 1 | 1 2 3 4 | 4 4 4 4
+*/
+
 typedef enum {
     BORDER_FLAG = 1,
     BORDER_VALID = 2,
@@ -293,15 +305,9 @@ typedef enum {
     BORDER_SYMMETRIC = 5,
     BORDER_WRAP = 6,
     BORDER_EDGE = 7,
-    BORDER_BUFFER_ATYPE = 8,
-    BORDER_ATYPE_FLAG = 9,
-    BORDER_ATYPE_VALID = 10,
-    BORDER_ATYPE_REFLECT = 11,
-    BORDER_ATYPE_CONSTANT = 12,
-    BORDER_ATYPE_SYMMETRIC = 13,
-    BORDER_ATYPE_WRAP = 14,
-    BORDER_ATYPE_EDGE = 15
 } BordersMode;
+
+npy_intp fit_coordinate(npy_intp coord, npy_intp dim, npy_intp flag, BordersMode mode);
 
 int init_offsets_ravel(PyArrayObject *array,
                        npy_intp *kernel_shape,
@@ -331,7 +337,6 @@ int init_offsets_lut(PyArrayObject *array,
                      npy_intp *offsets_stride,
                      npy_intp *offsets_flag,
                      BordersMode mode);
-
 
 // #####################################################################################################################
 

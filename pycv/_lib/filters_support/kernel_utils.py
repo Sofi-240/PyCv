@@ -14,6 +14,7 @@ __all__ = [
     'border_mask',
     'reshape_1d_kernel',
     'color_mapping_range',
+    'gen_binary_table',
 ]
 
 
@@ -494,3 +495,30 @@ def color_mapping_range(
     return np.array(ranges, dtype=np.uint8)
 
 ########################################################################################################################
+
+
+def gen_binary_table(rank: int) -> np.ndarray:
+    change_point = [0] * rank
+    change_point[-1] = 1
+
+    for i in range(rank - 2, -1, -1):
+        change_point[i] = change_point[i + 1] << 1
+
+    size = change_point[0] << 1
+
+    binary = np.zeros((rank * size,), np.uint8)
+
+    for i in range(rank):
+        val = 0
+        counter = change_point[i]
+        p = i
+        for j in range(size):
+            binary[p] = val
+            counter -= 1
+            if counter == 0:
+                counter = change_point[i]
+                val = abs(val - 1)
+            p += rank
+
+    binary = np.reshape(binary, (-1, rank))
+    return binary

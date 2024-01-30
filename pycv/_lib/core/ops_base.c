@@ -283,6 +283,76 @@ int copy_data_as_double(PyArrayObject *array, double **line, npy_bool *footprint
 
 // #####################################################################################################################
 
+npy_intp fit_coordinate(npy_intp coord, npy_intp dim, npy_intp flag, BordersMode mode)
+{
+    npy_intp out = coord, size_w;
+    if (coord >= 0 && coord < dim) {
+        return out;
+    }
+
+    switch (mode) {
+        case BORDER_FLAG:
+        case BORDER_VALID:
+        case BORDER_CONSTANT:
+            out = flag;
+            break;
+        case BORDER_SYMMETRIC:
+            size_w = 2 * dim;
+            if (out < 0) {
+                if (out < -size_w) {
+                    out += size_w * (npy_intp)(-out / size_w);
+                }
+                if (out < -dim) {
+                    out += size_w;
+                } else {
+                    out = -out - 1;
+                }
+            } else {
+                out -= size_w * (npy_intp)(out / size_w);
+                if (out >= dim) {
+                    out = size_w - out - 1;
+                }
+            }
+            break;
+        case BORDER_WRAP:
+            if (out < 0) {
+                out += dim * (npy_intp)(-out / dim);
+                if (out < 0) {
+                    out += dim;
+                }
+            } else {
+                out -= dim * (npy_intp)(out / dim);
+            }
+            break;
+        case BORDER_EDGE:
+            if (out < 0) {
+                out = 0;
+            } else {
+                out = dim - 1;
+            }
+            break;
+        case BORDER_REFLECT:
+            size_w = 2 * dim - 2;
+            if (out < 0) {
+                out += size_w * (npy_intp)(-out / size_w);
+                if (out <= 1 - dim) {
+                    out += size_w;
+                } else {
+                    out = -out;
+                }
+            } else {
+                out -= size_w * (npy_intp)(out / size_w);
+                if (out >= dim) {
+                    out = size_w - out;
+                }
+            }
+            break;
+        default:
+            out = -1; // Invalid mode
+    }
+    return out;
+}
+
 int init_offsets_ravel(PyArrayObject *array,
                        npy_intp *kernel_shape,
                        npy_intp *kernel_origins,
@@ -500,7 +570,6 @@ int init_offsets_lut(PyArrayObject *array,
     npy_intp origins[NPY_MAXDIMS], k_shape[NPY_MAXDIMS], a_shape[NPY_MAXDIMS], a_stride[NPY_MAXDIMS], pos, position[NPY_MAXDIMS];
     npy_intp valid_offset = 0, *lut = NULL;
     int is_valid;
-    int atype = 0;
 
     nd = PyArray_NDIM(array);
     itemsize = PyArray_ITEMSIZE(array);
@@ -524,10 +593,6 @@ int init_offsets_lut(PyArrayObject *array,
 
     *offsets_flag = flag = max_stride * max_stride + 1;
 
-    if (mode > (int)BORDER_BUFFER_ATYPE) {
-        atype = 1;
-    }
-
     if (!footprint) {
         offsets_size = kernel_size;
     } else {
@@ -550,98 +615,28 @@ int init_offsets_lut(PyArrayObject *array,
     }
     lut = *offsets_lookup;
 
+    if (fit_coordinate(-1, a_shape[0], flag, mode) < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "invalid border mode");
+        goto exit;
+    }
+
     for (ii = 0; ii < array_size; ii++) {
         for (jj = 0; jj < kernel_size; jj++) {
             if (!footprint || footprint[jj]) {
-                switch (mode) {
-                    case BORDER_FLAG:
-                    case BORDER_ATYPE_FLAG:
-                    case BORDER_VALID:
-                    case BORDER_ATYPE_VALID:
-                    case BORDER_CONSTANT:
-                    case BORDER_ATYPE_CONSTANT:
-                        is_valid = 1;
-                        for (kk = 0; kk < nd; kk++) {
-                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
-                            if (pos < 0 || pos >= a_shape[kk]) {
-                                is_valid = 0;
-                                break;
-                            }
-                            position[kk] = pos - a_iter.coordinates[kk];
-                        }
-                        if (is_valid) {
-                            RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
-                        } else {
-                            valid_offset = flag;
-                        }
+                is_valid = 1;
+                for (kk = 0; kk < nd; kk++) {
+                    pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
+                    pos = fit_coordinate(pos, a_shape[kk], flag, mode);
+                    if (pos == flag) {
+                        is_valid = 0;
                         break;
-                    case BORDER_REFLECT:
-                    case BORDER_ATYPE_REFLECT:
-                        for (kk = 0; kk < nd; kk++) {
-                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
-                            if (pos < 0) {
-                                pos = abs(pos);
-                                if (pos >= a_shape[kk]) {
-                                    pos = a_shape[kk] - 1;
-                                }
-                            } else if (pos >= a_shape[kk]) {
-                                pos = 2 * a_shape[kk] - pos - 2;
-                                if (pos < 0) {
-                                    pos = 0;
-                                }
-                            }
-                            position[kk] = pos - a_iter.coordinates[kk];
-                        }
-                        RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
-                        break;
-                    case BORDER_SYMMETRIC:
-                    case BORDER_ATYPE_SYMMETRIC:
-                        for (kk = 0; kk < nd; kk++) {
-                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
-                            if (pos < 0) {
-                                pos = abs(pos) - 1;
-                                if (pos >= a_shape[kk]) {
-                                    pos = a_shape[kk] - 1;
-                                }
-                            } else if (pos >= a_shape[kk]) {
-                                pos = 2 * a_shape[kk] - pos - 1;
-                                if (pos < 0) {
-                                    pos = 0;
-                                }
-                            }
-                            position[kk] = pos - a_iter.coordinates[kk];
-                        }
-                        RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
-                        break;
-                    case BORDER_WRAP:
-                    case BORDER_ATYPE_WRAP:
-                        for (kk = 0; kk < nd; kk++) {
-                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
-                            if (pos < 0) {
-                                pos = a_shape[kk] + pos;
-                            } else if (pos >= a_shape[kk]) {
-                                pos -= a_shape[kk];
-                            }
-                            position[kk] = pos - a_iter.coordinates[kk];
-                        }
-                        RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
-                        break;
-                    case BORDER_EDGE:
-                    case BORDER_ATYPE_EDGE:
-                        for (kk = 0; kk < nd; kk++) {
-                            pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
-                            if (pos < 0) {
-                                pos = 0;
-                            } else if (pos >= a_shape[kk]) {
-                                pos = a_shape[kk] - 1;
-                            }
-                            position[kk] = pos - a_iter.coordinates[kk];
-                        }
-                        RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
-                        break;
+                    }
+                    position[kk] = pos - a_iter.coordinates[kk];
                 }
-                if (atype) {
-                    valid_offset /= itemsize;
+                if (is_valid) {
+                    RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
+                } else {
+                    valid_offset = flag;
                 }
                 *lut++ = valid_offset;
             }
@@ -658,7 +653,6 @@ int init_offsets_lut(PyArrayObject *array,
         } else {
             return 1;
         }
-
 }
 
 // #####################################################################################################################
