@@ -39,18 +39,10 @@ def gaussian_filter(
     if len(sigma) != len(axis):
         raise ValueError('Sigma and axis size dont match')
 
-    if len(sigma) == 1 or all(sigma[0] == s for s in sigma[1:]):
-        kernel = gaussian_kernel(sigma[0], len(axis))
-        valid_shape = kernel_size_valid(kernel.shape[0], axis, len(axis))
-        if valid_shape != kernel.shape:
-            kernel = np.reshape(kernel, valid_shape)
-        output = filter_with_convolve(image, kernel, None, preserve_dtype=preserve_dtype, padding_mode=padding_mode, constant_value=constant_value)
-    else:
-        output = image.copy()
-        for ax, s in zip(axis, sigma):
-            kernel = gaussian_kernel(s)
-            output = filter_with_convolve(output, kernel, None, axis=ax, preserve_dtype=preserve_dtype,
-                                          padding_mode=padding_mode, constant_value=constant_value)
+    output = image.copy()
+    for ax, s in zip(axis, sigma):
+        kernel = gaussian_kernel(s)
+        output = filter_with_convolve(output, kernel, None, axis=ax, preserve_dtype=preserve_dtype, padding_mode=padding_mode, constant_value=constant_value)
 
     return output
 

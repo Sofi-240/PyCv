@@ -489,7 +489,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.labeling(inputs, connectivity, None, output)
+        ops.labeling(inputs, connectivity, None, output, 1)
 
         assert_array_almost_equal(output, expected)
 
@@ -528,7 +528,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.labeling(inputs, connectivity, None, output)
+        ops.labeling(inputs, connectivity, None, output, 1)
 
         assert_array_almost_equal(output, expected)
 
@@ -568,6 +568,6 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.labeling(inputs, connectivity, values_map, output)
+        ops.labeling(inputs, connectivity, values_map, output, 1)
 
         assert_array_almost_equal(output, expected)

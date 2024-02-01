@@ -164,6 +164,8 @@ def get_kernel(
     offset = valid_offset(kernel.shape, offset)
 
     if array_nd != filter_dim and filter_dim == 1:
+        if axis is None:
+            axis = array_nd - 1
         kernel_shape = fix_kernel_shape(kernel.size, (axis,), array_nd)
         kernel = np.reshape(kernel, kernel_shape)
         offset_scalar, offset = offset[0], tuple()

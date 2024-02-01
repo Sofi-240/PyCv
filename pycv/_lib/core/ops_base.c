@@ -63,6 +63,36 @@ void CoordinatesIterInit(npy_intp nd, npy_intp *shape, CoordinatesIter *iterator
     }
 }
 
+void FilterIterInit(npy_intp nd,
+                    npy_intp *array_shape,
+                    npy_intp *kernel_shape,
+                    npy_intp *kernel_origins,
+                    npy_intp kernel_size,
+                    FilterIter *iterator)
+{
+    npy_intp ii, shape[NPY_MAXDIMS], origins[NPY_MAXDIMS], sz;
+
+    for (ii = 0; ii < nd; ii++) {
+        shape[ii] = *kernel_shape++;
+        origins[ii] = kernel_origins ? *kernel_origins++ : shape[ii] / 2;
+    }
+
+    if (nd > 0) {
+        iterator->strides[nd - 1] = kernel_size;
+        for (ii = nd - 2; ii >= 0; ii--) {
+            sz = array_shape[ii + 1] < shape[ii + 1] ? array_shape[ii + 1] : shape[ii + 1];
+            iterator->strides[ii] = iterator->strides[ii + 1] * sz;
+        }
+    }
+
+    for (ii = 0; ii < nd; ii++) {
+        sz = array_shape[ii] < shape[ii] ? array_shape[ii] : shape[ii];
+        iterator->backstrides[ii] = iterator->strides[ii] * (sz - 1);
+        iterator->boundary_low[ii] = origins[ii];
+        iterator->boundary_high[ii] = array_shape[ii] - shape[ii] + origins[ii];
+    }
+}
+
 // #####################################################################################################################
 
 int init_uint8_binary_table(unsigned int **binary_table)
@@ -190,7 +220,7 @@ int footprint_as_con(npy_intp nd, int connectivity, npy_bool **footprint, int *n
 
 int footprint_for_cc(npy_intp nd, int connectivity, npy_bool **footprint, int *non_zeros)
 {
-    npy_intp ii, jj, tmp, mid, footprint_size, shape[NPY_MAXDIMS];
+    npy_intp ii, jj, tmp, mid, footprint_size, shape[NPY_MAXDIMS], sz = 0;
     CoordinatesIter iter;
     npy_bool *fpo;
 
@@ -217,12 +247,13 @@ int footprint_for_cc(npy_intp nd, int connectivity, npy_bool **footprint, int *n
         }
         if (tmp <= connectivity && ii <= mid) {
             *fpo++ = NPY_TRUE;
+            sz++;
         } else {
             *fpo++ = NPY_FALSE;
         }
         COORDINATES_ITER_NEXT(iter);
     }
-    *non_zeros = mid;
+    *non_zeros = sz;
 
     exit:
         if (PyErr_Occurred()) {
@@ -555,19 +586,18 @@ int array_offsets_to_list_offsets(PyArrayObject *array, npy_intp *offsets, npy_i
     }                                                                                         \
 }
 
-int init_offsets_lut(PyArrayObject *array,
-                     npy_intp *kernel_shape,
-                     npy_intp *kernel_origins,
-                     npy_bool *footprint,
-                     npy_intp **offsets_lookup,
-                     npy_intp *offsets_stride,
-                     npy_intp *offsets_flag,
-                     BordersMode mode)
+int init_filter_offsets(PyArrayObject *array,
+                        npy_intp *kernel_shape,
+                        npy_intp *kernel_origins,
+                        npy_bool *footprint,
+                        npy_intp **offsets_lookup,
+                        npy_intp *offsets_flag,
+                        BordersMode mode)
 {
-    CoordinatesIter a_iter, k_iter;
-    npy_intp ii, jj, kk, nd, array_size, kernel_size, offsets_size, itemsize;
+    CoordinatesIter k_iter;
+    npy_intp ii, jj, kk, nd, array_size, kernel_size, offsets_size = 1, footprint_size, itemsize;
     npy_intp flag, stride_pos, max_dims = 0, max_stride = 0;
-    npy_intp origins[NPY_MAXDIMS], k_shape[NPY_MAXDIMS], a_shape[NPY_MAXDIMS], a_stride[NPY_MAXDIMS], pos, position[NPY_MAXDIMS];
+    npy_intp origins[NPY_MAXDIMS], k_shape[NPY_MAXDIMS], a_shape[NPY_MAXDIMS], a_stride[NPY_MAXDIMS], pos, position[NPY_MAXDIMS], array_pos[NPY_MAXDIMS];
     npy_intp valid_offset = 0, *lut = NULL;
     int is_valid;
 
@@ -589,49 +619,54 @@ int init_offsets_lut(PyArrayObject *array,
         max_stride = max_stride < stride_pos ? stride_pos : max_stride;
 
         position[ii] = 0;
+        array_pos[ii] = 0;
     }
 
     *offsets_flag = flag = max_stride * max_stride + 1;
 
     if (!footprint) {
-        offsets_size = kernel_size;
+        footprint_size = kernel_size;
     } else {
-        offsets_size = 0;
+        footprint_size = 0;
         for (ii = 0; ii < kernel_size; ii++) {
             if (footprint[ii]) {
-                offsets_size++;
+                footprint_size++;
             }
         }
     }
 
-    *offsets_stride = offsets_size;
-    CoordinatesIterInit(nd, a_shape, &a_iter);
+    for (ii = 0; ii < nd; ii++) {
+        offsets_size *= (a_shape[ii] < k_shape[ii] ? a_shape[ii] : k_shape[ii]);
+    }
+
     CoordinatesIterInit(nd, k_shape, &k_iter);
 
-    *offsets_lookup = malloc(array_size * offsets_size * sizeof(npy_intp));
+    *offsets_lookup = malloc(offsets_size * footprint_size * sizeof(npy_intp));
     if (!*offsets_lookup) {
         PyErr_NoMemory();
         goto exit;
     }
-    lut = *offsets_lookup;
 
     if (fit_coordinate(-1, a_shape[0], flag, mode) < 0) {
         PyErr_SetString(PyExc_RuntimeError, "invalid border mode");
         goto exit;
     }
 
-    for (ii = 0; ii < array_size; ii++) {
+    lut = *offsets_lookup;
+
+    for (ii = 0; ii < offsets_size; ii++) {
         for (jj = 0; jj < kernel_size; jj++) {
+            for (jj = 0; jj < kernel_size; jj++) {
             if (!footprint || footprint[jj]) {
                 is_valid = 1;
                 for (kk = 0; kk < nd; kk++) {
-                    pos = k_iter.coordinates[kk] - origins[kk] + a_iter.coordinates[kk];
+                    pos = k_iter.coordinates[kk] - origins[kk] + array_pos[kk];
                     pos = fit_coordinate(pos, a_shape[kk], flag, mode);
                     if (pos == flag) {
                         is_valid = 0;
                         break;
                     }
-                    position[kk] = pos - a_iter.coordinates[kk];
+                    position[kk] = pos - array_pos[kk];
                 }
                 if (is_valid) {
                     RAVEL_COORDINATE(nd, position, a_stride, valid_offset);
@@ -643,7 +678,24 @@ int init_offsets_lut(PyArrayObject *array,
             COORDINATES_ITER_NEXT(k_iter);
         }
         COORDINATES_ITER_RESET(k_iter);
-        COORDINATES_ITER_NEXT(a_iter);
+        }
+
+        for (jj = nd - 1; jj >= 0; jj--) {
+            if (array_pos[jj] == origins[jj]) {
+                array_pos[jj] += a_shape[jj] - k_shape[jj] + 1;
+                if (array_pos[jj] <= origins[jj]) {
+                    array_pos[jj] = origins[jj] + 1;
+                }
+            } else {
+                array_pos[jj]++;
+            }
+            if (array_pos[jj] < a_shape[jj]) {
+                break;
+            } else {
+                array_pos[jj] = 0;
+            }
+        }
+
     }
 
     exit:

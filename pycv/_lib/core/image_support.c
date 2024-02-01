@@ -781,4 +781,3 @@ PyArrayObject *ops_draw_ellipse(npy_intp *center_point, int a, int b)
 
 
 
-

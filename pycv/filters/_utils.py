@@ -132,10 +132,3 @@ def filter_with_convolve(
 
 
 
-
-
-
-
-
-
-

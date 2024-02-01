@@ -16,6 +16,29 @@
 #define PI 3.141592654
 
 // #####################################################################################################################
+/*
+    same as numpy pad
+                          pad   |  image  |  pad
+       pos           : -4-3-2-1 | 0 1 2 3 | 4 5 6 7
+    ___________________________________________________
+    3. REFLECT       :  3 4 3 2 | 1 2 3 4 | 3 2 1 2
+    4. CONSTANT(c=0) :  0 0 0 0 | 1 2 3 4 | 0 0 0 0
+    5. SYMMETRIC     :  4 3 2 1 | 1 2 3 4 | 4 3 2 1
+    6. WRAP          :  1 2 3 4 | 1 2 3 4 | 1 2 3 4
+    7. EDGE          :  1 1 1 1 | 1 2 3 4 | 4 4 4 4
+*/
+
+typedef enum {
+    BORDER_FLAG = 1,
+    BORDER_VALID = 2,
+    BORDER_REFLECT = 3,
+    BORDER_CONSTANT = 4,
+    BORDER_SYMMETRIC = 5,
+    BORDER_WRAP = 6,
+    BORDER_EDGE = 7,
+} BordersMode;
+
+// #####################################################################################################################
 
 #define TYPE_CASE_SET_VALUE_F2U(_NUM_TYPE, _dtype, _pointer, _val)                                    \
 case _NUM_TYPE:                                                                                       \
@@ -269,6 +292,89 @@ void CoordinatesIterInit(npy_intp nd, npy_intp *shape, CoordinatesIter *iterator
     }                                                                                                                  \
 }
 
+typedef struct {
+    npy_intp strides[NPY_MAXDIMS];
+    npy_intp backstrides[NPY_MAXDIMS];
+    npy_intp boundary_low[NPY_MAXDIMS];
+    npy_intp boundary_high[NPY_MAXDIMS];
+} FilterIter;
+
+void FilterIterInit(npy_intp nd,
+                    npy_intp *array_shape,
+                    npy_intp *kernel_shape,
+                    npy_intp *kernel_origins,
+                    npy_intp kernel_size,
+                    FilterIter *iterator);
+
+#define FILTER_ITER_NEXT(_filter_iterator, _offsets, _array_iterator, _pointer)                                        \
+{                                                                                                                      \
+    int _ii;                                                                                                           \
+    for(_ii = (_array_iterator).nd_m1; _ii >= 0; _ii--)                                                                \
+        if ((_array_iterator).coordinates[_ii] < (_array_iterator).dims_m1[_ii]) {                                     \
+            if ((_array_iterator).coordinates[_ii] < (_filter_iterator).boundary_low[_ii] ||                           \
+                        (_array_iterator).coordinates[_ii] >= (_filter_iterator).boundary_high[_ii]) {                 \
+                _offsets += (_filter_iterator).strides[_ii];                                                           \
+            }                                                                                                          \
+            (_array_iterator).coordinates[_ii]++;                                                                      \
+            _pointer += (_array_iterator).strides[_ii];                                                                \
+            break;                                                                                                     \
+        } else {                                                                                                       \
+            (_array_iterator).coordinates[_ii] = 0;                                                                    \
+            _pointer -= (_array_iterator).backstrides[_ii];                                                            \
+            _offsets -= (_filter_iterator).backstrides[_ii];                                                           \
+        }                                                                                                              \
+}
+
+#define FILTER_ITER_NEXT2(_filter_iterator, _offsets, _array_iterator1, _pointer1, _array_iterator2, _pointer2)        \
+{                                                                                                                      \
+    int _ii;                                                                                                           \
+    for(_ii = (_array_iterator1).nd_m1; _ii >= 0; _ii--)                                                               \
+        if ((_array_iterator1).coordinates[_ii] < (_array_iterator1).dims_m1[_ii]) {                                   \
+            if ((_array_iterator1).coordinates[_ii] < (_filter_iterator).boundary_low[_ii] ||                          \
+                        (_array_iterator1).coordinates[_ii] >= (_filter_iterator).boundary_high[_ii]) {                \
+                _offsets += (_filter_iterator).strides[_ii];                                                           \
+            }                                                                                                          \
+            (_array_iterator1).coordinates[_ii]++;                                                                     \
+            _pointer1 += (_array_iterator1).strides[_ii];                                                              \
+            (_array_iterator2).coordinates[_ii]++;                                                                     \
+            _pointer2 += (_array_iterator2).strides[_ii];                                                              \
+            break;                                                                                                     \
+        } else {                                                                                                       \
+            (_array_iterator1).coordinates[_ii] = 0;                                                                   \
+            _pointer1 -= (_array_iterator1).backstrides[_ii];                                                          \
+            (_array_iterator2).coordinates[_ii] = 0;                                                                   \
+            _pointer2 -= (_array_iterator2).backstrides[_ii];                                                          \
+            _offsets -= (_filter_iterator).backstrides[_ii];                                                           \
+        }                                                                                                              \
+}
+
+#define FILTER_ITER_NEXT3(_filter_iterator, _offsets, _array_iterator1, _pointer1, _array_iterator2, _pointer2, _array_iterator3, _pointer3)        \
+{                                                                                                                      \
+    int _ii;                                                                                                           \
+    for(_ii = (_array_iterator1).nd_m1; _ii >= 0; _ii--)                                                               \
+        if ((_array_iterator1).coordinates[_ii] < (_array_iterator1).dims_m1[_ii]) {                                   \
+            if ((_array_iterator1).coordinates[_ii] < (_filter_iterator).boundary_low[_ii] ||                          \
+                        (_array_iterator1).coordinates[_ii] >= (_filter_iterator).boundary_high[_ii]) {                \
+                _offsets += (_filter_iterator).strides[_ii];                                                           \
+            }                                                                                                          \
+            (_array_iterator1).coordinates[_ii]++;                                                                     \
+            _pointer1 += (_array_iterator1).strides[_ii];                                                              \
+            (_array_iterator2).coordinates[_ii]++;                                                                     \
+            _pointer2 += (_array_iterator2).strides[_ii];                                                              \
+            (_array_iterator3).coordinates[_ii]++;                                                                     \
+            _pointer3 += (_array_iterator3).strides[_ii];                                                              \
+            break;                                                                                                     \
+        } else {                                                                                                       \
+            (_array_iterator1).coordinates[_ii] = 0;                                                                   \
+            _pointer1 -= (_array_iterator1).backstrides[_ii];                                                          \
+            (_array_iterator2).coordinates[_ii] = 0;                                                                   \
+            _pointer2 -= (_array_iterator2).backstrides[_ii];                                                          \
+            (_array_iterator3).coordinates[_ii] = 0;                                                                   \
+            _pointer3 -= (_array_iterator3).backstrides[_ii];                                                          \
+            _offsets -= (_filter_iterator).backstrides[_ii];                                                           \
+        }                                                                                                              \
+}
+
 // #####################################################################################################################
 
 int init_uint8_binary_table(unsigned int **binary_table);
@@ -284,28 +390,6 @@ int footprint_as_con(npy_intp nd, int connectivity, npy_bool **footprint, int *n
 int copy_data_as_double(PyArrayObject *array, double **line, npy_bool *footprint);
 
 // #####################################################################################################################
-
-/*
-    same as numpy pad
-                          pad   |  image  |  pad
-       pos           : -4-3-2-1 | 0 1 2 3 | 4 5 6 7
-    ___________________________________________________
-    3. REFLECT       :  3 4 3 2 | 1 2 3 4 | 3 2 1 2
-    4. CONSTANT(c=0) :  0 0 0 0 | 1 2 3 4 | 0 0 0 0
-    5. SYMMETRIC     :  4 3 2 1 | 1 2 3 4 | 4 3 2 1
-    6. WRAP          :  1 2 3 4 | 1 2 3 4 | 1 2 3 4
-    7. EDGE          :  1 1 1 1 | 1 2 3 4 | 4 4 4 4
-*/
-
-typedef enum {
-    BORDER_FLAG = 1,
-    BORDER_VALID = 2,
-    BORDER_REFLECT = 3,
-    BORDER_CONSTANT = 4,
-    BORDER_SYMMETRIC = 5,
-    BORDER_WRAP = 6,
-    BORDER_EDGE = 7,
-} BordersMode;
 
 npy_intp fit_coordinate(npy_intp coord, npy_intp dim, npy_intp flag, BordersMode mode);
 
@@ -329,14 +413,13 @@ int init_borders_lut(npy_intp nd,
 
 int array_offsets_to_list_offsets(PyArrayObject *array, npy_intp *offsets, npy_intp **list_offsets);
 
-int init_offsets_lut(PyArrayObject *array,
-                     npy_intp *kernel_shape,
-                     npy_intp *kernel_origins,
-                     npy_bool *footprint,
-                     npy_intp **offsets_lookup,
-                     npy_intp *offsets_stride,
-                     npy_intp *offsets_flag,
-                     BordersMode mode);
+int init_filter_offsets(PyArrayObject *array,
+                        npy_intp *kernel_shape,
+                        npy_intp *kernel_origins,
+                        npy_bool *footprint,
+                        npy_intp **offsets_lookup,
+                        npy_intp *offsets_flag,
+                        BordersMode mode);
 
 // #####################################################################################################################
 

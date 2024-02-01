@@ -1,24 +1,22 @@
 from _debug_utils.im_load import load_image, load_defualt_binary_image
-from _debug_utils.im_viz import show_collection
+# from _debug_utils.im_viz import show_collection
 import numpy as np
+from pycv._lib.filters_support.windows import gaussian_kernel
 from pycv._lib.core import ops
 from pycv.colors import rgb2gray
 from pycv._lib.core_support import interpolation_py as intrp
+from pycv._lib.core_support.filters_py import convolve
 
-# inputs = np.zeros((15, 15), np.float64) + 1
-# inputs = draw_line((1, 7), (13, 7), output=inputs)
+inputs = rgb2gray(load_image('astronaut.png'))
 
-# inputs[2:-2, 2:-2] = 1
+# inputs_base = intrp.resize(inputs, tuple(s * 2 for s in inputs.shape), order=1, padding_mode='reflect')
+#
+# base_kernel = gaussian_kernel(1.24, ndim=2, truncate=3)
+#
+# tmp = convolve(inputs_base, base_kernel, padding_mode='reflect')
 
-# inputs = cube(15).astype(np.float64)
-
-inputs = load_image('camera.png')
-
-# output = intrp.rotate(inputs, 10, order=1, reshape=False)
-
-output = intrp.resize(inputs, (256, 256), order=0)
-
-show_collection([inputs, output], 1, 2)
+# tmp = convolve(inputs_base, base_kernel, axis=0, padding_mode='reflect')
+# convolve(inputs_base, base_kernel, axis=1, output=inputs_base, padding_mode='reflect')
 
 
 # rng = np.random.default_rng()
