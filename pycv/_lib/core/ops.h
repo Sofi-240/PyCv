@@ -34,6 +34,8 @@ PyObject* area_threshold(PyObject* self, PyObject* args);
 
 PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords);
 
+PyObject* hough_transform(PyObject* self, PyObject* args);
+
 // #####################################################################################################################
 
 PyObject* resize(PyObject* self, PyObject* args);

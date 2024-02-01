@@ -42,4 +42,8 @@ PyArrayObject *ops_draw_ellipse(npy_intp *center_point, int a, int b);
 
 // #####################################################################################################################
 
+int ops_hough_line_transform(PyArrayObject *input,
+                             PyArrayObject *theta,
+                             PyArrayObject *h_space);
+
 #endif

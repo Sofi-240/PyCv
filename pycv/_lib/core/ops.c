@@ -632,6 +632,44 @@ PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords)
         return PyErr_Occurred() ? NULL : (PyObject *)output;
 }
 
+PyObject* hough_transform(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *theta = NULL, *h_space = NULL;
+    int connectivity, threshold;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&",
+            Input_To_Array, &input,
+            Input_To_Array, &theta,
+            Output_To_Array, &h_space)) {
+        goto exit;
+    }
+
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(theta))) {
+        PyErr_SetString(PyExc_RuntimeError, "theta dtype not supported");
+        goto exit;
+    }
+    if (!valid_dtype(PyArray_TYPE(h_space))) {
+        PyErr_SetString(PyExc_RuntimeError, "h_space dtype not supported");
+        goto exit;
+    }
+
+    ops_hough_line_transform(input, theta, h_space);
+
+    PyArray_ResolveWritebackIfCopy(h_space);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(theta);
+        Py_XDECREF(h_space);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
 // #####################################################################################################################
 
 PyObject* resize(PyObject* self, PyObject* args)
@@ -809,6 +847,12 @@ static PyMethodDef methods[] = {
         "draw",
         (PyCFunction)draw,
         METH_VARARGS|METH_KEYWORDS,
+        NULL
+    },
+    {
+        "hough_transform",
+        (PyCFunction)hough_transform,
+        METH_VARARGS,
         NULL
     },
     {

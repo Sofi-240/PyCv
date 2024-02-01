@@ -5,64 +5,64 @@
 
 // #####################################################################################################################
 
-#define INTERP_CASE_SET_VALUE(_NUM_TYPE, _dtype, _pointer, _val)                                      \
-case _NUM_TYPE:                                                                                       \
-    *(_dtype *)_pointer = (_dtype)_val;                                                               \
+#define INTERP_CASE_SET_VALUE(_NUM_TYPE, _dtype, _pointer, _val)                                                       \
+case _NUM_TYPE:                                                                                                        \
+    *(_dtype *)_pointer = (_dtype)_val;                                                                                \
     break
 
-#define INTERP_CASE_SET_VALUE_UINT(_NUM_TYPE, _dtype, _pointer, _val)                                 \
-case NPY_##_NUM_TYPE:                                                                                 \
-    _val = _val > 0 ? _val + 0.5 : 0;                                                                 \
-    _val = _val > NPY_MAX_##_NUM_TYPE ? NPY_MAX_##_NUM_TYPE : _val;                                   \
-    *(_dtype *)_pointer = (_dtype)_val;                                                               \
+#define INTERP_CASE_SET_VALUE_UINT(_NUM_TYPE, _dtype, _pointer, _val)                                                  \
+case NPY_##_NUM_TYPE:                                                                                                  \
+    _val = _val > 0 ? _val + 0.5 : 0;                                                                                  \
+    _val = _val > NPY_MAX_##_NUM_TYPE ? NPY_MAX_##_NUM_TYPE : _val;                                                    \
+    *(_dtype *)_pointer = (_dtype)_val;                                                                                \
     break
 
-#define INTERP_CASE_SET_VALUE_INT(_NUM_TYPE, _dtype, _pointer, _val)                                  \
-case NPY_##_NUM_TYPE:                                                                                 \
-    _val = _val > 0 ? _val + 0.5 : _val - 0.5;                                                        \
-    _val = _val > NPY_MAX_##_NUM_TYPE ? NPY_MAX_##_NUM_TYPE : _val;                                   \
-    _val = _val < NPY_MIN_##_NUM_TYPE ? NPY_MIN_##_NUM_TYPE : _val;                                   \
-    *(_dtype *)_pointer = (_dtype)_val;                                                               \
+#define INTERP_CASE_SET_VALUE_INT(_NUM_TYPE, _dtype, _pointer, _val)                                                   \
+case NPY_##_NUM_TYPE:                                                                                                  \
+    _val = _val > 0 ? _val + 0.5 : _val - 0.5;                                                                         \
+    _val = _val > NPY_MAX_##_NUM_TYPE ? NPY_MAX_##_NUM_TYPE : _val;                                                    \
+    _val = _val < NPY_MIN_##_NUM_TYPE ? NPY_MIN_##_NUM_TYPE : _val;                                                    \
+    *(_dtype *)_pointer = (_dtype)_val;                                                                                \
     break
 
-#define INTERP_SET_VALUE_SAFE(_NUM_TYPE, _pointer, _val)                                              \
-{                                                                                                     \
-    switch (_NUM_TYPE) {                                                                              \
-        INTERP_CASE_SET_VALUE(NPY_BOOL, npy_bool, _pointer, _val);                                    \
-        INTERP_CASE_SET_VALUE_UINT(UBYTE, npy_ubyte, _pointer, _val);                                 \
-        INTERP_CASE_SET_VALUE_UINT(USHORT, npy_ushort, _pointer, _val);                               \
-        INTERP_CASE_SET_VALUE_UINT(UINT, npy_uint, _pointer, _val);                                   \
-        INTERP_CASE_SET_VALUE_UINT(ULONG, npy_ulong, _pointer, _val);                                 \
-        INTERP_CASE_SET_VALUE_UINT(ULONGLONG, npy_ulonglong, _pointer, _val);                         \
-        INTERP_CASE_SET_VALUE_INT(BYTE, npy_byte, _pointer, _val);                                    \
-        INTERP_CASE_SET_VALUE_INT(SHORT, npy_short, _pointer, _val);                                  \
-        INTERP_CASE_SET_VALUE_INT(INT, npy_int, _pointer, _val);                                      \
-        INTERP_CASE_SET_VALUE_INT(LONG, npy_long, _pointer, _val);                                    \
-        INTERP_CASE_SET_VALUE_INT(LONGLONG, npy_longlong, _pointer, _val);                            \
-        INTERP_CASE_SET_VALUE(NPY_FLOAT, npy_float, _pointer, _val);                                  \
-        INTERP_CASE_SET_VALUE(NPY_DOUBLE, npy_double, _pointer, _val);                                \
-    }                                                                                                 \
+#define INTERP_SET_VALUE_SAFE(_NUM_TYPE, _pointer, _val)                                                               \
+{                                                                                                                      \
+    switch (_NUM_TYPE) {                                                                                               \
+        INTERP_CASE_SET_VALUE(NPY_BOOL, npy_bool, _pointer, _val);                                                     \
+        INTERP_CASE_SET_VALUE_UINT(UBYTE, npy_ubyte, _pointer, _val);                                                  \
+        INTERP_CASE_SET_VALUE_UINT(USHORT, npy_ushort, _pointer, _val);                                                \
+        INTERP_CASE_SET_VALUE_UINT(UINT, npy_uint, _pointer, _val);                                                    \
+        INTERP_CASE_SET_VALUE_UINT(ULONG, npy_ulong, _pointer, _val);                                                  \
+        INTERP_CASE_SET_VALUE_UINT(ULONGLONG, npy_ulonglong, _pointer, _val);                                          \
+        INTERP_CASE_SET_VALUE_INT(BYTE, npy_byte, _pointer, _val);                                                     \
+        INTERP_CASE_SET_VALUE_INT(SHORT, npy_short, _pointer, _val);                                                   \
+        INTERP_CASE_SET_VALUE_INT(INT, npy_int, _pointer, _val);                                                       \
+        INTERP_CASE_SET_VALUE_INT(LONG, npy_long, _pointer, _val);                                                     \
+        INTERP_CASE_SET_VALUE_INT(LONGLONG, npy_longlong, _pointer, _val);                                             \
+        INTERP_CASE_SET_VALUE(NPY_FLOAT, npy_float, _pointer, _val);                                                   \
+        INTERP_CASE_SET_VALUE(NPY_DOUBLE, npy_double, _pointer, _val);                                                 \
+    }                                                                                                                  \
 }
 
 // #####################################################################################################################
 
-#define INTERP_NN(_f, _d, _out)                                                                       \
-{                                                                                                     \
-    _out = _f[0];                                                                                     \
+#define INTERP_NN(_f, _d, _out)                                                                                        \
+{                                                                                                                      \
+    _out = _f[0];                                                                                                      \
 }
 
-#define INTERP_LINEAR(_f, _d, _out)                                                                   \
-{                                                                                                     \
-    _out = (1 - _d) * _f[0] + _d * _f[1];                                                             \
+#define INTERP_LINEAR(_f, _d, _out)                                                                                    \
+{                                                                                                                      \
+    _out = (1 - _d) * _f[0] + _d * _f[1];                                                                              \
 }
 
-#define INTERP_QUADRATIC(_f, _d, _out)                                                                \
-{                                                                                                     \
-    _out = _f[1] + 0.5 * _d * (_f[2] - _f[0]) + 0.5 * _d * _d * (_f[2] - 2 * _f[1] + _f[0]);          \
+#define INTERP_QUADRATIC(_f, _d, _out)                                                                                 \
+{                                                                                                                      \
+    _out = _f[1] + 0.5 * _d * (_f[2] - _f[0]) + 0.5 * _d * _d * (_f[2] - 2 * _f[1] + _f[0]);                           \
 }
 
-#define INTERP_CUBIC(_f, _d, _out)                                                                    \
-{                                                                                                     \
+#define INTERP_CUBIC(_f, _d, _out)                                                                                     \
+{                                                                                                                      \
     _out = _f[1] + 0.5 * _d * (-_f[0] + _f[2] + _d * (2 * _f[0] - 5 * _f[1] + 4 * _f[2] - _f[3] + _d * (-_f[0] + 3 * _f[1] - 3 * _f[2] + _f[3]))); \
 }
 
@@ -223,27 +223,27 @@ int ops_resize(PyArrayObject *input,
 
 // #####################################################################################################################
 
-#define INTERP_DOT(_nd, _src, _h, _dst)                                                              \
-{                                                                                                    \
-    npy_intp _ii, _jj;                                                                               \
-    for (_ii = _nd - 1; _ii >= 0; _ii--) {                                                           \
-        _dst[_ii] = 0;                                                                               \
-        for (_jj = 0; _jj < _nd; _jj++) {                                                            \
-            _dst[_ii] += _src[_jj] * _h[_ii * _nd + _jj];                                            \
-        }                                                                                            \
-        if (_ii < _nd - 1) {                                                                         \
-            _dst[_ii] /= _dst[_nd - 1];                                                              \
-        } else if (_dst[_ii] == 0) {                                                                 \
-            _dst[_ii] = TOLERANCE;                                                                   \
-        }                                                                                            \
-    }                                                                                                \
+#define INTERP_DOT(_nd, _src, _h, _dst)                                                                                \
+{                                                                                                                      \
+    npy_intp _ii, _jj;                                                                                                 \
+    for (_ii = _nd - 1; _ii >= 0; _ii--) {                                                                             \
+        _dst[_ii] = 0;                                                                                                 \
+        for (_jj = 0; _jj < _nd; _jj++) {                                                                              \
+            _dst[_ii] += _src[_jj] * _h[_ii * _nd + _jj];                                                              \
+        }                                                                                                              \
+        if (_ii < _nd - 1) {                                                                                           \
+            _dst[_ii] /= _dst[_nd - 1];                                                                                \
+        } else if (_dst[_ii] == 0) {                                                                                   \
+            _dst[_ii] = TOLERANCE;                                                                                     \
+        }                                                                                                              \
+    }                                                                                                                  \
 }
 
-#define INTERP_GEO_SWAP_YX(_coord)                                                                  \
-{                                                                                                   \
-    npy_double _tmp = _coord[0];                                                                    \
-    _coord[0] = _coord[1];                                                                          \
-    _coord[1] = _tmp;                                                                               \
+#define INTERP_GEO_SWAP_YX(_coord)                                                                                     \
+{                                                                                                                      \
+    npy_double _tmp = _coord[0];                                                                                       \
+    _coord[0] = _coord[1];                                                                                             \
+    _coord[1] = _tmp;                                                                                                  \
 }
 
 int ops_geometric_transform(PyArrayObject *matrix,

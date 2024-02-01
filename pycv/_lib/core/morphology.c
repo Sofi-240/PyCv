@@ -37,9 +37,9 @@ break
     }                                                                                                                                               \
 }
 
-#define TYPE_CASE_GET_EROSION_VALUE(_NUM_TYPE, _type, _po, _buffer_val, _true_val, _false_val)   \
-case _NUM_TYPE:                                                                                  \
-    _buffer_val = *(_type *)_po ? _true_val : _false_val;                                        \
+#define TYPE_CASE_GET_EROSION_VALUE(_NUM_TYPE, _type, _po, _buffer_val, _true_val, _false_val)                         \
+case _NUM_TYPE:                                                                                                        \
+    _buffer_val = *(_type *)_po ? _true_val : _false_val;                                                              \
     break
 
 #define EX_GET_EROSION_VALUE(_NUM_TYPE, _po, _buffer_val, _true_val, _false_val)                                       \
@@ -151,34 +151,34 @@ int ops_binary_erosion(PyArrayObject *input,
 
 // #####################################################################################################################
 
-#define TYPE_CASE_GRAY_ERO_OR_DIL(_NUM_TYPE, _type, _ero_dil_op,                                          \
-                                  _pi, _offsets_size, _offsets, _offsets_flag, _weights, _buffer_val)     \
-case _NUM_TYPE:                                                                                           \
-{                                                                                                         \
-    npy_intp _ii, _jj = 0;                                                                                \
-    double _tmp;                                                                                          \
-    _buffer_val = 0.0;                                                                                    \
-    while (_jj < _offsets_size) {                                                                         \
-        if (_offsets[_jj] < _offsets_flag) {                                                              \
-            _buffer_val = (double)(*((_type *)(_pi + _offsets[_jj]))) + _weights[_jj];                    \
-            break;                                                                                        \
-        }                                                                                                 \
-        _jj++;                                                                                            \
-    }                                                                                                     \
-    for (_ii = _jj + 1; _ii < _offsets_size; _ii++) {                                                     \
-        if (_offsets[_ii] < _offsets_flag) {                                                              \
-            _tmp = (double)(*((_type *)(_pi + _offsets[_ii]))) + _weights[_ii];                           \
-            switch (_ero_dil_op) {                                                                        \
-                case ERO:                                                                                 \
-                    _buffer_val = _buffer_val < _tmp ? _buffer_val : _tmp;                                \
-                    break;                                                                                \
-                case DIL:                                                                                 \
-                    _buffer_val = _buffer_val > _tmp ? _buffer_val : _tmp;                                \
-                    break;                                                                                \
-            }                                                                                             \
-        }                                                                                                 \
-    }                                                                                                     \
-}                                                                                                         \
+#define TYPE_CASE_GRAY_ERO_OR_DIL(_NUM_TYPE, _type, _ero_dil_op,                                                       \
+                                  _pi, _offsets_size, _offsets, _offsets_flag, _weights, _buffer_val)                  \
+case _NUM_TYPE:                                                                                                        \
+{                                                                                                                      \
+    npy_intp _ii, _jj = 0;                                                                                             \
+    double _tmp;                                                                                                       \
+    _buffer_val = 0.0;                                                                                                 \
+    while (_jj < _offsets_size) {                                                                                      \
+        if (_offsets[_jj] < _offsets_flag) {                                                                           \
+            _buffer_val = (double)(*((_type *)(_pi + _offsets[_jj]))) + _weights[_jj];                                 \
+            break;                                                                                                     \
+        }                                                                                                              \
+        _jj++;                                                                                                         \
+    }                                                                                                                  \
+    for (_ii = _jj + 1; _ii < _offsets_size; _ii++) {                                                                  \
+        if (_offsets[_ii] < _offsets_flag) {                                                                           \
+            _tmp = (double)(*((_type *)(_pi + _offsets[_ii]))) + _weights[_ii];                                        \
+            switch (_ero_dil_op) {                                                                                     \
+                case ERO:                                                                                              \
+                    _buffer_val = _buffer_val < _tmp ? _buffer_val : _tmp;                                             \
+                    break;                                                                                             \
+                case DIL:                                                                                              \
+                    _buffer_val = _buffer_val > _tmp ? _buffer_val : _tmp;                                             \
+                    break;                                                                                             \
+            }                                                                                                          \
+        }                                                                                                              \
+    }                                                                                                                  \
+}                                                                                                                      \
 break
 
 #define EX_GRAY_ERO_OR_DIL(_NUM_TYPE, _ero_dil_op,                                                                     \

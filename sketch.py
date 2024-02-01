@@ -1,22 +1,29 @@
-from _debug_utils.im_load import load_image, load_defualt_binary_image
+# from _debug_utils.im_load import load_image, load_defualt_binary_image
 # from _debug_utils.im_viz import show_collection
 import numpy as np
-from pycv._lib.filters_support.windows import gaussian_kernel
 from pycv._lib.core import ops
-from pycv.colors import rgb2gray
-from pycv._lib.core_support import interpolation_py as intrp
-from pycv._lib.core_support.filters_py import convolve
+from pycv.draw import draw_line
 
-inputs = rgb2gray(load_image('astronaut.png'))
 
-# inputs_base = intrp.resize(inputs, tuple(s * 2 for s in inputs.shape), order=1, padding_mode='reflect')
-#
-# base_kernel = gaussian_kernel(1.24, ndim=2, truncate=3)
-#
-# tmp = convolve(inputs_base, base_kernel, padding_mode='reflect')
+img = np.zeros((15, 15))
+img[draw_line((1, 13), (13, 1))] = 255
+img[draw_line((1, 1), (13, 13))] = 255
 
-# tmp = convolve(inputs_base, base_kernel, axis=0, padding_mode='reflect')
-# convolve(inputs_base, base_kernel, axis=1, output=inputs_base, padding_mode='reflect')
+
+thetas = np.linspace(-90, 90, 360, endpoint=False) * np.pi / 180.0
+
+offset = int(np.ceil(np.hypot(img.shape[0], img.shape[1])))
+max_distance = 2 * offset + 1
+
+h_space = np.zeros((max_distance, thetas.shape[0]), dtype=np.uint64)
+rho = np.linspace(-offset, offset, max_distance)
+
+ops.hough_transform(img, thetas, h_space)
+
+
+
+
+# show_collection([img, np.log(1 + h_space)], 1, 2)
 
 
 # rng = np.random.default_rng()
