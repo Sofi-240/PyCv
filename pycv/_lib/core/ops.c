@@ -6,6 +6,7 @@
 #include "image_support.h"
 #include "interpolation.h"
 #include "transform.h"
+#include "convexhull.h"
 
 // #####################################################################################################################
 
@@ -795,6 +796,35 @@ PyObject* geometric_transform(PyObject* self, PyObject* args)
 
 // #####################################################################################################################
 
+PyObject* convex_hull(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *mask = NULL, *output = NULL;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&",
+            Input_To_Array, &input,
+            InputOptional_To_Array, &mask)) {
+        goto exit;
+    }
+
+    if (!valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+
+    output = ops_graham_scan_convex_hull(input, mask);
+
+    exit:
+        Py_XDECREF(input);
+        if (mask) {
+            Py_XDECREF(mask);
+        }
+        return PyErr_Occurred() ? NULL : (PyObject *)output;
+}
+
+// #####################################################################################################################
+
 static PyMethodDef methods[] = {
     {
         "convolve",
@@ -883,6 +913,12 @@ static PyMethodDef methods[] = {
     {
         "geometric_transform",
         (PyCFunction)geometric_transform,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "convex_hull",
+        (PyCFunction)convex_hull,
         METH_VARARGS,
         NULL
     },

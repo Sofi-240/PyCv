@@ -1,97 +1,80 @@
-# from _debug_utils.im_load import load_image, load_defualt_binary_image
-# from _debug_utils.im_viz import show_collection
+from _debug_utils.im_load import load_image, load_defualt_binary_image
+from _debug_utils.im_viz import show_collection
 import numpy as np
 from pycv._lib.core import ops
 from pycv.draw import draw_line, draw_circle
 from pycv.transform import resize
-import functools
 
 
-def cmp_to_key(cmp_func):
-    class K(object):
-        def __init__(self, obj, *args):
-            print('obj created with ', obj)
-            self.obj = obj
-
-        def __lt__(self, other):
-            print('comparing less than ', self.obj)
-            return cmp_func(self.obj, other.obj) < 0
-
-        def __gt__(self, other):
-            print('comparing greter than ', self.obj)
-            return cmp_func(self.obj, other.obj) > 0
-
-        def __eq__(self, other):
-            print('comparing equal to ', self.obj)
-            return cmp_func(self.obj, other.obj) == 0
-
-        def __le__(self, other):
-            print('comparing less than equal ', self.obj)
-            return cmp_func(self.obj, other.obj) <= 0
-
-        def __ge__(self, other):
-            print('comparing greater than equal', self.obj)
-            return cmp_func(self.obj, other.obj) >= 0
-
-        def __ne__(self, other):
-            print('comparing not equal ', self.obj)
-            return cmp_func(self.obj, other.obj) != 0
-
-    return K
+def cross_product(_p0, _p1, _p2):
+    return np.cross(_p2 - _p0, _p1 - _p0)
 
 
-# print(np.array2string(np.zeros((5, 5), np.uint8), separator=', '))
-def my_cmp(x, y):
-    print("compare ", x, " with ", y)
-    if x > y:
-        return 1
-    elif x < y:
+def distance(_p1, _p2):
+    return np.linalg.norm(_p2 - _p1, ord=1)
+
+
+def cmp_points(_p0, _p1, _p2):
+    ori = cross_product(_p0, _p1, _p2)
+    if ori < 0:
         return -1
-    else:
-        return 0
+    if ori > 0:
+        return 1
+    if distance(_p0, _p1) < distance(_p0, _p2):
+        return -1
+    return 1
 
 
-def mergeSort(array):
-    if len(array) > 1:
+def heapify(_points, n, i, _p0):
+    # Find largest among root and children
+    largest = i
+    l = 2 * i + 1
+    r = 2 * i + 2
 
-        #  r is the point where the array is divided into two subarrays
-        r = len(array) // 2
-        L = array[:r]
-        M = array[r:]
+    if l < n and cmp_points(_p0, _points[i], _points[l]) < 0:
+        largest = l
 
-        # Sort the two halves
-        mergeSort(L)
-        mergeSort(M)
+    if r < n and cmp_points(_p0, _points[largest], _points[r]) < 0:
+        largest = r
 
-        i = j = k = 0
-
-        # Until we reach either end of either L or M, pick larger among
-        # elements L and M and place them in the correct position at A[p..r]
-        while i < len(L) and j < len(M):
-            if my_cmp(L[i], M[j]) < 0:
-                array[k] = L[i]
-                i += 1
-            else:
-                array[k] = M[j]
-                j += 1
-            k += 1
-
-        # When we run out of elements in either L or M,
-        # pick up the remaining elements and put in A[p..r]
-        while i < len(L):
-            array[k] = L[i]
-            i += 1
-            k += 1
-
-        while j < len(M):
-            array[k] = M[j]
-            j += 1
-            k += 1
+    # If root is not largest, swap with largest and continue heapifying
+    if largest != i:
+        _points[i], _points[largest] = _points[largest], _points[i]
+        heapify(_points, n, largest, _p0)
 
 
-pp = [2, 3, 7, 1, 5, 0, 9]
-a = sorted(pp, key=functools.cmp_to_key(my_cmp))
+def heapSort(_points, _p0):
+    n = len(_points)
 
-pp_s = pp[:]
+    # Build max heap
+    for i in range(n // 2, -1, -1):
+        heapify(_points, n, i, _p0)
 
-mergeSort(pp_s)
+    for i in range(n - 1, 0, -1):
+        # Swap
+        _points[i], _points[0] = _points[0], _points[i]
+
+        # Heapify root element
+        heapify(_points, i, 0, _p0)
+
+
+# image = np.array(
+#     [[0, 0, 1, 0, 0],
+#      [0, 1, 0, 1, 0],
+#      [1, 0, 0, 0, 1],
+#      [0, 1, 0, 1, 0],
+#      [0, 0, 1, 0, 0]], np.uint8
+# )
+
+image = load_defualt_binary_image()
+
+convex = ops.convex_hull(image, None)
+
+mask = np.zeros(image.shape, np.uint8)
+for p1, p2 in zip(convex, convex[1:]):
+    mask[draw_line(tuple(p1), tuple(p2))] = 255
+
+mask[draw_line(tuple(convex[-1]), tuple(convex[0]))] = 255
+
+show_collection([image, mask], 1, 2)
+

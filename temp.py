@@ -28,7 +28,7 @@ class Graham_Scan(object):
         return 1
 
     def distance(self, p1, p2):
-        return np.linalg.norm(p2 - p1)
+        return np.linalg.norm(p2 - p1, ord=1)
 
     def cmp_points(self, p1, p2, P):
         ori = self.cross_product(P, p1, p2)

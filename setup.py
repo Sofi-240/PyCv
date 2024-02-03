@@ -16,6 +16,7 @@ setup(
                 "pycv/_lib/core/image_support.c",
                 "pycv/_lib/core/interpolation.c",
                 "pycv/_lib/core/transform.c",
+                "pycv/_lib/core/convexhull.c",
             ],
             include_dirs=[numpy.get_include()],
             define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")]
