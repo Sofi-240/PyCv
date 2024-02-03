@@ -15,4 +15,4 @@ for (ii = 0; ii < sz; ii++) {
 }
 printf("]\n");
 
-
+printf("[%" NPY_INTP_FMT ", %" NPY_INTP_FMT "]\n", circles_run[0], circles_run[1]);

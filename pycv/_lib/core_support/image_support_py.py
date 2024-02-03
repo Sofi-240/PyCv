@@ -86,7 +86,6 @@ def draw(
         a: int | None = None,
         b: int | None = None
 ) -> tuple[np.ndarray, np.ndarray]:
-
     params_type = dict(
         point1=tuple,
         point2=tuple,
@@ -133,4 +132,21 @@ def draw(
 
     return tuple(np.squeeze(a) for a in np.hsplit(yx, 2))
 
+
 ########################################################################################################################
+
+def hough_transform(
+        mode: str,
+        image: np.ndarray,
+        theta: np.ndarray | float | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    image = np.asarray(image, order='C')
+    image = np_compliance(image, 'image', _check_finite=True)
+
+    if mode not in ['line']:
+        raise RuntimeError('invalid mode')
+
+    if theta is None:
+        theta = np.linspace(-90, 90, 180, endpoint=False) * np.pi / 180.0
+
+    return

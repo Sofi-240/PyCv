@@ -3,6 +3,7 @@ from pycv._lib.core_support import interpolation_py as interp
 
 __all__ = [
     'resize',
+    'rotate'
 ]
 
 

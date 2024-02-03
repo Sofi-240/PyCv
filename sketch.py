@@ -2,34 +2,96 @@
 # from _debug_utils.im_viz import show_collection
 import numpy as np
 from pycv._lib.core import ops
-from pycv.draw import draw_line
+from pycv.draw import draw_line, draw_circle
+from pycv.transform import resize
+import functools
 
 
-img = np.zeros((15, 15))
-img[draw_line((1, 13), (13, 1))] = 255
-img[draw_line((1, 1), (13, 13))] = 255
+def cmp_to_key(cmp_func):
+    class K(object):
+        def __init__(self, obj, *args):
+            print('obj created with ', obj)
+            self.obj = obj
+
+        def __lt__(self, other):
+            print('comparing less than ', self.obj)
+            return cmp_func(self.obj, other.obj) < 0
+
+        def __gt__(self, other):
+            print('comparing greter than ', self.obj)
+            return cmp_func(self.obj, other.obj) > 0
+
+        def __eq__(self, other):
+            print('comparing equal to ', self.obj)
+            return cmp_func(self.obj, other.obj) == 0
+
+        def __le__(self, other):
+            print('comparing less than equal ', self.obj)
+            return cmp_func(self.obj, other.obj) <= 0
+
+        def __ge__(self, other):
+            print('comparing greater than equal', self.obj)
+            return cmp_func(self.obj, other.obj) >= 0
+
+        def __ne__(self, other):
+            print('comparing not equal ', self.obj)
+            return cmp_func(self.obj, other.obj) != 0
+
+    return K
 
 
-thetas = np.linspace(-90, 90, 360, endpoint=False) * np.pi / 180.0
-
-offset = int(np.ceil(np.hypot(img.shape[0], img.shape[1])))
-max_distance = 2 * offset + 1
-
-h_space = np.zeros((max_distance, thetas.shape[0]), dtype=np.uint64)
-rho = np.linspace(-offset, offset, max_distance)
-
-ops.hough_transform(img, thetas, h_space)
-
-
+# print(np.array2string(np.zeros((5, 5), np.uint8), separator=', '))
+def my_cmp(x, y):
+    print("compare ", x, " with ", y)
+    if x > y:
+        return 1
+    elif x < y:
+        return -1
+    else:
+        return 0
 
 
-# show_collection([img, np.log(1 + h_space)], 1, 2)
+def mergeSort(array):
+    if len(array) > 1:
+
+        #  r is the point where the array is divided into two subarrays
+        r = len(array) // 2
+        L = array[:r]
+        M = array[r:]
+
+        # Sort the two halves
+        mergeSort(L)
+        mergeSort(M)
+
+        i = j = k = 0
+
+        # Until we reach either end of either L or M, pick larger among
+        # elements L and M and place them in the correct position at A[p..r]
+        while i < len(L) and j < len(M):
+            if my_cmp(L[i], M[j]) < 0:
+                array[k] = L[i]
+                i += 1
+            else:
+                array[k] = M[j]
+                j += 1
+            k += 1
+
+        # When we run out of elements in either L or M,
+        # pick up the remaining elements and put in A[p..r]
+        while i < len(L):
+            array[k] = L[i]
+            i += 1
+            k += 1
+
+        while j < len(M):
+            array[k] = M[j]
+            j += 1
+            k += 1
 
 
-# rng = np.random.default_rng()
-# inputs = np.zeros((256, 256))
-# inputs[64:-64, 64:-64] = 1
-# inputs += 0.2 * rng.random(inputs.shape)
+pp = [2, 3, 7, 1, 5, 0, 9]
+a = sorted(pp, key=functools.cmp_to_key(my_cmp))
 
-# inputs = load_image('lena.jpg')
-# show_collection([inputs, output_b, output_nn], 1, 3)
+pp_s = pp[:]
+
+mergeSort(pp_s)

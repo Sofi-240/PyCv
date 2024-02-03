@@ -5,6 +5,7 @@
 #include "morphology.h"
 #include "image_support.h"
 #include "interpolation.h"
+#include "transform.h"
 
 // #####################################################################################################################
 
@@ -632,17 +633,21 @@ PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords)
         return PyErr_Occurred() ? NULL : (PyObject *)output;
 }
 
-PyObject* hough_transform(PyObject* self, PyObject* args)
+PyObject* hough_transform(PyObject* self, PyObject* args, PyObject* keywords)
 {
-    PyArrayObject *input = NULL, *theta = NULL, *h_space = NULL;
-    int connectivity, threshold;
+    int hough_mode;
+    static char* kwlist[] = {"", "", "", "offset", "normalize", "expend", NULL};
+    PyArrayObject *input = NULL, *param = NULL, *h_space = NULL;
+    int offset = NULL, normalize = NULL, expend = NULL;
 
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&O&",
+    if (!PyArg_ParseTupleAndKeywords(
+            args, keywords,
+            "iO&O&|iii", kwlist,
+            &hough_mode,
             Input_To_Array, &input,
-            Input_To_Array, &theta,
-            Output_To_Array, &h_space)) {
+            Input_To_Array, &param,
+            &offset, &normalize, &expend)) {
+        PyErr_SetString(PyExc_RuntimeError, "invalid args or keywords");
         goto exit;
     }
 
@@ -650,24 +655,38 @@ PyObject* hough_transform(PyObject* self, PyObject* args)
         PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
         goto exit;
     }
-    if (!valid_dtype(PyArray_TYPE(theta))) {
-        PyErr_SetString(PyExc_RuntimeError, "theta dtype not supported");
-        goto exit;
-    }
-    if (!valid_dtype(PyArray_TYPE(h_space))) {
-        PyErr_SetString(PyExc_RuntimeError, "h_space dtype not supported");
+    if (!valid_dtype(PyArray_TYPE(param))) {
+        PyErr_SetString(PyExc_RuntimeError, "param dtype not supported");
         goto exit;
     }
 
-    ops_hough_line_transform(input, theta, h_space);
 
-    PyArray_ResolveWritebackIfCopy(h_space);
+    switch ((HoughMode)hough_mode) {
+        case HOUGH_LINE:
+            if (offset == NULL) {
+                PyErr_SetString(PyExc_RuntimeError, "missing offset argument");
+                goto exit;
+            }
+            h_space = ops_hough_line_transform(input, param, (npy_intp)offset);
+            break;
+        case HOUGH_CIRCLE:
+            if (normalize == NULL) {
+                normalize = 0;
+            }
+            if (expend == NULL) {
+                expend = 0;
+            }
+            h_space = ops_hough_circle_transform(input, param, normalize, expend);
+            break;
+        default:
+            PyErr_SetString(PyExc_RuntimeError, "hough mode not supported");
+            goto exit;
+    }
 
     exit:
         Py_XDECREF(input);
-        Py_XDECREF(theta);
-        Py_XDECREF(h_space);
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+        Py_XDECREF(param);
+        return PyErr_Occurred() ? NULL : (PyObject *)h_space;
 }
 
 // #####################################################################################################################
@@ -852,7 +871,7 @@ static PyMethodDef methods[] = {
     {
         "hough_transform",
         (PyCFunction)hough_transform,
-        METH_VARARGS,
+        METH_VARARGS|METH_KEYWORDS,
         NULL
     },
     {
