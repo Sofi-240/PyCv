@@ -53,6 +53,16 @@ def ctype_label_mode(
         raise RuntimeError('label mode not supported')
 
 
+def ctype_convex_hull_mode(
+        mode: str
+) -> int:
+    if mode == 'graham':
+        return 1
+    elif mode in ['jarvis', 'gift wrapping']:
+        return 2
+    else:
+        raise RuntimeError('convex hull mode not supported')
+
 ########################################################################################################################
 
 def as_sequence(

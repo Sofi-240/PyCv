@@ -50,6 +50,10 @@ int HullPointsFree(HullPoints *object);
 
 // #####################################################################################################################
 
+typedef enum {
+    HULL_GRAM_SCAN = 1,
+    HULL_GIFT_WRAPPING = 2,
+} HullMode;
 
 PyArrayObject *ops_graham_scan_convex_hull(PyArrayObject *input, PyArrayObject *mask);
 

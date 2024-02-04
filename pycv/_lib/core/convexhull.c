@@ -321,16 +321,14 @@ PyArrayObject *ops_jarvis_march_convex_hull(PyArrayObject *input, PyArrayObject 
     }
 
     HULL_POINTS_APPEND(stack, points.points[0]);
-
     left = index;
-
     while (1) {
         candidate = (left + 1) % (npy_intp)points.points_size;
         for (ii = 0; ii < points.points_size; ii++) {
             if (ii == left) {
                 continue;
             }
-            HULL_COMPARE(points.points[ii], points.points[candidate], points.points[left], cmp);
+            HULL_COMPARE(points.points[left], points.points[ii], points.points[candidate], cmp);
             if (cmp > 0) {
                 candidate = ii;
             }
@@ -362,3 +360,6 @@ PyArrayObject *ops_jarvis_march_convex_hull(PyArrayObject *input, PyArrayObject 
         HullPointsFree(&stack);
         return PyErr_Occurred() ? NULL : convex_hull;
 }
+
+// #####################################################################################################################
+

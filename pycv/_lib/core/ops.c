@@ -799,10 +799,12 @@ PyObject* geometric_transform(PyObject* self, PyObject* args)
 PyObject* convex_hull(PyObject* self, PyObject* args)
 {
     PyArrayObject *input = NULL, *mask = NULL, *output = NULL;
+    int hull_mode;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&O&",
+            "iO&O&",
+            &hull_mode,
             Input_To_Array, &input,
             InputOptional_To_Array, &mask)) {
         goto exit;
@@ -813,7 +815,17 @@ PyObject* convex_hull(PyObject* self, PyObject* args)
         goto exit;
     }
 
-    output = ops_graham_scan_convex_hull(input, mask);
+    switch ((HullMode)hull_mode) {
+        case HULL_GRAM_SCAN:
+            output = ops_graham_scan_convex_hull(input, mask);
+            break;
+        case HULL_GIFT_WRAPPING:
+            output = ops_jarvis_march_convex_hull(input, mask);
+            break;
+        default:
+            PyErr_SetString(PyExc_RuntimeError, "hull mode not supported");
+            goto exit;
+    }
 
     exit:
         Py_XDECREF(input);
