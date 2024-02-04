@@ -134,19 +134,3 @@ def draw(
 
 
 ########################################################################################################################
-
-def hough_transform(
-        mode: str,
-        image: np.ndarray,
-        theta: np.ndarray | float | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    image = np.asarray(image, order='C')
-    image = np_compliance(image, 'image', _check_finite=True)
-
-    if mode not in ['line']:
-        raise RuntimeError('invalid mode')
-
-    if theta is None:
-        theta = np.linspace(-90, 90, 180, endpoint=False) * np.pi / 180.0
-
-    return

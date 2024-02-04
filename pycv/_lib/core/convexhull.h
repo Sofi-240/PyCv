@@ -48,6 +48,10 @@ int HullPointsInit(int nd, int max_size, HullPoints *object);
 
 int HullPointsFree(HullPoints *object);
 
+HullPoints HullPoints_AllocateFromArray(PyArrayObject *input, PyArrayObject *mask);
+
+HullPoints HullPoints_AllocateFromPointsArray(PyArrayObject *points_array);
+
 // #####################################################################################################################
 
 typedef enum {
@@ -55,9 +59,9 @@ typedef enum {
     HULL_GIFT_WRAPPING = 2,
 } HullMode;
 
-PyArrayObject *ops_graham_scan_convex_hull(PyArrayObject *input, PyArrayObject *mask);
+PyArrayObject *ops_graham_scan_convex_hull(PyArrayObject *input, PyArrayObject *mask, PyArrayObject *points_array, PyArrayObject *output);
 
-PyArrayObject *ops_jarvis_march_convex_hull(PyArrayObject *input, PyArrayObject *mask);
+PyArrayObject *ops_jarvis_march_convex_hull(PyArrayObject *input, PyArrayObject *mask, PyArrayObject *points_array, PyArrayObject *output);
 
 // #####################################################################################################################
 

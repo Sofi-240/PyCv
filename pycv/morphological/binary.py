@@ -9,7 +9,7 @@ __all__ = [
     'binary_edge',
     'skeletonize',
     'remove_small_objects',
-    'remove_small_holes'
+    'remove_small_holes',
 ]
 
 
@@ -123,4 +123,3 @@ def remove_small_holes(
 ) -> np.ndarray:
     return morphology_py.remove_small_objects(image, threshold, connectivity, invert=1)
 
-########################################################################################################################

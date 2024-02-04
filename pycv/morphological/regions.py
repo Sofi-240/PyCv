@@ -1,9 +1,10 @@
 import numpy as np
-from pycv._lib.core_support import morphology_py
+from pycv._lib.core_support import morphology_py, convexhull_py
 
 __all__ = [
     'region_fill',
-    'im_label'
+    'im_label',
+    'convex_hull'
 ]
 
 
@@ -57,5 +58,32 @@ def im_label(
 ) -> tuple[int, np.ndarray]:
     return morphology_py.labeling(image, connectivity, rng_mapping_method, mod_value)
 
+
+########################################################################################################################
+
+
+def convex_hull(
+        image: np.ndarray,
+        mask: np.ndarray | None = None,
+        objects: bool = False,
+        labels: np.ndarray | None = None,
+        convex_image: bool = True
+) -> tuple[np.ndarray] | tuple[np.ndarray, np.ndarray]:
+    if objects:
+        if labels is None:
+            _, labels = im_label(image)
+        if labels.dtype.kind == 'f':
+            raise TypeError('labels image cannot be type of float')
+        uni = np.unique(labels[labels != 0])
+        if mask is None:
+            mask = np.ones_like(labels, bool)
+        elif mask.shape != labels.shape:
+            raise ValueError('mask shape need to be same as labels shape')
+        inputs = np.stack([np.asarray((labels == u) & mask, dtype=np.uint8) for u in uni], axis=0)
+        mask = None
+    else:
+        inputs = image
+
+    return convexhull_py.convex_hull_2d(inputs, mask, convex_image=convex_image)
 
 ########################################################################################################################

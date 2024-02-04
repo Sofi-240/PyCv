@@ -798,33 +798,51 @@ PyObject* geometric_transform(PyObject* self, PyObject* args)
 
 PyObject* convex_hull(PyObject* self, PyObject* args)
 {
-    PyArrayObject *input = NULL, *mask = NULL, *output = NULL;
+    PyArrayObject *input = NULL, *mask = NULL, *convex_hull = NULL, *output = NULL, *points_array = NULL;
     int hull_mode;
 
     if (!PyArg_ParseTuple(
             args,
-            "iO&O&",
+            "iO&O&O&O&",
             &hull_mode,
-            Input_To_Array, &input,
-            InputOptional_To_Array, &mask)) {
+            InputOptional_To_Array, &input,
+            InputOptional_To_Array, &mask,
+            InputOptional_To_Array, &points_array,
+            OutputOptional_To_Array, &output)) {
         goto exit;
     }
 
-    if (!valid_dtype(PyArray_TYPE(input))) {
+    if (input && !valid_dtype(PyArray_TYPE(input))) {
         PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+    if (mask && !valid_dtype(PyArray_TYPE(mask))) {
+        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
+        goto exit;
+    }
+    if (points_array && !valid_dtype(PyArray_TYPE(points_array))) {
+        PyErr_SetString(PyExc_RuntimeError, "points array dtype not supported");
+        goto exit;
+    }
+    if (output && !valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output array dtype not supported");
         goto exit;
     }
 
     switch ((HullMode)hull_mode) {
         case HULL_GRAM_SCAN:
-            output = ops_graham_scan_convex_hull(input, mask);
+            convex_hull = ops_graham_scan_convex_hull(input, mask, points_array, output);
             break;
         case HULL_GIFT_WRAPPING:
-            output = ops_jarvis_march_convex_hull(input, mask);
+            convex_hull = ops_jarvis_march_convex_hull(input, mask, points_array, output);
             break;
         default:
             PyErr_SetString(PyExc_RuntimeError, "hull mode not supported");
             goto exit;
+    }
+
+    if (output) {
+        PyArray_ResolveWritebackIfCopy(output);
     }
 
     exit:
@@ -832,7 +850,13 @@ PyObject* convex_hull(PyObject* self, PyObject* args)
         if (mask) {
             Py_XDECREF(mask);
         }
-        return PyErr_Occurred() ? NULL : (PyObject *)output;
+        if (output) {
+            Py_XDECREF(output);
+        }
+        if (points_array) {
+            Py_XDECREF(points_array);
+        }
+        return convex_hull ? (PyObject *)convex_hull : NULL;
 }
 
 // #####################################################################################################################
