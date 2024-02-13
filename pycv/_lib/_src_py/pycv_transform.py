@@ -1,10 +1,10 @@
 import numpy as np
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.array_api.dtypes import cast, get_dtype_info
-from pycv._lib.core_support.utils import get_output, ctype_border_mode, axis_transpose_to_last
-from pycv._lib.core import ops
+from pycv._lib._src_py.utils import get_output, ctype_border_mode, axis_transpose_to_last
+from pycv._lib._src import c_pycv
 from pycv._lib.filters_support.windows import gaussian_kernel
-from pycv._lib.core_support.filters_py import convolve
+from pycv._lib._src_py.pycv_filters import convolve
 
 __all__ = [
     'resize',
@@ -49,7 +49,7 @@ def resize(
         kernel = gaussian_kernel(sigma, inputs.ndim)
         inputs = convolve(inputs, kernel, padding_mode=padding_mode, constant_value=constant_value)
 
-    ops.resize(inputs, output, order, 1, mode, constant_value)
+    c_pycv.resize(inputs, output, order, 1, mode, constant_value)
 
     if preserve_dtype:
         return cast(output, dtype.type)
@@ -121,7 +121,7 @@ def rotate(
 
     mode = ctype_border_mode(padding_mode)
 
-    ops.geometric_transform(matrix, inputs, output, None, None, order, mode, constant_value)
+    c_pycv.geometric_transform(matrix, inputs, output, None, None, order, mode, constant_value)
 
     if need_transpose:
         output = output.transpose(transpose_back)

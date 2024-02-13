@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.core_support import morphology_py
+from pycv._lib._src_py import pycv_morphology
 
 __all__ = [
     'binary_erosion',
@@ -22,9 +22,10 @@ def binary_erosion(
         offset: tuple | None = None,
         iterations: int = 1,  # TODO: iterations
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    ret = morphology_py.binary_erosion(image, strel, offset, iterations, mask, output, 0)
+    ret = pycv_morphology.binary_erosion(image, strel, offset, iterations, mask, output, 0, border_val)
     return output if ret is None else ret
 
 
@@ -34,9 +35,10 @@ def binary_dilation(
         offset: tuple | None = None,
         iterations: int = 1,  # TODO: iterations
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    ret = morphology_py.binary_erosion(image, strel, offset, iterations, mask, output, 1)
+    ret = pycv_morphology.binary_erosion(image, strel, offset, iterations, mask, output, 1, border_val)
     return output if ret is None else ret
 
 
@@ -47,10 +49,11 @@ def binary_opening(
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    ero = morphology_py.binary_erosion(image, strel, offset, 1, mask, None, 0)
-    ret = morphology_py.binary_erosion(ero, strel, offset, 1, mask, output, 1)
+    ero = pycv_morphology.binary_erosion(image, strel, offset, 1, mask, None, 0, border_val)
+    ret = pycv_morphology.binary_erosion(ero, strel, offset, 1, mask, output, 1, border_val)
     return output if ret is None else ret
 
 
@@ -59,10 +62,11 @@ def binary_closing(
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    dil = morphology_py.binary_erosion(image, strel, offset, 1, mask, None, 1)
-    ret = morphology_py.binary_erosion(dil, strel, offset, 1, mask, output, 0)
+    dil = pycv_morphology.binary_erosion(image, strel, offset, 1, mask, None, 1, border_val)
+    ret = pycv_morphology.binary_erosion(dil, strel, offset, 1, mask, output, 0, border_val)
     return output if ret is None else ret
 
 
@@ -72,7 +76,8 @@ def binary_edge(
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
     supported_mode = {'inner', 'outer', 'double'}
     if edge_mode not in supported_mode:
@@ -82,9 +87,9 @@ def binary_edge(
     ero = None
 
     if supported_mode != 'inner':
-        dil = morphology_py.binary_erosion(image, strel, offset, 1, mask, None, 1)
+        dil = pycv_morphology.binary_erosion(image, strel, offset, 1, mask, None, 1, border_val)
     if supported_mode != 'outer':
-        ero = morphology_py.binary_erosion(image, strel, offset, 1, mask, None, 0)
+        ero = pycv_morphology.binary_erosion(image, strel, offset, 1, mask, None, 0, border_val)
 
     if output is None:
         output = np.zeros_like(dil if dil is not None else ero)
@@ -103,7 +108,7 @@ def binary_edge(
 def skeletonize(
         image: np.ndarray
 ) -> np.ndarray:
-    return morphology_py.skeletonize(image)
+    return pycv_morphology.skeletonize(image)
 
 
 ########################################################################################################################
@@ -113,7 +118,7 @@ def remove_small_objects(
         threshold: int = 32,
         connectivity: int = 1
 ) -> np.ndarray:
-    return morphology_py.remove_small_objects(image, threshold, connectivity)
+    return pycv_morphology.remove_small_objects(image, threshold, connectivity)
 
 
 def remove_small_holes(
@@ -121,5 +126,5 @@ def remove_small_holes(
         threshold: int = 32,
         connectivity: int = 1
 ) -> np.ndarray:
-    return morphology_py.remove_small_objects(image, threshold, connectivity, invert=1)
+    return pycv_morphology.remove_small_objects(image, threshold, connectivity, invert=1)
 

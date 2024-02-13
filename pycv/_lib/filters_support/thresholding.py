@@ -5,9 +5,8 @@ from pycv._lib.decorator import registrate_decorator
 from pycv._lib.array_api.dtypes import cast
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.filters_support.windows import gaussian_kernel, sigma_from_size
-from pycv._lib.core_support.filters_py import convolve, rank_filter
-from pycv._lib.core_support.utils import as_sequence, valid_axis
-from pycv._lib._inspect import isfunction
+from pycv._lib._src_py.pycv_filters import convolve, rank_filter
+from pycv._lib._src_py.utils import as_sequence, valid_axis
 
 __all__ = [
     'otsu',

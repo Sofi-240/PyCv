@@ -1,10 +1,8 @@
 import numpy as np
 import collections
 from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib.filters_support.kernel_utils import color_mapping_range
-from pycv._lib.array_api.dtypes import get_dtype_info
-from pycv._lib.core_support.utils import get_output, valid_same_shape
-from pycv._lib.core import ops
+from pycv._lib._src_py.utils import get_output, valid_same_shape
+from pycv._lib._src import c_pycv
 
 __all__ = [
     'canny_nonmaximum_suppression',
@@ -28,7 +26,7 @@ def canny_nonmaximum_suppression(
     if not valid_same_shape(*valid_shape_tuple):
         raise RuntimeError('all the ndarray inputs need to have the same shape')
     output, _ = get_output(None, magnitude)
-    ops.canny_nonmaximum_suppression(magnitude, grad_y, grad_x, low_threshold, mask, output)
+    c_pycv.canny_nonmaximum_suppression(magnitude, grad_y, grad_x, low_threshold, mask, output)
     return output
 
 
@@ -39,10 +37,7 @@ MAXTREE = collections.namedtuple('max_tree', 'traverser, parent')
 
 def build_max_tree(
         image: np.ndarray,
-        connectivity: int = 1,
-        use_mapping: bool = False,
-        rng_mapping_method: str = 'sqr',
-        mod_value: int = 16
+        connectivity: int = 1
 ) -> MAXTREE:
     image = np.asarray(image, order='C')
     image = np_compliance(image, 'image', _check_finite=True)
@@ -53,24 +48,10 @@ def build_max_tree(
             f'to ndim (all elements are neighbors)'
         )
 
-    dt = get_dtype_info(image.dtype)
-
-    if dt.kind == 'b' or not use_mapping:
-        values_map = None
-    else:
-        if dt.kind == 'f':
-            if np.min(image) < -1.0 or np.max(image) > 1.0:
-                image = image.astype(np.int64)
-        min_, max_ = np.min(image), np.max(image)
-        if min_ < 0 or max_ > 255:
-            image = ((image - min_) / (max_ - min_)) * 255
-        image = image.astype(np.uint8)
-        values_map = color_mapping_range(image, method=rng_mapping_method, mod_value=mod_value)
-
     traverser = np.zeros((image.size,), np.int64)
     parent = np.zeros(image.shape, np.int64)
 
-    ops.build_max_tree(image, traverser, parent, connectivity, values_map)
+    c_pycv.build_max_tree(image, traverser, parent, connectivity)
 
     return MAXTREE(traverser, parent)
 
@@ -125,7 +106,7 @@ def draw(
         elif itm < 0:
             raise ValueError(key + msg_negative)
 
-    yx = ops.draw(mode, **params)
+    yx = c_pycv.draw(mode, **params)
 
     if yx is None:
         raise RuntimeError('Error in C draw')

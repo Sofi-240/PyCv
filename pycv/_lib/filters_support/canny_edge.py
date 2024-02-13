@@ -1,11 +1,11 @@
 import numpy as np
 from pycv._lib.array_api.dtypes import cast, get_dtype_limits
 from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib.core_support.filters_py import convolve
+from pycv._lib._src_py.pycv_filters import convolve
 from pycv._lib.filters_support.windows import gaussian_kernel, SOBEL_EDGE, SOBEL_WEIGHTS, edge_kernel
-from pycv._lib.core_support.image_support_py import canny_nonmaximum_suppression
+from pycv._lib._src_py.pycv_minsc import canny_nonmaximum_suppression
 from pycv._lib.filters_support.kernel_utils import default_binary_strel, border_mask
-from pycv._lib.core_support import morphology_py
+from pycv._lib._src_py import pycv_morphology
 
 
 __all__ = [
@@ -60,7 +60,7 @@ def _smooth_image(
         image_mask = np.zeros_like(image)
         image_mask[mask] = image[mask]
 
-        morphology_py.binary_erosion(mask, default_binary_strel(2, 2), output=mask)
+        pycv_morphology.binary_erosion(mask, default_binary_strel(2, 2), output=mask)
     else:
         image_mask = image
         if padding_mode == 'constant':
@@ -114,7 +114,7 @@ def canny_filter(
     edges = canny_nonmaximum_suppression(magnitude, gy, gx, low_threshold, mask)
 
     edges_mask = edges > 0
-    n_labels, labels = morphology_py.labeling(edges_mask, connectivity=2)
+    n_labels, labels = pycv_morphology.labeling(edges_mask, connectivity=2)
 
     if n_labels == 1:
         return edges_mask, None

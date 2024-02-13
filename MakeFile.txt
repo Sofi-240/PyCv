@@ -1,14 +1,9 @@
-python setup.py install
-py -m pip uninstall PyCv
-
-python setup.py build_ext
-python setup.py develop
 
 cd C:\Users\97254\Documents\MyProjects\PyCv\pycv\_lib\core
 
 printf("offsets is %" NPY_INTP_FMT "\n", (footprint).offsets[jj]);
 printf("value is %.2f", value);
-
+NPY_LONGDOUBLE_FMT
 printf("[");
 for (ii = 0; ii < sz; ii++) {
     printf("%" NPY_INTP_FMT ", ", footprint[ii]);
@@ -16,3 +11,10 @@ for (ii = 0; ii < sz; ii++) {
 printf("]\n");
 
 printf("[%" NPY_INTP_FMT ", %" NPY_INTP_FMT "]\n", circles_run[0], circles_run[1]);
+
+
+python c_pycv_setup.py install
+py -m pip uninstall C_PyCv
+
+python c_pycv_setup.py build_ext
+python c_pycv_setup.py develop

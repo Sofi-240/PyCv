@@ -2,9 +2,9 @@ import numpy as np
 import numbers
 from pycv._lib.array_api.dtypes import cast, get_dtype_info
 from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib.core_support.filters_py import convolve
+from pycv._lib._src_py.pycv_filters import convolve
 from pycv._lib.filters_support.windows import edge_kernel
-from pycv._lib.core_support import morphology_py
+from pycv._lib._src_py import pycv_morphology
 from pycv._lib.filters_support.kernel_utils import border_mask
 
 __all__ = [
@@ -23,7 +23,7 @@ def case_pad_is_same_or_constant(
     if padding_mode not in ['same', 'constant']:
         return image
     mask = border_mask(image.shape, kernel_shape)
-    return morphology_py.gray_ero_or_dil(0, image, mask=mask)
+    return pycv_morphology.gray_ero_or_dil(0, image, mask=mask)
 
 
 def kernel_size_valid(

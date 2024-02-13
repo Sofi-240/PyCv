@@ -1,6 +1,6 @@
 import numpy as np
-from pycv._lib.core_support.utils import ctype_border_mode, get_output, get_kernel, valid_kernel_shape_with_ref
-from pycv._lib.core import ops
+from pycv._lib._src_py.utils import ctype_border_mode, get_output, get_kernel, valid_kernel_shape_with_ref
+from pycv._lib._src import c_pycv
 
 __all__ = [
     'convolve',
@@ -49,7 +49,7 @@ def convolve(
     if np.all(inputs == 0):
         output[...] = 0.
     else:
-        ops.convolve(inputs, kernel, output, offset, padding_mode, constant_value)
+        c_pycv.convolve(inputs, kernel, output, offset, padding_mode, constant_value)
 
     if share_memory:
         hold_output[...] = output
@@ -106,7 +106,7 @@ def rank_filter(
     if np.all(inputs == 0):
         output[...] = 0.
     else:
-        ops.rank_filter(inputs, footprint, output, rank, offset, padding_mode, constant_value)
+        c_pycv.rank_filter(inputs, footprint, output, rank, offset, padding_mode, constant_value)
 
     if share_memory:
         hold_output[...] = output

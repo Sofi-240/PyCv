@@ -8,7 +8,6 @@ from pycv._lib.filters_support.kernel_utils import valid_offset, cast_kernel_dil
 
 __all__ = [
     'ctype_border_mode',
-    'ctype_label_mode',
     'as_sequence',
     'fix_kernel_shape',
     'axis_transpose_to_last',
@@ -42,17 +41,6 @@ def ctype_border_mode(
         raise RuntimeError('border mode not supported')
 
 
-def ctype_label_mode(
-        mode: str
-) -> int:
-    if mode == 'nlabels':
-        return 1
-    elif mode == 'index':
-        return 2
-    else:
-        raise RuntimeError('label mode not supported')
-
-
 def ctype_convex_hull_mode(
         mode: str
 ) -> int:
@@ -62,6 +50,7 @@ def ctype_convex_hull_mode(
         return 2
     else:
         raise RuntimeError('convex hull mode not supported')
+
 
 ########################################################################################################################
 

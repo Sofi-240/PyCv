@@ -1,6 +1,6 @@
 import numpy as np
 from pycv._lib.array_api.dtypes import get_dtype_limits
-from pycv._lib.core_support import image_support_py
+from pycv._lib._src_py import pycv_minsc
 
 __all__ = [
     'draw_line',
@@ -18,7 +18,7 @@ def draw_line(
         fill_value: int | float | None = None
 ) -> tuple[np.ndarray, np.ndarray] | np.ndarray:
     if output is None:
-        return image_support_py.draw('line', point1=point1, point2=point2)
+        return pycv_minsc.draw('line', point1=point1, point2=point2)
 
     if not isinstance(output, np.ndarray):
         raise TypeError('output need to be type of numpy.ndarray')
@@ -31,7 +31,7 @@ def draw_line(
             p < 0 or p >= shape[-1] for p in (point1[1], point2[1])):
         raise ValueError("points is out of range for output shape")
 
-    coord = image_support_py.draw('line', point1=point1, point2=point2)
+    coord = pycv_minsc.draw('line', point1=point1, point2=point2)
 
     if fill_value is None:
         fill_value = get_dtype_limits(output.dtype)[1]
@@ -51,7 +51,7 @@ def draw_circle(
         fill_value: int | float | None = None
 ) -> tuple[np.ndarray, np.ndarray] | np.ndarray:
     if output is None:
-        return image_support_py.draw('circle', center_point=center_point, radius=radius)
+        return pycv_minsc.draw('circle', center_point=center_point, radius=radius)
 
     if not isinstance(output, np.ndarray):
         raise TypeError('output need to be type of numpy.ndarray')
@@ -63,7 +63,7 @@ def draw_circle(
     if any(p < 0 or p >= s or p - radius <= 0 or p + radius >= s for p, s in zip(center_point, shape)):
         raise ValueError('point or radius shift is out of range for output shape')
 
-    coord = image_support_py.draw('circle', center_point=center_point, radius=radius)
+    coord = pycv_minsc.draw('circle', center_point=center_point, radius=radius)
 
     if fill_value is None:
         fill_value = get_dtype_limits(output.dtype)[1]
@@ -84,7 +84,7 @@ def draw_ellipse(
         fill_value: int | float | None = None
 ) -> tuple[np.ndarray, np.ndarray] | np.ndarray:
     if output is None:
-        return image_support_py.draw('ellipse', center_point=center_point, a=a, b=b)
+        return pycv_minsc.draw('ellipse', center_point=center_point, a=a, b=b)
 
     if not isinstance(output, np.ndarray):
         raise TypeError('output need to be type of numpy.ndarray')
@@ -102,7 +102,7 @@ def draw_ellipse(
     if center_point[1] - b < 0 or center_point[1] + b >= shape[1]:
         raise ValueError('b shift is out of range for output shape')
 
-    coord = image_support_py.draw('ellipse', center_point=center_point, a=a, b=b)
+    coord = pycv_minsc.draw('ellipse', center_point=center_point, a=a, b=b)
 
     if fill_value is None:
         fill_value = get_dtype_limits(output.dtype)[1]

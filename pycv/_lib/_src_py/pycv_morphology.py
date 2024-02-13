@@ -1,9 +1,8 @@
 import numpy as np
-from pycv._lib.core_support.utils import get_output, get_kernel, valid_kernel_shape_with_ref, ctype_label_mode, \
-    invert_values
-from pycv._lib.core import ops
+from pycv._lib._src_py.utils import get_output, get_kernel, valid_kernel_shape_with_ref, invert_values
+from pycv._lib._src import c_pycv
 from pycv._lib.filters_support.kernel_utils import default_binary_strel, color_mapping_range
-from pycv._lib.array_api.dtypes import as_binary_array, get_dtype_limits, get_dtype_info
+from pycv._lib.array_api.dtypes import as_binary_array, get_dtype_info
 from pycv._lib.array_api.regulator import np_compliance
 
 __all__ = [
@@ -47,6 +46,7 @@ def binary_erosion(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None,
         invert: bool | int = False,
+        border_val: int = 0
 ) -> np.ndarray | None:
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)
@@ -85,7 +85,7 @@ def binary_erosion(
     if np.all(image == 0):
         output[...] = 0
     else:
-        ops.binary_erosion(image, strel, output, offset, iterations, mask, int(invert))
+        c_pycv.binary_erosion(image, strel, output, offset, iterations, mask, int(invert), border_val)
 
     if share_memory:
         hold_output[...] = output
@@ -124,7 +124,7 @@ def binary_region_fill(
     if np.all(image == 0):
         output[...] = 0
     else:
-        ops.binary_region_fill(output, strel, seed_point, offset)
+        c_pycv.binary_region_fill(output, seed_point, strel, offset)
 
     return output
 
@@ -138,6 +138,7 @@ def gray_ero_or_dil(
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray | None:
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)
@@ -172,14 +173,11 @@ def gray_ero_or_dil(
         if not (mask.ndim == image.ndim and mask.shape == image.shape):
             raise ValueError(f'image and mask shape does not match {image.shape} != {mask.shape}')
 
-    cast_val = get_dtype_limits(output.dtype)[op]
-
     if np.all(image == 0):
         output[...] = np.min(image - (np.min(non_flat_strel) if non_flat_strel is not None else 0)) if op == 0 else \
             np.max(image + (np.max(non_flat_strel) if non_flat_strel is not None else 0))
     else:
-        op = ops.erosion if op == 0 else ops.dilation
-        op(image, strel, non_flat_strel, output, offset, mask, cast_val)
+        c_pycv.gray_erosion_dilation(image, strel, non_flat_strel, output, offset, mask, op, border_val)
 
     if share_memory:
         hold_output[...] = output
@@ -208,7 +206,7 @@ def labeling(
 
     dt = get_dtype_info(image.dtype)
     if dt.kind == 'b':
-        values_map = None
+        inputs = image
     else:
         if dt.kind == 'f':
             if np.min(image) < -1.0 or np.max(image) > 1.0:
@@ -218,11 +216,11 @@ def labeling(
             image = ((image - min_) / (max_ - min_)) * 255
         image = image.astype(np.uint8)
         values_map = color_mapping_range(image, method=rng_mapping_method, mod_value=mod_value)
+        inputs = values_map[image]
 
-    output = np.zeros(image.shape, np.int64)
+    output = np.zeros(inputs.shape, np.int64)
 
-    label_mode = ctype_label_mode('nlabels')
-    ops.labeling(image, connectivity, values_map, output, label_mode)
+    c_pycv.labeling(inputs, connectivity, output, 0)
 
     return np.max(output), output
 
@@ -238,9 +236,7 @@ def skeletonize(
     if image.dtype != bool:
         image = as_binary_array(image, 'Image')
 
-    output, _ = get_output(None, image, image.shape)
-
-    ops.skeletonize(image, output)
+    output = c_pycv.skeletonize(image)
     return output
 
 
@@ -266,8 +262,15 @@ def area_open_close(
     else:
         image_op = image.copy()
 
-    output = image_op.copy()
-    ops.area_threshold(image_op, connectivity, threshold, output, None, None)
+    traverser = np.zeros((image_op.size, ), np.int64)
+    parent = np.zeros(image_op.shape, np.int64)
+    c_pycv.build_max_tree(image_op, traverser, parent, connectivity)
+
+    area = np.zeros(parent.shape, np.int64)
+    c_pycv.max_tree_compute_area(None, area, connectivity, traverser, parent)
+
+    output = np.zeros_like(image_op)
+    c_pycv.max_tree_filter(image_op, threshold, area, output, connectivity, traverser, parent)
 
     if op == 'close':
         output = invert_values(output)

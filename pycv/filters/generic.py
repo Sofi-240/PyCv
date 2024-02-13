@@ -3,7 +3,7 @@ import numbers
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.filters_support.windows import gaussian_kernel
 from pycv.filters._utils import kernel_size_valid, filter_with_convolve
-from pycv._lib.core_support.filters_py import rank_filter
+from pycv._lib._src_py.pycv_filters import rank_filter
 
 
 __all__ = [

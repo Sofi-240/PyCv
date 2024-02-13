@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.core_support import morphology_py
+from pycv._lib._src_py import pycv_morphology
 
 __all__ = [
     'gray_erosion',
@@ -19,9 +19,10 @@ def gray_erosion(
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    ret = morphology_py.gray_ero_or_dil(0, image, strel, offset, mask, output)
+    ret = pycv_morphology.gray_ero_or_dil(0, image, strel, offset, mask, output, border_val)
     return output if ret is None else ret
 
 
@@ -30,9 +31,10 @@ def gray_dilation(
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    ret = morphology_py.gray_ero_or_dil(1, image, strel, offset, mask, output)
+    ret = pycv_morphology.gray_ero_or_dil(1, image, strel, offset, mask, output, border_val)
     return output if ret is None else ret
 
 
@@ -41,10 +43,11 @@ def gray_opening(
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    ero = morphology_py.gray_ero_or_dil(0, image, strel, offset, mask, None)
-    ret = morphology_py.gray_ero_or_dil(1, ero, strel, offset, mask, output)
+    ero = pycv_morphology.gray_ero_or_dil(0, image, strel, offset, mask, None, border_val)
+    ret = pycv_morphology.gray_ero_or_dil(1, ero, strel, offset, mask, output, border_val)
     return output if ret is None else ret
 
 
@@ -53,10 +56,11 @@ def gray_closing(
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    dil = morphology_py.gray_ero_or_dil(1, image, strel, offset, mask, None)
-    ret = morphology_py.gray_ero_or_dil(0, dil, strel, offset, mask, output)
+    dil = pycv_morphology.gray_ero_or_dil(1, image, strel, offset, mask, None, border_val)
+    ret = pycv_morphology.gray_ero_or_dil(0, dil, strel, offset, mask, output, border_val)
     return output if ret is None else ret
 
 
@@ -67,9 +71,10 @@ def black_top(
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    cl = gray_closing(image, strel, offset=offset, mask=mask, output=output)
+    cl = gray_closing(image, strel, offset=offset, mask=mask, output=output, border_val=border_val)
     cl -= image
     return cl
 
@@ -79,9 +84,10 @@ def white_top(
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
-        output: np.ndarray | None = None
+        output: np.ndarray | None = None,
+        border_val: int = 0
 ) -> np.ndarray:
-    op = gray_opening(image, strel, offset=offset, mask=mask, output=output)
+    op = gray_opening(image, strel, offset=offset, mask=mask, output=output, border_val=border_val)
     op = image - op
     return op
 
@@ -93,7 +99,7 @@ def area_open(
         threshold: int = 32,
         connectivity: int = 1,
 ) -> np.ndarray:
-    return morphology_py.area_open_close('open', image, threshold=threshold, connectivity=connectivity)
+    return pycv_morphology.area_open_close('open', image, threshold=threshold, connectivity=connectivity)
 
 
 def area_close(
@@ -101,6 +107,6 @@ def area_close(
         threshold: int = 32,
         connectivity: int = 1,
 ) -> np.ndarray:
-    return morphology_py.area_open_close('close', image, threshold=threshold, connectivity=connectivity)
+    return pycv_morphology.area_open_close('close', image, threshold=threshold, connectivity=connectivity)
 
 ########################################################################################################################

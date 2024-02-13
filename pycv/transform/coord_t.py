@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.core_support import interpolation_py as interp
+from pycv._lib._src_py import pycv_transform
 
 __all__ = [
     'resize',
@@ -26,7 +26,7 @@ def resize(
         2 = quadratic
         3 = cubic
     """
-    return interp.resize(inputs, output_shape, order, anti_alias_filter, sigma, padding_mode, constant_value, preserve_dtype)
+    return pycv_transform.resize(inputs, output_shape, order, anti_alias_filter, sigma, padding_mode, constant_value, preserve_dtype)
 
 ########################################################################################################################
 
@@ -48,7 +48,7 @@ def rotate(
         2 = quadratic
         3 = cubic
     """
-    return interp.rotate(inputs, angle, order, axis, reshape, padding_mode, constant_value, preserve_dtype)
+    return pycv_transform.rotate(inputs, angle, order, axis, reshape, padding_mode, constant_value, preserve_dtype)
 
 ########################################################################################################################
 

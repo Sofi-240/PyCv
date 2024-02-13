@@ -1,7 +1,7 @@
 import numpy as np
-from pycv._lib.core_support.utils import ctype_convex_hull_mode, axis_transpose_to_last
+from pycv._lib._src_py.utils import ctype_convex_hull_mode, axis_transpose_to_last
 from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib.core import ops
+from pycv._lib._src import c_pycv
 
 __all__ = [
     "convex_hull_2d"
@@ -87,7 +87,7 @@ def convex_hull_2d(
             o = o[iter_[j]] if convex_image else None
 
         p = p[:, -2:] if not image_in else None
-        cp = ops.convex_hull(mode, im, ma, p, o)
+        cp = c_pycv.convex_hull(mode, im, ma, p, o)
 
         if cp is None:
             cp = np.ones((0, 2), np.int64)

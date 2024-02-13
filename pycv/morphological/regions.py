@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.core_support import morphology_py, convexhull_py
+from pycv._lib._src_py import pycv_morphology, pycv_convexhull
 
 __all__ = [
     'region_fill',
@@ -30,13 +30,13 @@ def region_fill(
         raise ValueError('Seed point is out of range')
 
     if image.dtype == bool:
-        return morphology_py.binary_region_fill(image, seed_point, strel, offset, output, inplace)
+        return pycv_morphology.binary_region_fill(image, seed_point, strel, offset, output, inplace)
 
     seed_value = image[seed_point]
 
     inputs = np.where((image >= seed_value - value_tol) & (image <= seed_value + value_tol), False, True)
 
-    morphology_py.binary_region_fill(inputs, seed_point, strel, offset, None, True)
+    pycv_morphology.binary_region_fill(inputs, seed_point, strel, offset, None, True)
 
     if inplace:
         output = image
@@ -56,7 +56,7 @@ def im_label(
         rng_mapping_method: str = 'sqr',
         mod_value: int = 16
 ) -> tuple[int, np.ndarray]:
-    return morphology_py.labeling(image, connectivity, rng_mapping_method, mod_value)
+    return pycv_morphology.labeling(image, connectivity, rng_mapping_method, mod_value)
 
 
 ########################################################################################################################
@@ -84,6 +84,6 @@ def convex_hull(
     else:
         inputs = image
 
-    return convexhull_py.convex_hull_2d(inputs, mask, convex_image=convex_image)
+    return pycv_convexhull.convex_hull_2d(inputs, mask, convex_image=convex_image)
 
 ########################################################################################################################
