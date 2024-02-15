@@ -1,19 +1,25 @@
-from _debug_utils.im_load import load_defualt_binary_image
 import numpy as np
-from numpy.testing import assert_array_almost_equal
-from pycv._lib.array_api.array_pad import get_padding_width, pad
-from pycv.colors import rgb2gray
-from pycv.draw import draw_line, draw_circle
+from _debug_utils.im_load import load_image
+# from _debug_utils.im_viz import show_collection
 from pycv._lib._src import c_pycv
+from pycv.measurements import im_label, find_object
+from pycv.segmentation import im_threshold
+from pycv.filters import median_filter
+from pycv._indo.regionprops import region_properties
+from skimage.measure import regionprops
 
-
-# inputs = np.zeros((11, 11), dtype=np.uint8)
-# inputs[draw_line((1, 1), (9, 9))] = 1
-# inputs[draw_circle((5, 5), 4)] = 1
-
-
-
-
-
+# coins = load_image('coins.png')[88:]
+# coins_med = median_filter(coins, (5, 5))
+# coins_bin, th = im_threshold(coins_med, 'otsu')
+#
+# # show_collection([coins_med, coins_bin], 1, 2)
+#
+# n_labels, labels = im_label(coins_bin, connectivity=2)
+#
+# objects = region_properties(labels, intensity_image=coins_med)
+# obj = objects[0]
+#
+#
+# a = regionprops(labels)
 
 

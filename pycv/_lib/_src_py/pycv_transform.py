@@ -1,14 +1,16 @@
 import numpy as np
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.array_api.dtypes import cast, get_dtype_info
-from pycv._lib._src_py.utils import get_output, ctype_border_mode, axis_transpose_to_last
+from pycv._lib._src_py.utils import get_output, ctype_border_mode, ctype_interpolation_order, axis_transpose_to_last
 from pycv._lib._src import c_pycv
 from pycv._lib.filters_support.windows import gaussian_kernel
 from pycv._lib._src_py.pycv_filters import convolve
+from pycv._lib._src_py._geometric_transform import ProjectiveTransform,  _valid_matrix
 
 __all__ = [
     'resize',
-    'rotate'
+    'rotate',
+    'geometric_transform'
 ]
 
 
@@ -29,8 +31,7 @@ def resize(
     if any(s == 0 for s in output_shape) or any(s == 0 for s in inputs.shape):
         raise ValueError('array shape cannot be zero')
 
-    if not (0 <= order <= 3):
-        raise ValueError('Order need to be in range of 0 - 3')
+    order = ctype_interpolation_order(order)
 
     dtype = get_dtype_info(inputs.dtype)
     inputs = cast(inputs, np.float64)
@@ -74,10 +75,6 @@ def rotate(
     if axis is not None and len(axis) != 2:
         raise ValueError('axes should contain exactly two values')
 
-    if axis is not None:
-        axis = list(axis)
-        axis[0], axis[1] = axis[1], axis[0]
-
     need_transpose, transpose_forward, transpose_back = axis_transpose_to_last(inputs.ndim, axis, default_nd=2)
 
     if need_transpose:
@@ -86,8 +83,7 @@ def rotate(
     if any(s == 0 for s in inputs.shape):
         raise ValueError('array shape cannot be zero')
 
-    if not (0 <= order <= 3):
-        raise ValueError('Order need to be in range of 0 - 3')
+    order = ctype_interpolation_order(order)
 
     angle = np.deg2rad(angle)
     c, s = np.cos(angle), np.sin(angle)
@@ -118,6 +114,54 @@ def rotate(
     inputs = cast(inputs, np.float64)
 
     output, _ = get_output(None, inputs, inputs.shape[:-2] + tuple(output_shape[::-1]))
+
+    mode = ctype_border_mode(padding_mode)
+
+    c_pycv.geometric_transform(matrix, inputs, output, None, None, order, mode, constant_value)
+
+    if need_transpose:
+        output = output.transpose(transpose_back)
+
+    if preserve_dtype:
+        return cast(output, dtype.type)
+
+    return output
+
+
+########################################################################################################################
+
+def geometric_transform(
+        inputs: np.ndarray,
+        transform_matrix: ProjectiveTransform | np.ndarray,
+        order: int = 1,
+        axis: tuple | None = None,
+        padding_mode: str = 'constant',
+        constant_value: float | int | None = 0,
+        preserve_dtype: bool = False
+) -> np.ndarray:
+    inputs = np_compliance(inputs, 'Input', _check_finite=True)
+    matrix = np_compliance(np.asarray(transform_matrix), 'Matrix', _check_finite=True)
+    matrix = _valid_matrix(matrix.shape[0] - 1, matrix)
+
+    t_ndim = matrix.shape[0] - 1
+
+    if any(s == 0 for s in inputs.shape):
+        raise ValueError('array shape cannot be zero')
+
+    if axis is not None and len(axis) != t_ndim:
+        raise ValueError(f'axes should contain exactly {t_ndim} values')
+
+    need_transpose, transpose_forward, transpose_back = axis_transpose_to_last(inputs.ndim, axis, default_nd=t_ndim)
+
+    if need_transpose:
+        inputs = inputs.transpose(transpose_forward)
+
+    order = ctype_interpolation_order(order)
+
+    dtype = get_dtype_info(inputs.dtype)
+    inputs = cast(inputs, np.float64)
+
+    output, _ = get_output(None, inputs)
 
     mode = ctype_border_mode(padding_mode)
 

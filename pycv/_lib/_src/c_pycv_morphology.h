@@ -41,8 +41,7 @@ int PYCV_binary_region_fill(PyArrayObject *output,
 
 int PYCV_labeling(PyArrayObject *input,
                   npy_intp connectivity,
-                  PyArrayObject *output,
-                  int label_by_index);
+                  PyArrayObject *output);
 
 // #####################################################################################################################
 

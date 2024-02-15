@@ -10,6 +10,7 @@ __all__ = [
     'skeletonize',
     'remove_small_objects',
     'remove_small_holes',
+    'hit_or_miss'
 ]
 
 
@@ -128,3 +129,21 @@ def remove_small_holes(
 ) -> np.ndarray:
     return pycv_morphology.remove_small_objects(image, threshold, connectivity, invert=1)
 
+
+########################################################################################################################
+
+def hit_or_miss(
+        image: np.ndarray,
+        strel1: np.ndarray | None = None,
+        strel2: np.ndarray | None = None,
+        offset1: tuple | None = None,
+        offset2: tuple | None = None,
+        mask: np.ndarray | None = None,
+        output: np.ndarray | None = None,
+        border_val: int = 0
+) -> np.ndarray:
+    ret = pycv_morphology.hit_or_miss(image, strel1, strel2, offset1, offset2, mask, output, border_val)
+    return output if ret is None else ret
+
+
+########################################################################################################################

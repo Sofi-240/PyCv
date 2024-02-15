@@ -4,7 +4,8 @@ from pycv._lib._src_py import pycv_morphology, pycv_convexhull
 __all__ = [
     'region_fill',
     'im_label',
-    'convex_hull'
+    'convex_hull',
+    'find_object'
 ]
 
 
@@ -85,5 +86,34 @@ def convex_hull(
         inputs = image
 
     return pycv_convexhull.convex_hull_2d(inputs, mask, convex_image=convex_image)
+
+########################################################################################################################
+
+
+def find_object(
+        labels: np.ndarray,
+        mask: np.ndarray | None = None,
+        as_slice: bool = False,
+) -> list[tuple]:
+    """
+    as slice if true list[list[slice, ..]]] else list[list[top left, bottom right]]]
+
+    """
+    ll_im = labels
+    if mask is not None:
+        if mask.shape != labels.shape:
+            raise ValueError('mask shape need to be same as labels shape')
+        ll_im[~mask] = 0
+
+    out = []
+
+    for lbl in np.unique(ll_im[ll_im > 0]):
+        if as_slice:
+            out.append(tuple(slice(np.amin(cc), np.amax(cc) + 1) for cc in np.where(ll_im == lbl)))
+        else:
+            cc = np.stack(np.where(ll_im == lbl), axis=1)
+            out.append((np.amin(cc, axis=0), np.amax(cc, axis=0)))
+
+    return out
 
 ########################################################################################################################

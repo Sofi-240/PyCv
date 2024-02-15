@@ -492,8 +492,7 @@ PyArrayObject *PYCV_hough_line_transform(PyArrayObject *input,
 
     PyArrayObject *h_space;
     npy_intp *h_shape, h_size = 1, n_theta, n_rho;
-    npy_double *cosine, *sine, i_val, y, x, proj;
-    double angle;
+    npy_double *cosine, *sine, i_val, y, x, proj, angle;
     npy_intp ii, jj, hh;
 
     NPY_BEGIN_THREADS_DEF;
@@ -547,7 +546,7 @@ PyArrayObject *PYCV_hough_line_transform(PyArrayObject *input,
     ph = (void *)PyArray_DATA(h_space);
 
     for (ii = 0; ii < n_theta; ii++) {
-        PYCV_GET_VALUE(num_type_t, double, pt, angle);
+        PYCV_GET_VALUE(num_type_t, npy_double, pt, angle);
         cosine[ii] = (npy_double)cos(angle);
         sine[ii] = (npy_double)sin(angle);
         PYCV_ARRAY_ITERATOR_NEXT(iter_t, pt);
@@ -563,10 +562,11 @@ PyArrayObject *PYCV_hough_line_transform(PyArrayObject *input,
                 x = (npy_double)iter_i.coordinates[ndim_init + 1];
                 for (jj = 0; jj < n_theta; jj++) {
                     proj = cosine[jj] * x + sine[jj] * y;
-
                     hh = (npy_intp)floor(proj + 0.5) + offset;
+                    if (hh >= n_rho) {
+                        continue;
+                    }
                     hh = hh * iter_h.strides[ndim_init] + jj * iter_h.strides[ndim_init + 1];
-
                     PYCV_T_HOUGH_ADD_VALUE(num_type_h, (ph + hh), 1);
                 }
             }
@@ -735,3 +735,27 @@ PyArrayObject *PYCV_hough_circle_transform(PyArrayObject *input,
         free(circle_points);
         return PyErr_Occurred() ? NULL : h_space;
 }
+
+
+// #####################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

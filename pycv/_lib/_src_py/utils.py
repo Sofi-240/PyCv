@@ -8,6 +8,8 @@ from pycv._lib.filters_support.kernel_utils import valid_offset, cast_kernel_dil
 
 __all__ = [
     'ctype_border_mode',
+    'ctype_convex_hull_mode',
+    'ctype_interpolation_order',
     'as_sequence',
     'fix_kernel_shape',
     'axis_transpose_to_last',
@@ -50,6 +52,25 @@ def ctype_convex_hull_mode(
         return 2
     else:
         raise RuntimeError('convex hull mode not supported')
+
+
+def ctype_interpolation_order(
+        order: int | str
+) -> int:
+    if isinstance(order, str):
+        if order in ['nearest neighbor', 'nn']:
+            return 0
+        elif order == 'linear':
+            return 1
+        elif order == 'quadratic':
+            return 2
+        elif order == 'cubic':
+            return 3
+        else:
+            raise RuntimeError('invalid interpolation order')
+    elif not (0 <= order <= 3):
+        raise ValueError('Order need to be in range of 0 - 3')
+    return order
 
 
 ########################################################################################################################
@@ -248,3 +269,5 @@ def invert_values(
         out = -inputs
 
     return out
+
+########################################################################################################################

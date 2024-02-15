@@ -423,24 +423,23 @@ int PYCV_binary_region_fill(PyArrayObject *output,
 
 int PYCV_labeling(PyArrayObject *input,
                   npy_intp connectivity,
-                  PyArrayObject *output,
-                  int label_by_index)
+                  PyArrayObject *output)
 {
-    PYCV_ArrayIterator iter_o;
-    NeighborhoodIterator iter_i;
-    char *po = NULL, *pi = NULL;
+    PYCV_ArrayIterator iter_i;
+    NeighborhoodIterator iter_o;
+    char *po_base = NULL, *po = NULL, *pi = NULL;
     int num_type_o, num_type_i;
-    npy_intp itemsize_i;
+    npy_intp itemsize_o;
     npy_bool *footprint;
     npy_intp ndim, array_size, f_size, f_shape[NPY_MAXDIMS], f_center[NPY_MAXDIMS], *offsets, *ff, flag, offset_p;
-    npy_intp *buffer, *parent, *labels, ii, jj, b_size, ln, lc, n_labels = 1;
-    npy_double vi, vn;
+    npy_intp *buffer, *fix, *labels, ii, jj, b_size, ln, lp, lc, n_labels = 1, vo;
+    npy_bool vi;
 
     NPY_BEGIN_THREADS_DEF;
 
     array_size = PyArray_SIZE(input);
     ndim = (npy_intp)PyArray_NDIM(input);
-    itemsize_i = (npy_intp)PyArray_ITEMSIZE(input);
+    itemsize_o = (npy_intp)PyArray_ITEMSIZE(output);
 
     for (ii = 0; ii < ndim; ii++) {
         f_shape[ii] = 3;
@@ -452,9 +451,9 @@ int PYCV_labeling(PyArrayObject *input,
         goto exit;
     }
 
-    PYCV_NeighborhoodIteratorInit(input, f_shape, f_center, f_size, &iter_i);
+    PYCV_NeighborhoodIteratorInit(output, f_shape, f_center, f_size, &iter_o);
 
-    if (!PYCV_InitNeighborhoodOffsets(input, f_shape, f_center, footprint, &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
+    if (!PYCV_InitNeighborhoodOffsets(output, f_shape, f_center, footprint, &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InitNeighborhoodOffsets \n");
         goto exit;
     }
@@ -466,21 +465,19 @@ int PYCV_labeling(PyArrayObject *input,
         goto exit;
     }
 
-    parent = malloc(array_size * sizeof(npy_intp));
-    if (!parent) {
+    fix = malloc(array_size * sizeof(npy_intp));
+    if (!fix) {
         PyErr_NoMemory();
         goto exit;
     }
 
-    if (!label_by_index) {
-        labels = malloc(array_size * sizeof(npy_intp));
-        if (!labels) {
-            PyErr_NoMemory();
-            goto exit;
-        }
+    labels = malloc(array_size * sizeof(npy_intp));
+    if (!labels) {
+        PyErr_NoMemory();
+        goto exit;
     }
 
-    PYCV_ArrayIteratorInit(output, &iter_o);
+    PYCV_ArrayIteratorInit(input, &iter_i);
 
     num_type_i = PyArray_TYPE(input);
     num_type_o = PyArray_TYPE(output);
@@ -488,56 +485,68 @@ int PYCV_labeling(PyArrayObject *input,
     NPY_BEGIN_THREADS;
 
     pi = (void *)PyArray_DATA(input);
-    po = (void *)PyArray_DATA(output);
+    po_base = po = (void *)PyArray_DATA(output);
     ff = offsets;
 
     for (ii = 0; ii < array_size; ii++) {
-        parent[ii] = 0;
-        if (!label_by_index) {
-            labels[ii] = 0;
-        }
-        PYCV_GET_VALUE(num_type_i, npy_double, pi, vi);
+        fix[ii] = 0;
+        labels[ii] = 0;
+        PYCV_GET_VALUE(num_type_i, npy_bool, pi, vi);
 
         if (vi) {
-            parent[ii] = ii;
             b_size = 0;
+            vo = n_labels;
             for (jj = 0; jj < f_size; jj++) {
                 if (ff[jj] == flag) {
                     continue;
                 }
-                offset_p = ii + (npy_intp)(ff[jj] / itemsize_i);
-                PYCV_GET_VALUE(num_type_i, npy_double, (pi + ff[jj]), vn);
-                if (!parent[offset_p] || vi != vn) {
+                PYCV_GET_VALUE(num_type_o, npy_intp, (po + ff[jj]), lc);
+                if (!lc) {
                     continue;
                 }
-                parent[ii] = parent[ii] > parent[offset_p] ? parent[offset_p] : parent[ii];
-                buffer[b_size] = offset_p;
+                vo = vo > lc ? lc : vo;
+                buffer[b_size] = lc;
                 b_size++;
+            }
+            if (!b_size) {
+                n_labels++;
+            }
+            PYCV_SET_VALUE(num_type_o, po, vo);
+
+            lp = vo;
+            while (fix[lp] != 0) {
+                lp = fix[lp];
             }
             for (jj = 0; jj < b_size; jj++) {
                 ln = buffer[jj];
-                while (parent[ln] != parent[ii]) {
-                    lc = parent[ln];
-                    parent[ln] = parent[ii];
-                    ln = lc;
+                if (ln != vo) {
+                    while (fix[ln] != 0) {
+                        ln = fix[ln];
+                    }
+                    if (lp != ln) {
+                        fix[ln] = lp;
+                    }
                 }
             }
         }
-        PYCV_NEIGHBORHOOD_ITERATOR_NEXT(iter_i, pi, ff);
+        PYCV_NEIGHBORHOOD_ITERATOR_NEXT2(iter_o, po, iter_i, pi, ff);
     }
 
+    PYCV_NEIGHBORHOOD_ITERATOR_RESET(iter_o);
+    po = po_base;
+    n_labels = 1;
+
     for (ii = 0; ii < array_size; ii++) {
-        if (parent[ii]) {
-            if (label_by_index) {
-                PYCV_SET_VALUE(num_type_o, po, parent[ii]);
-            } else {
-                ln = parent[ii];
-                if (!labels[ln]) {
-                    labels[ln] = n_labels;
-                    n_labels++;
-                }
-                PYCV_SET_VALUE(num_type_o, po, labels[ln]);
+        PYCV_GET_VALUE(num_type_o, npy_intp, po, lc);
+        if (lc) {
+            while (fix[lc] != 0) {
+                lc = fix[lc];
             }
+            if (!labels[lc]) {
+                labels[lc] = n_labels;
+                n_labels++;
+            }
+            PYCV_SET_VALUE(num_type_o, po, labels[lc]);
         } else {
             PYCV_SET_VALUE(num_type_o, po, 0);
         }
@@ -549,10 +558,8 @@ int PYCV_labeling(PyArrayObject *input,
         free(footprint);
         free(offsets);
         free(buffer);
-        free(parent);
-        if (!label_by_index) {
-            free(labels);
-        }
+        free(fix);
+        free(labels);
         return PyErr_Occurred() ? 0 : 1;
 }
 

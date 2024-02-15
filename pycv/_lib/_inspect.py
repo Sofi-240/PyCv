@@ -43,6 +43,7 @@ def iscode(co) -> bool:
 def is_co_routine_function(func) -> bool:
     return inspect.iscoroutinefunction(func)
 
+
 def is_generator_function(func) -> bool:
     return inspect.isgeneratorfunction(func)
 
@@ -108,7 +109,7 @@ def fix_kw_syntax(args: tuple, kwargs: dict, signature: SIGNATURE, kw_syntax: bo
                     raise ValueError(f'missing {par.name} parameter')
             else:
                 tmp = args[i]
-            out_args += (tmp, )
+            out_args += (tmp,)
             i += 1
         else:
             out_kwargs[par.name] = kwargs.get(par.name, par.default)

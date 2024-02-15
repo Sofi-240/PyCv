@@ -1,20 +1,53 @@
 import numpy as np
 from numpy.testing import assert_array_almost_equal
-from pycv._lib.core import ops
-from pycv._lib.array_api.shapes import output_shape
-from pycv._lib.core_support.utils import ctype_border_mode
+from pycv._lib._src_py.utils import ctype_border_mode
 from pycv._lib.filters_support.kernel_utils import color_mapping_range
+from pycv._lib.array_api.shapes import output_shape
 from pycv._lib.array_api.array_pad import get_padding_width, pad
+from pycv._lib._src import c_pycv
 
 
-class TestFilters_C(object):
+########################################################################################################################
+
+class TestModule(object):
+
+    def __init__(self, module_name: str):
+        self.module_name = module_name
+        self.cases = [s for s in self.__dir__() if s[:4] == 'test' and s != 'test_case' and s != 'test_all']
+
+    def __repr__(self):
+        return f'module: {self.module_name}\n' \
+               f'cases: ' + '\n       '.join(self.cases)
+
+    def test_case(self, case: str):
+        getattr(self, case)()
+
+    def test_all(self):
+        excs = []
+        for case in self.cases:
+            try:
+                getattr(self, case)()
+            except AssertionError as err:
+                err.add_note(f'case: {case}')
+                excs.append(err)
+        if not excs:
+            return
+        raise ExceptionGroup(f'module: {self.module_name}', excs)
+
+
+########################################################################################################################
+
+class TestFilters(TestModule):
+    def __init__(self):
+        super().__init__('Filters')
+
     def test_convolve01(self):
         inputs = np.array([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], [13, 14, 15, 16, 17, 18]])
         kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
         offset = tuple(s // 2 for s in kernel.shape)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
         mode = ctype_border_mode('valid')
-        ops.convolve(inputs, kernel, output, offset, mode, 0)
+        c_pycv.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal([[40, 45, 50, 55]], output)
 
     def test_convolve02(self):
@@ -23,7 +56,7 @@ class TestFilters_C(object):
         offset = (0, 0)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
         mode = ctype_border_mode('valid')
-        ops.convolve(inputs, kernel, output, offset, mode, 0)
+        c_pycv.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal([[8, 10, 12, 14]], output)
 
     def test_convolve03(self):
@@ -32,7 +65,7 @@ class TestFilters_C(object):
         offset = (0, 1)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
         mode = ctype_border_mode('valid')
-        ops.convolve(inputs, kernel, output, offset, mode, 0)
+        c_pycv.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal([[4, 6, 8], [14, 16, 18]], output)
 
     def test_convolve04(self):
@@ -41,7 +74,7 @@ class TestFilters_C(object):
         offset = (1, 0)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
         mode = ctype_border_mode('valid')
-        ops.convolve(inputs, kernel, output, offset, mode, 0)
+        c_pycv.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal([[12, 14, 16, 18, 20]], output)
 
     def test_convolve05(self):
@@ -50,7 +83,7 @@ class TestFilters_C(object):
         offset = (0, 0)
         output = np.zeros(output_shape(inputs.shape, kernel.shape), inputs.dtype)
         mode = ctype_border_mode('valid')
-        ops.convolve(inputs, kernel, output, offset, mode, 0)
+        c_pycv.convolve(inputs, kernel, output, offset, mode, 0)
         assert_array_almost_equal(inputs, output)
 
     def test_convolve06(self):
@@ -60,12 +93,12 @@ class TestFilters_C(object):
 
         output1 = np.zeros(inputs.shape, inputs.dtype)
         mode = ctype_border_mode('reflect')
-        ops.convolve(inputs, kernel, output1, offset, mode, 0)
+        c_pycv.convolve(inputs, kernel, output1, offset, mode, 0)
 
         inputs_pad = pad(inputs, get_padding_width(kernel.shape, offset), mode='reflect')
         output2 = np.zeros(inputs.shape, inputs.dtype)
         mode = ctype_border_mode('valid')
-        ops.convolve(inputs_pad, kernel, output2, offset, mode, 0)
+        c_pycv.convolve(inputs_pad, kernel, output2, offset, mode, 0)
 
         assert_array_almost_equal(output1, output2)
 
@@ -81,15 +114,15 @@ class TestFilters_C(object):
         mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
         assert_array_almost_equal([[7, 8, 9]], output_median)
 
         output_min = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
         assert_array_almost_equal([[2, 3, 4]], output_min)
 
         output_max = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
         assert_array_almost_equal([[12, 13, 14]], output_max)
 
     def test_rank_filter02(self):
@@ -103,15 +136,15 @@ class TestFilters_C(object):
         mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
         assert_array_almost_equal([[6, 7, 8, 9, 10]], output_median)
 
         output_min = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
         assert_array_almost_equal([[1, 2, 3, 4, 5]], output_min)
 
         output_max = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
         assert_array_almost_equal([[11, 12, 13, 14, 15]], output_max)
 
     def test_rank_filter03(self):
@@ -125,15 +158,15 @@ class TestFilters_C(object):
         mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
         assert_array_almost_equal([[2, 3, 4], [7, 8, 9], [12, 13, 14]], output_median)
 
         output_min = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
         assert_array_almost_equal([[1, 2, 3], [6, 7, 8], [11, 12, 13]], output_min)
 
         output_max = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
         assert_array_almost_equal([[3, 4, 5], [8, 9, 10], [13, 14, 15]], output_max)
 
     def test_rank_filter04(self):
@@ -147,15 +180,15 @@ class TestFilters_C(object):
         mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_median, rank_median, offset, mode, 0)
         assert_array_almost_equal([[6, 7, 8, 9]], output_median)
 
         output_min = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_min, rank_min, offset, mode, 0)
         assert_array_almost_equal([[1, 2, 3, 4]], output_min)
 
         output_max = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
-        ops.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output_max, rank_max, offset, mode, 0)
         assert_array_almost_equal([[7, 8, 9, 10]], output_max)
 
     def test_rank_filter06(self):
@@ -168,18 +201,22 @@ class TestFilters_C(object):
         mode = ctype_border_mode('reflect')
 
         output1 = np.zeros(inputs.shape, inputs.dtype)
-        ops.rank_filter(inputs, footprint, output1, rank_median, offset, mode, 0)
+        c_pycv.rank_filter(inputs, footprint, output1, rank_median, offset, mode, 0)
 
         inputs_pad = pad(inputs, get_padding_width(footprint.shape, offset), mode='reflect')
         output2 = np.zeros(inputs.shape, inputs.dtype)
         mode = ctype_border_mode('valid')
-        ops.rank_filter(inputs_pad, footprint, output2, rank_median, offset, mode, 0)
+        c_pycv.rank_filter(inputs_pad, footprint, output2, rank_median, offset, mode, 0)
 
         assert_array_almost_equal(output1, output2)
 
 
+########################################################################################################################
 
-class TestMorphology_C(object):
+class TestMorphology(TestModule):
+    def __init__(self):
+        super().__init__('Morphology')
+
     def test_erosion_dilation01(self):
         inputs = np.array(
             [[0, 0, 0, 0, 0],
@@ -204,11 +241,11 @@ class TestMorphology_C(object):
         output = np.zeros(inputs.shape, bool)
         offset = tuple(s // 2 for s in strel.shape)
 
-        ops.binary_erosion(inputs, strel, output, offset, 1, None, 0)
+        c_pycv.binary_erosion(inputs, strel, output, offset, 1, None, 0, 0)
         assert_array_almost_equal(expected, output)
 
         output = np.zeros(inputs.shape, bool)
-        ops.binary_erosion(expected, strel, output, offset, 1, None, 1)
+        c_pycv.binary_erosion(expected, strel, output, offset, 1, None, 1, 0)
         assert_array_almost_equal(inputs, output)
 
     def test_erosion_dilation02(self):
@@ -244,11 +281,11 @@ class TestMorphology_C(object):
         output = np.zeros(inputs.shape, bool)
         offset = tuple(s // 2 for s in strel.shape)
 
-        ops.binary_erosion(inputs, strel, output, offset, 1, mask, 0)
+        c_pycv.binary_erosion(inputs, strel, output, offset, 1, mask, 0, 0)
         assert_array_almost_equal(expected, output)
 
         output = np.zeros(inputs.shape, bool)
-        ops.binary_erosion(expected, strel, output, offset, 1, mask, 1)
+        c_pycv.binary_erosion(expected, strel, output, offset, 1, mask, 1, 0)
         assert_array_almost_equal(inputs, output)
 
     def test_binary_region_fill01(self):
@@ -267,7 +304,7 @@ class TestMorphology_C(object):
 
         offset = tuple(s // 2 for s in strel.shape)
 
-        ops.binary_region_fill(inputs, strel, (2, 2), offset)
+        c_pycv.binary_region_fill(inputs, (2, 2), strel, offset)
         assert_array_almost_equal(inputs, expected)
 
     def test_gray_erosion01(self):
@@ -294,7 +331,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.erosion(inputs, strel, None, output, offset, None, 0)
+        c_pycv.gray_erosion_dilation(inputs, strel, None, output, offset, None, 0, 0)
         assert_array_almost_equal(output, expected)
 
     def test_gray_erosion02(self):
@@ -322,7 +359,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.erosion(inputs, flat_strel, non_flat_strel, output, offset, None, 0)
+        c_pycv.gray_erosion_dilation(inputs, flat_strel, non_flat_strel, output, offset, None, 0, 0)
         assert_array_almost_equal(output, expected)
 
     def test_gray_erosion03(self):
@@ -359,7 +396,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.erosion(inputs, flat_strel, non_flat_strel, output, offset, mask, 0)
+        c_pycv.gray_erosion_dilation(inputs, flat_strel, non_flat_strel, output, offset, mask, 0, 0)
         assert_array_almost_equal(output, expected)
 
     def test_gray_dilation01(self):
@@ -386,7 +423,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.dilation(inputs, strel, None, output, offset, None, 255)
+        c_pycv.gray_erosion_dilation(inputs, strel, None, output, offset, None, 1, 0)
         assert_array_almost_equal(output, expected)
 
     def test_gray_dilation02(self):
@@ -414,7 +451,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.dilation(inputs, flat_strel, non_flat_strel, output, offset, None, 255)
+        c_pycv.gray_erosion_dilation(inputs, flat_strel, non_flat_strel, output, offset, None, 1, 0)
         assert_array_almost_equal(output, expected)
 
     def test_gray_dilation03(self):
@@ -451,7 +488,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.dilation(inputs, flat_strel, non_flat_strel, output, offset, mask, 255)
+        c_pycv.gray_erosion_dilation(inputs, flat_strel, non_flat_strel, output, offset, mask, 1, 0)
         assert_array_almost_equal(output, expected)
 
     def test_binary_labeling01(self):
@@ -489,7 +526,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.labeling(inputs, connectivity, None, output, 1)
+        c_pycv.labeling(inputs, connectivity, output, 0)
 
         assert_array_almost_equal(output, expected)
 
@@ -528,7 +565,7 @@ class TestMorphology_C(object):
             dtype=np.uint8
         )
 
-        ops.labeling(inputs, connectivity, None, output, 1)
+        c_pycv.labeling(inputs, connectivity, output, 0)
 
         assert_array_almost_equal(output, expected)
 
@@ -567,7 +604,9 @@ class TestMorphology_C(object):
              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
             dtype=np.uint8
         )
-
-        ops.labeling(inputs, connectivity, values_map, output, 1)
-
+        inputs = values_map[inputs]
+        c_pycv.labeling(inputs, connectivity, output, 0)
         assert_array_almost_equal(output, expected)
+
+
+########################################################################################################################

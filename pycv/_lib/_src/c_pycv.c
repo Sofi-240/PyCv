@@ -8,6 +8,7 @@
 #include "c_pycv_maxtree.h"
 #include "c_pycv_draw.h"
 #include "c_pycv_convexhull.h"
+#include "c_pycv_features.h"
 
 // #####################################################################################################################
 
@@ -305,15 +306,14 @@ PyObject* binary_region_fill(PyObject* self, PyObject* args)
 PyObject* labeling(PyObject* self, PyObject* args)
 {
     PyArrayObject *output = NULL, *input = NULL;
-    int connectivity, label_by_index;
+    int connectivity;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&iO&i",
+            "O&iO&",
             InputToArray, &input,
             &connectivity,
-            OutputToArray, &output,
-            &label_by_index)) {
+            OutputToArray, &output)) {
         goto exit;
     }
 
@@ -327,7 +327,7 @@ PyObject* labeling(PyObject* self, PyObject* args)
         goto exit;
     }
 
-    PYCV_labeling(input, connectivity, output, label_by_index);
+    PYCV_labeling(input, connectivity, output);
 
     PyArray_ResolveWritebackIfCopy(output);
 
@@ -845,6 +845,33 @@ PyObject* convex_hull(PyObject* self, PyObject* args)
 // #####################################################################################################################
 
 
+PyObject* integral_image(PyObject* self, PyObject* args)
+{
+    PyArrayObject *output = NULL;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&",
+            OutputToArray, &output)) {
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+
+    PYCV_integral_image(output);
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(output);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+// #####################################################################################################################
+
+
 static PyMethodDef methods[] = {
     {
         "convolve",
@@ -939,6 +966,12 @@ static PyMethodDef methods[] = {
     {
         "convex_hull",
         (PyCFunction)convex_hull,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "integral_image",
+        (PyCFunction)integral_image,
         METH_VARARGS,
         NULL
     },

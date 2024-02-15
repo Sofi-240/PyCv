@@ -14,6 +14,7 @@ __all__ = [
     'skeletonize',
     'area_open_close',
     'remove_small_objects',
+    'hit_or_miss'
 ]
 
 
@@ -220,7 +221,7 @@ def labeling(
 
     output = np.zeros(inputs.shape, np.int64)
 
-    c_pycv.labeling(inputs, connectivity, output, 0)
+    c_pycv.labeling(inputs, connectivity, output)
 
     return np.max(output), output
 
@@ -313,3 +314,73 @@ def remove_small_objects(
     output[labels_bool] = np.max(image)
 
     return output
+
+
+########################################################################################################################
+
+def hit_or_miss(
+        image: np.ndarray,
+        strel1: np.ndarray | None = None,
+        strel2: np.ndarray | None = None,
+        offset1: tuple | None = None,
+        offset2: tuple | None = None,
+        mask: np.ndarray | None = None,
+        output: np.ndarray | None = None,
+        border_val: int = 0
+) -> np.ndarray | None:
+    image = np.asarray(image)
+    image = np_compliance(image, 'image', _check_finite=True)
+    ndim = image.ndim
+
+    if image.dtype != bool:
+        image = as_binary_array(image, 'Image')
+
+    strel1, offset1 = default_strel(strel1, ndim, offset=offset1)
+
+    if strel1.dtype != bool:
+        strel1 = as_binary_array(strel1, 'strel1')
+
+    if strel2 is None:
+        strel2 = np.logical_not(strel1)
+        offset2 = offset1
+
+    strel2, offset2 = default_strel(strel2, ndim, offset=offset2)
+
+    if strel2.dtype != bool:
+        strel2 = as_binary_array(strel2, 'strel2')
+
+    valid_kernel_shape_with_ref(strel1.shape, image.shape)
+    valid_kernel_shape_with_ref(strel2.shape, image.shape)
+
+    input_output = output is not None
+    output, share_memory = get_output(output, image, image.shape)
+
+    hold_output = None
+    if share_memory:
+        hold_output = output
+        output, _ = get_output(hold_output.dtype, image, image.shape)
+
+    if mask is not None:
+        if not isinstance(mask, np.ndarray):
+            raise TypeError(f'mask need to be type of numpy.ndarray')
+
+        if mask.dtype != bool:
+            raise ValueError(f'mask need to have boolean dtype')
+
+        if mask.shape != image.shape:
+            raise ValueError(f'image and mask shape does not match {image.shape} != {mask.shape}')
+
+    if np.all(image == 0):
+        output[...] = 0
+    else:
+        tmp, _ = get_output(output.dtype, image, image.shape)
+        c_pycv.binary_erosion(image, strel1, tmp, offset1, 1, mask, 0, border_val)
+        c_pycv.binary_erosion(image, strel2, output, offset2, 1, mask, 0, border_val)
+        np.logical_not(output, output)
+        np.logical_and(tmp, output, output)
+
+    if share_memory:
+        hold_output[...] = output
+        output = hold_output
+
+    return None if input_output else output
