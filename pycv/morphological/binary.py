@@ -21,12 +21,13 @@ def binary_erosion(
         image: np.ndarray,
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
-        iterations: int = 1,  # TODO: iterations
+        iterations: int = 1,
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None,
-        border_val: int = 0
+        border_val: int = 0,
+        extra_memory: bool = True
 ) -> np.ndarray:
-    ret = pycv_morphology.binary_erosion(image, strel, offset, iterations, mask, output, 0, border_val)
+    ret = pycv_morphology.binary_erosion(image, strel, offset, iterations, mask, output, 0, border_val, extra_memory)
     return output if ret is None else ret
 
 
@@ -34,12 +35,13 @@ def binary_dilation(
         image: np.ndarray,
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
-        iterations: int = 1,  # TODO: iterations
+        iterations: int = 1,
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None,
-        border_val: int = 0
+        border_val: int = 0,
+        extra_memory: bool = True
 ) -> np.ndarray:
-    ret = pycv_morphology.binary_erosion(image, strel, offset, iterations, mask, output, 1, border_val)
+    ret = pycv_morphology.binary_erosion(image, strel, offset, iterations, mask, output, 1, border_val, extra_memory)
     return output if ret is None else ret
 
 

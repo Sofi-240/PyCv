@@ -14,10 +14,18 @@ int PYCV_binary_erosion(PyArrayObject *input,
                         PyArrayObject *strel,
                         PyArrayObject *output,
                         npy_intp *center,
-                        int iterations,
                         PyArrayObject *mask,
                         PYCV_MorphOP op,
                         int c_val);
+
+int PYCV_binary_erosion_iter(PyArrayObject *input,
+                             PyArrayObject *strel,
+                             PyArrayObject *output,
+                             npy_intp *center,
+                             npy_intp iterations,
+                             PyArrayObject *mask,
+                             PYCV_MorphOP op,
+                             int c_val);
 
 // #####################################################################################################################
 

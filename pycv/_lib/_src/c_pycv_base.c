@@ -366,7 +366,7 @@ int PYCV_InitNeighborhoodOffsets(PyArrayObject *array,
 // #####################################################################################################################
 
 
-int PYCV_AllocateToFootprint(PyArrayObject *array, npy_bool **footprint, npy_intp *nonzero)
+int PYCV_AllocateToFootprint(PyArrayObject *array, npy_bool **footprint, npy_intp *nonzero, int flip)
 {
     PYCV_ArrayIterator iter;
     npy_intp ndim, array_size, n = 0;
@@ -389,10 +389,14 @@ int PYCV_AllocateToFootprint(PyArrayObject *array, npy_bool **footprint, npy_int
     }
     fpo = *footprint;
 
-    for (ii = 0; ii < array_size; ii++) {
+    for (ii = array_size - 1; ii >= 0; ii--) {
         PYCV_GET_VALUE(num_type, npy_bool, pi, out);
         n += (out ? 1 : 0);
-        *fpo++ = out;
+        if (flip) {
+            fpo[ii] = out;
+        } else {
+            *fpo++ = out;
+        }
         PYCV_ARRAY_ITERATOR_NEXT(iter, pi);
     }
     *nonzero = n;
@@ -528,7 +532,6 @@ int PYCV_DefaultFootprint(npy_intp ndim,
             return 1;
         }
 }
-
 
 
 // #####################################################################################################################

@@ -216,7 +216,7 @@ int PYCV_rank_filter(PyArrayObject *input,
 
     array_size = PyArray_SIZE(input);
 
-    if (!PYCV_AllocateToFootprint(footprint, &fp, &f_size)) {
+    if (!PYCV_AllocateToFootprint(footprint, &fp, &f_size, 0)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_AllocateToFootprint \n");
         goto exit;
     }

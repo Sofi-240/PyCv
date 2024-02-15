@@ -70,13 +70,12 @@ break
     }                                                                                                                  \
 }
 
-// #####################################################################################################################
+// *********************************************************************************************************************
 
 int PYCV_binary_erosion(PyArrayObject *input,
                         PyArrayObject *strel,
                         PyArrayObject *output,
                         npy_intp *center,
-                        int iterations,
                         PyArrayObject *mask,
                         PYCV_MorphOP op,
                         int c_val)
@@ -92,7 +91,7 @@ int PYCV_binary_erosion(PyArrayObject *input,
 
     array_size = PyArray_SIZE(input);
 
-    if (!PYCV_AllocateToFootprint(strel, &footprint, &f_size)) {
+    if (!PYCV_AllocateToFootprint(strel, &footprint, &f_size, 1)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_AllocateToFootprint \n");
         goto exit;
     }
@@ -141,6 +140,7 @@ int PYCV_binary_erosion(PyArrayObject *input,
             PYCV_NEIGHBORHOOD_ITERATOR_NEXT2(iter_i, pi, iter_o, po, ff);
         }
     }
+
     NPY_END_THREADS;
     exit:
         free(offsets);
@@ -148,8 +148,149 @@ int PYCV_binary_erosion(PyArrayObject *input,
         return PyErr_Occurred() ? 0 : 1;
 }
 
-// #####################################################################################################################
+// *********************************************************************************************************************
 
+int PYCV_binary_erosion_iter(PyArrayObject *input,
+                             PyArrayObject *strel,
+                             PyArrayObject *output,
+                             npy_intp *center,
+                             npy_intp iterations,
+                             PyArrayObject *mask,
+                             PYCV_MorphOP op,
+                             int c_val)
+{
+    PYCV_ArrayIterator iter_m, iter_o;
+    NeighborhoodIterator iter_c;
+    PyArrayObject *array_change;
+    char *ma_base = NULL, *ma = NULL, *po_base = NULL, *po = NULL, *pc_base = NULL, *pc = NULL;
+    npy_bool *footprint;
+    int num_type_o, num_type_m, out_val, ma_val = 1, op_true = 1, op_false = 0;
+    npy_intp array_size, ii, jj, flag, f_size, *offsets, *ff;
+    npy_intp *stack, stack_end = 0, stack_prev, stack_stride, *stack_run, *stack_fill;
+
+
+    array_change = (PyArrayObject *)PyArray_NewLikeArray(output, NPY_KEEPORDER, NULL, 1);
+    if (PyArray_CopyInto(array_change, input)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: PyArray_CopyInto \n");
+        goto exit;
+    }
+
+    array_size = PyArray_SIZE(output);
+    stack_stride = PyArray_NDIM(output);
+
+    if (!PYCV_AllocateToFootprint(strel, &footprint, &f_size, 1)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_AllocateToFootprint \n");
+        goto exit;
+    }
+
+    PYCV_NeighborhoodIteratorInit(array_change, PyArray_DIMS(strel), center, f_size, &iter_c);
+    PYCV_ArrayIteratorInit(output, &iter_o);
+
+    if (!PYCV_InitNeighborhoodOffsets(array_change, PyArray_DIMS(strel), center, footprint, &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InitNeighborhoodOffsets \n");
+        goto exit;
+    }
+
+    num_type_o = PyArray_TYPE(output);
+    if (mask) {
+        num_type_m = PyArray_TYPE(mask);
+        PYCV_ArrayIteratorInit(mask, &iter_m);
+    }
+
+    if (op == PYCV_MORPH_OP_DIL) {
+        op_true = 0;
+        op_false = 1;
+    }
+
+    stack = malloc(array_size * stack_stride * sizeof(npy_intp));
+    if (!stack) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    stack_fill = stack;
+
+    po_base = po = (void *)PyArray_DATA(output);
+    pc_base = pc = (void *)PyArray_DATA(array_change);
+
+    if (mask) {
+        ma_base = ma = (void *)PyArray_DATA(mask);
+    }
+    ff = offsets;
+
+    for (ii = 0; ii < array_size; ii++) {
+        if (mask) {
+            PYCV_M_MASK_VALUE(num_type_m, ma, ma_val);
+        }
+
+        PYCV_M_BINARY_EROSION(num_type_o, ma_val, pc, f_size, flag, ff, out_val, c_val, op_true, op_false);
+        if (!op_true) {
+            out_val = out_val ? 0 : 1;
+        }
+        PYCV_SET_VALUE(num_type_o, po, out_val);
+
+        if ((op_true && out_val) || (!op_true && !out_val)) {
+            for (jj = 0; jj < stack_stride; jj++) {
+                *stack_fill++ = iter_c.coordinates[jj];
+            }
+            stack_end++;
+        }
+
+        if (mask) {
+            PYCV_NEIGHBORHOOD_ITERATOR_NEXT3(iter_c, pc, iter_o, po, iter_m, ma, ff);
+        } else {
+            PYCV_NEIGHBORHOOD_ITERATOR_NEXT2(iter_c, pc, iter_o, po, ff);
+        }
+    }
+    iterations--;
+
+    if (PyArray_CopyInto(array_change, output)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: PyArray_CopyInto \n");
+        goto exit;
+    }
+
+    while (iterations && stack_end) {
+        stack_run = stack_fill = stack;
+        stack_prev = stack_end;
+        stack_end = 0;
+
+        for (ii = 0; ii < stack_prev; ii++) {
+            if (mask) {
+                PYCV_NEIGHBORHOOD_ITERATOR_GOTO3(iter_c, pc_base, pc, iter_o, po_base, po, iter_m, ma_base, ma, offsets, ff, stack_run);
+                PYCV_M_MASK_VALUE(num_type_m, ma, ma_val);
+            } else {
+                PYCV_NEIGHBORHOOD_ITERATOR_GOTO2(iter_c, pc_base, pc, iter_o, po_base, po, offsets, ff, stack_run);
+            }
+
+            PYCV_M_BINARY_EROSION(num_type_o, ma_val, pc, f_size, flag, ff, out_val, c_val, op_true, op_false);
+            if (!op_true) {
+                out_val = out_val ? 0 : 1;
+            }
+
+            PYCV_SET_VALUE(num_type_o, po, out_val);
+
+            if ((op_true && out_val) || (!op_true && !out_val)) {
+                for (jj = 0; jj < stack_stride; jj++) {
+                    *stack_fill++ = iter_c.coordinates[jj];
+                }
+                stack_end++;
+            }
+            stack_run += stack_stride;
+        }
+        iterations--;
+        if (PyArray_CopyInto(array_change, output)) {
+            PyErr_SetString(PyExc_RuntimeError, "Error: PyArray_CopyInto \n");
+            goto exit;
+        }
+    }
+
+    exit:
+        free(offsets);
+        free(footprint);
+        free(stack);
+        return PyErr_Occurred() ? 0 : 1;
+}
+
+// #####################################################################################################################
 
 #define PYCV_M_CASE_GRAY_EROSION_DILATION(_NTYPE, _dtype, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val)     \
 case NPY_##_NTYPE:                                                                                                     \
@@ -200,6 +341,7 @@ break
     }                                                                                                                  \
 }
 
+// *********************************************************************************************************************
 
 int PYCV_gray_erosion_dilation(PyArrayObject *input,
                                PyArrayObject *flat_strel,
@@ -301,7 +443,6 @@ int PYCV_gray_erosion_dilation(PyArrayObject *input,
         return PyErr_Occurred() ? 0 : 1;
 }
 
-
 // #####################################################################################################################
 
 #define PYCV_M_CASE_FILL_IF_ZERO(_NTYPE, _dtype, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn)                  \
@@ -353,6 +494,8 @@ break
     }                                                                                                                  \
 }
 
+// *********************************************************************************************************************
+
 int PYCV_binary_region_fill(PyArrayObject *output,
                             npy_intp *seed_point,
                             PyArrayObject *strel,
@@ -369,7 +512,7 @@ int PYCV_binary_region_fill(PyArrayObject *output,
 
     array_size = PyArray_SIZE(output);
 
-    if (!PYCV_AllocateToFootprint(strel, &footprint, &f_size)) {
+    if (!PYCV_AllocateToFootprint(strel, &footprint, &f_size, 0)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_AllocateToFootprint \n");
         goto exit;
     }
@@ -431,7 +574,7 @@ int PYCV_labeling(PyArrayObject *input,
     int num_type_o, num_type_i;
     npy_intp itemsize_o;
     npy_bool *footprint;
-    npy_intp ndim, array_size, f_size, f_shape[NPY_MAXDIMS], f_center[NPY_MAXDIMS], *offsets, *ff, flag, offset_p;
+    npy_intp ndim, array_size, f_size, f_shape[NPY_MAXDIMS], f_center[NPY_MAXDIMS], *offsets, *ff, flag;
     npy_intp *buffer, *fix, *labels, ii, jj, b_size, ln, lp, lc, n_labels = 1, vo;
     npy_bool vi;
 
@@ -716,6 +859,8 @@ break
         PYCV_M_CASE_SKELETON_GET_LUV(DOUBLE, npy_double, _sk_lut, _offsets, _pointer_s, _pointer_o, _step_n, _out);    \
     }                                                                                                                  \
 }
+
+// *********************************************************************************************************************
 
 PyArrayObject *PYCV_skeletonize(PyArrayObject *input)
 {

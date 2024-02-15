@@ -19,7 +19,7 @@ __all__ = [
 
 
 ########################################################################################################################
-# TODO: FLIP!!!!
+
 def default_strel(
         strel: np.ndarray | None,
         nd: int,
@@ -47,7 +47,8 @@ def binary_erosion(
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None,
         invert: bool | int = False,
-        border_val: int = 0
+        border_val: int = 0,
+        extra_memory: bool = True
 ) -> np.ndarray | None:
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)
@@ -85,8 +86,20 @@ def binary_erosion(
 
     if np.all(image == 0):
         output[...] = 0
+    elif iterations == 1:
+        c_pycv.binary_erosion(image, strel, output, offset, mask, int(invert), border_val)
     else:
-        c_pycv.binary_erosion(image, strel, output, offset, iterations, mask, int(invert), border_val)
+        center_zero = strel[offset] == 0
+        if center_zero or not extra_memory:
+            inp = image.copy()
+            change = True
+            while iterations > 0 and change:
+                c_pycv.binary_erosion(inp, strel, output, offset, mask, int(invert), border_val)
+                change = np.any(inp != output)
+                inp[...] = output
+                iterations -= 1
+        else:
+            c_pycv.binary_erosion_iter(image, strel, output, offset, iterations, mask, int(invert), border_val)
 
     if share_memory:
         hold_output[...] = output
@@ -263,7 +276,7 @@ def area_open_close(
     else:
         image_op = image.copy()
 
-    traverser = np.zeros((image_op.size, ), np.int64)
+    traverser = np.zeros((image_op.size,), np.int64)
     parent = np.zeros(image_op.shape, np.int64)
     c_pycv.build_max_tree(image_op, traverser, parent, connectivity)
 
@@ -374,8 +387,8 @@ def hit_or_miss(
         output[...] = 0
     else:
         tmp, _ = get_output(output.dtype, image, image.shape)
-        c_pycv.binary_erosion(image, strel1, tmp, offset1, 1, mask, 0, border_val)
-        c_pycv.binary_erosion(image, strel2, output, offset2, 1, mask, 0, border_val)
+        c_pycv.binary_erosion(image, strel1, tmp, offset1, mask, 0, border_val)
+        c_pycv.binary_erosion(image, strel2, output, offset2, mask, 0, border_val)
         np.logical_not(output, output)
         np.logical_and(tmp, output, output)
 

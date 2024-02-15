@@ -426,6 +426,59 @@ void PYCV_NeighborhoodIteratorInit(PyArrayObject *array,
     }                                                                                                                  \
 }
 
+#define PYCV_NEIGHBORHOOD_ITERATOR_GOTO2(_iterator1, _pointer1_base, _pointer1,                                        \
+                                         _iterator2, _pointer2_base, _pointer2,                                        \
+                                         _offsets_base, _offsets, _coordinates)                                        \
+{                                                                                                                      \
+    npy_intp _ii;                                                                                                      \
+    _pointer1 = _pointer1_base;                                                                                        \
+    _pointer2 = _pointer2_base;                                                                                        \
+    _offsets = _offsets_base;                                                                                          \
+    for (_ii = 0; _ii <= (_iterator1.nd_m1); _ii++) {                                                                  \
+        _pointer1 += _coordinates[_ii] * (_iterator1).strides[_ii];                                                    \
+        (_iterator1).coordinates[_ii] = _coordinates[_ii];                                                             \
+        _pointer2 += _coordinates[_ii] * (_iterator2).strides[_ii];                                                    \
+        (_iterator2).coordinates[_ii] = _coordinates[_ii];                                                             \
+        if ((_iterator1).coordinates[_ii] < (_iterator1).boundary_low[_ii]) {                                          \
+            _offsets += (_iterator1).nn_strides[_ii] * _coordinates[_ii];                                              \
+        } else if ((_iterator1).coordinates[_ii] > (_iterator1).boundary_high[_ii] &&                                  \
+                   (_iterator1).boundary_high[_ii] >= (_iterator1).boundary_low[_ii]) {                                \
+            _offsets += (_iterator1).nn_strides[_ii] *                                                                 \
+                        (_coordinates[_ii] + (_iterator1).boundary_low[_ii] - (_iterator1).boundary_high[_ii]);        \
+        } else {                                                                                                       \
+            _offsets += (_iterator1).nn_strides[_ii] * (_iterator1).boundary_low[_ii];                                 \
+        }                                                                                                              \
+    }                                                                                                                  \
+}
+
+#define PYCV_NEIGHBORHOOD_ITERATOR_GOTO3(_iterator1, _pointer1_base, _pointer1,                                        \
+                                         _iterator2, _pointer2_base, _pointer2,                                        \
+                                         _iterator3, _pointer3_base, _pointer3,                                        \
+                                         _offsets_base, _offsets, _coordinates)                                        \
+{                                                                                                                      \
+    npy_intp _ii;                                                                                                      \
+    _pointer1 = _pointer1_base;                                                                                        \
+    _pointer2 = _pointer2_base;                                                                                        \
+    _pointer3 = _pointer3_base;                                                                                        \
+    _offsets = _offsets_base;                                                                                          \
+    for (_ii = 0; _ii <= (_iterator1.nd_m1); _ii++) {                                                                  \
+        _pointer1 += _coordinates[_ii] * (_iterator1).strides[_ii];                                                    \
+        (_iterator1).coordinates[_ii] = _coordinates[_ii];                                                             \
+        _pointer2 += _coordinates[_ii] * (_iterator2).strides[_ii];                                                    \
+        (_iterator2).coordinates[_ii] = _coordinates[_ii];                                                             \
+        _pointer3 += _coordinates[_ii] * (_iterator3).strides[_ii];                                                    \
+        (_iterator3).coordinates[_ii] = _coordinates[_ii];                                                             \
+        if ((_iterator1).coordinates[_ii] < (_iterator1).boundary_low[_ii]) {                                          \
+            _offsets += (_iterator1).nn_strides[_ii] * _coordinates[_ii];                                              \
+        } else if ((_iterator1).coordinates[_ii] > (_iterator1).boundary_high[_ii] &&                                  \
+                   (_iterator1).boundary_high[_ii] >= (_iterator1).boundary_low[_ii]) {                                \
+            _offsets += (_iterator1).nn_strides[_ii] *                                                                 \
+                        (_coordinates[_ii] + (_iterator1).boundary_low[_ii] - (_iterator1).boundary_high[_ii]);        \
+        } else {                                                                                                       \
+            _offsets += (_iterator1).nn_strides[_ii] * (_iterator1).boundary_low[_ii];                                 \
+        }                                                                                                              \
+    }                                                                                                                  \
+}
 
 // #####################################################################################################################
 
@@ -441,7 +494,7 @@ int PYCV_InitNeighborhoodOffsets(PyArrayObject *array,
 
 // #####################################################################################################################
 
-int PYCV_AllocateToFootprint(PyArrayObject *array, npy_bool **footprint, npy_intp *nonzero);
+int PYCV_AllocateToFootprint(PyArrayObject *array, npy_bool **footprint, npy_intp *nonzero, int flip);
 
 int PYCV_AllocateKernelFlip(PyArrayObject *kernel, npy_bool **footprint, npy_double **h);
 

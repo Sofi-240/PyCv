@@ -146,6 +146,60 @@ PyObject* binary_erosion(PyObject* self, PyObject* args)
 {
     PyArrayObject *input = NULL, *strel = NULL, *output = NULL, *mask = NULL;
     PyArray_Dims center = {NULL, 0};
+    int op, c_val;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&O&O&O&ii",
+            InputToArray, &input,
+            InputToArray, &strel,
+            OutputToArray, &output,
+            PyArray_IntpConverter, &center,
+            InputOptionalToArray, &mask,
+            &op, &c_val)) {
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(strel))) {
+        PyErr_SetString(PyExc_RuntimeError, "strel dtype not supported");
+        goto exit;
+    }
+
+    if (mask && !PYCV_valid_dtype(PyArray_TYPE(mask))) {
+        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
+        goto exit;
+    }
+
+
+    PYCV_binary_erosion(input, strel, output, center.ptr, mask, (PYCV_MorphOP)op, c_val);
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(strel);
+        Py_XDECREF(output);
+        PyDimMem_FREE(center.ptr);
+        if (mask) {
+            Py_XDECREF(mask);
+        }
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+PyObject* binary_erosion_iter(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *strel = NULL, *output = NULL, *mask = NULL;
+    PyArray_Dims center = {NULL, 0};
     int iterations, op, c_val;
 
     if (!PyArg_ParseTuple(
@@ -182,7 +236,7 @@ PyObject* binary_erosion(PyObject* self, PyObject* args)
     }
 
 
-    PYCV_binary_erosion(input, strel, output, center.ptr, iterations, mask, (PYCV_MorphOP)op, c_val);
+    PYCV_binary_erosion_iter(input, strel, output, center.ptr, (npy_intp)iterations, mask, (PYCV_MorphOP)op, c_val);
 
     PyArray_ResolveWritebackIfCopy(output);
 
@@ -888,6 +942,12 @@ static PyMethodDef methods[] = {
     {
         "binary_erosion",
         (PyCFunction)binary_erosion,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "binary_erosion_iter",
+        (PyCFunction)binary_erosion_iter,
         METH_VARARGS,
         NULL
     },
