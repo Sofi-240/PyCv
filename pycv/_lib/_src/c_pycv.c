@@ -896,6 +896,37 @@ PyObject* convex_hull(PyObject* self, PyObject* args)
         return convex_hull ? (PyObject *)convex_hull : NULL;
 }
 
+PyObject* convex_hull_image(PyObject* self, PyObject* args)
+{
+    PyArrayObject *output = NULL, *convex_hull = NULL;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&",
+            OutputToArray, &output,
+            InputToArray, &convex_hull)) {
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+    if (!PYCV_valid_dtype(PyArray_TYPE(convex_hull))) {
+        PyErr_SetString(PyExc_RuntimeError, "convex_hull dtype not supported");
+        goto exit;
+    }
+
+    PYCV_convex_hull_image(output, convex_hull);
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(output);
+        Py_XDECREF(convex_hull);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
 // #####################################################################################################################
 
 
@@ -1026,6 +1057,12 @@ static PyMethodDef methods[] = {
     {
         "convex_hull",
         (PyCFunction)convex_hull,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "convex_hull_image",
+        (PyCFunction)convex_hull_image,
         METH_VARARGS,
         NULL
     },

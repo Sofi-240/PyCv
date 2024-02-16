@@ -337,9 +337,14 @@ PyArrayObject *PYCV_graham_scan_convex_hull(PyArrayObject *input,
     }
 
     if (points.points_size < 3) {
-        PyErr_SetString(PyExc_RuntimeError, "Convex hull is empty \n");
         PYCV_HullPointsFree(&points);
-        return NULL;
+        convex_dims[0] = 0;
+        convex_hull = (PyArrayObject *)PyArray_EMPTY(2, convex_dims, NPY_INT64, 0);
+        if (!convex_hull) {
+            PyErr_SetString(PyExc_RuntimeError, "Error: creating array \n");
+            return NULL;
+        }
+        return convex_hull;
     }
 
     if (points_array) {
@@ -454,9 +459,14 @@ PyArrayObject *PYCV_jarvis_march_convex_hull(PyArrayObject *input,
     }
 
     if (points.points_size < 3) {
-        PyErr_SetString(PyExc_RuntimeError, "Convex hull is empty \n");
         PYCV_HullPointsFree(&points);
-        return NULL;
+        convex_dims[0] = 0;
+        convex_hull = (PyArrayObject *)PyArray_EMPTY(2, convex_dims, NPY_INT64, 0);
+        if (!convex_hull) {
+            PyErr_SetString(PyExc_RuntimeError, "Error: creating array \n");
+            return NULL;
+        }
+        return convex_hull;
     }
 
     if (points_array) {
@@ -519,8 +529,26 @@ PyArrayObject *PYCV_jarvis_march_convex_hull(PyArrayObject *input,
 
 // #####################################################################################################################
 
+int PYCV_convex_hull_image(PyArrayObject *output, PyArrayObject *convex_hull)
+{
+    PYCV_HullPoints points;
 
+    points = PYCV_HullPoints_AllocateFromPointsArray(convex_hull);
+    if (points.points_size < 0) {
+        PyErr_NoMemory();
+        return 0;
+    }
+    if (PyArray_NDIM(output) != 2 || points.ndim != 2) {
+        PyErr_SetString(PyExc_RuntimeError, "ndim need to be 2 \n");
+        goto exit;
+    }
+    PYCV_hull_to_output_array(points.points, points.points_size, 2, output);
+    exit:
+        PYCV_HullPointsFree(&points);
+        return PyErr_Occurred() ? 0 : 1;
+}
 
+// #####################################################################################################################
 
 
 

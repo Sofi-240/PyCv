@@ -10,7 +10,8 @@ __all__ = [
     'skeletonize',
     'remove_small_objects',
     'remove_small_holes',
-    'hit_or_miss'
+    'binary_hit_or_miss',
+    'binary_fill_holes'
 ]
 
 
@@ -89,9 +90,9 @@ def binary_edge(
     dil = None
     ero = None
 
-    if supported_mode != 'inner':
+    if edge_mode != 'inner':
         dil = pycv_morphology.binary_erosion(image, strel, offset, 1, mask, None, 1, border_val)
-    if supported_mode != 'outer':
+    if edge_mode != 'outer':
         ero = pycv_morphology.binary_erosion(image, strel, offset, 1, mask, None, 0, border_val)
 
     if output is None:
@@ -134,7 +135,7 @@ def remove_small_holes(
 
 ########################################################################################################################
 
-def hit_or_miss(
+def binary_hit_or_miss(
         image: np.ndarray,
         strel1: np.ndarray | None = None,
         strel2: np.ndarray | None = None,
@@ -144,8 +145,28 @@ def hit_or_miss(
         output: np.ndarray | None = None,
         border_val: int = 0
 ) -> np.ndarray:
-    ret = pycv_morphology.hit_or_miss(image, strel1, strel2, offset1, offset2, mask, output, border_val)
+    ret = pycv_morphology.binary_hit_or_miss(image, strel1, strel2, offset1, offset2, mask, output, border_val)
     return output if ret is None else ret
 
+
+########################################################################################################################
+
+def binary_fill_holes(
+        image: np.ndarray,
+        strel: np.ndarray | None = None,
+        offset: tuple | None = None,
+        output: np.ndarray | None = None,
+        extra_memory: bool = True
+) -> np.ndarray:
+    inputs = np.zeros_like(image)
+    inputs_mask = image == 0
+
+    ret = pycv_morphology.binary_erosion(inputs, strel, offset, -1, inputs_mask, output, 1, 1, extra_memory)
+    if ret is None:
+        out = output
+    else:
+        out = ret
+    np.logical_not(out, out)
+    return out
 
 ########################################################################################################################

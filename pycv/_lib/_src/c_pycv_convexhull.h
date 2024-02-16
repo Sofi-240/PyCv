@@ -61,5 +61,9 @@ PyArrayObject *PYCV_jarvis_march_convex_hull(PyArrayObject *input,
 
 // #####################################################################################################################
 
+int PYCV_convex_hull_image(PyArrayObject *output, PyArrayObject *convex_hull);
+
+// #####################################################################################################################
+
 
 #endif

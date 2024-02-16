@@ -150,6 +150,65 @@ int PYCV_binary_erosion(PyArrayObject *input,
 
 // *********************************************************************************************************************
 
+#define PYCV_M_CASE_BINARY_EROSION_ITER(_NTYPE, _dtype,                                                                \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change)    \
+case NPY_##_NTYPE:                                                                                                     \
+{                                                                                                                      \
+    npy_intp _ii;                                                                                                      \
+    int prv_pxl;                                                                                                       \
+    _out = *(_dtype *)_x ? _t_val : _f_val;                                                                            \
+    prv_pxl = (int)_out;                                                                                               \
+    if (_ma_val) {                                                                                                     \
+        for (_ii = 0; _ii < _n; _ii++) {                                                                               \
+            if (_offsets[_ii] == _flag) {                                                                              \
+                _out = _c_val ? _t_val : _f_val;                                                                       \
+            } else {                                                                                                   \
+                _out = *(_dtype *)(_x + _offsets[_ii]) ? _t_val : _f_val;                                              \
+            }                                                                                                          \
+            if (!_out) {                                                                                               \
+                break;                                                                                                 \
+            }                                                                                                          \
+        }                                                                                                              \
+    }                                                                                                                  \
+    _px_change = (int)_out == prv_pxl ? 0 : 1;                                                                         \
+}                                                                                                                      \
+break
+
+#define PYCV_M_BINARY_EROSION_ITER(_NTYPE, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change) \
+{                                                                                                                      \
+    switch (_NTYPE) {                                                                                                  \
+        PYCV_M_CASE_BINARY_EROSION_ITER(BOOL, npy_bool,                                                                \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(UBYTE, npy_ubyte,                                                              \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(USHORT, npy_ushort,                                                            \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(UINT, npy_uint,                                                                \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(ULONG, npy_ulong,                                                              \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(ULONGLONG, npy_ulonglong,                                                      \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(BYTE, npy_byte,                                                                \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(SHORT, npy_short,                                                              \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(INT, npy_int,                                                                  \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(LONG, npy_long,                                                                \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(LONGLONG, npy_longlong,                                                        \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(FLOAT, npy_float,                                                              \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+        PYCV_M_CASE_BINARY_EROSION_ITER(DOUBLE, npy_double,                                                            \
+                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
+    }                                                                                                                  \
+}
+
+// *********************************************************************************************************************
+
+
 int PYCV_binary_erosion_iter(PyArrayObject *input,
                              PyArrayObject *strel,
                              PyArrayObject *output,
@@ -164,7 +223,7 @@ int PYCV_binary_erosion_iter(PyArrayObject *input,
     PyArrayObject *array_change;
     char *ma_base = NULL, *ma = NULL, *po_base = NULL, *po = NULL, *pc_base = NULL, *pc = NULL;
     npy_bool *footprint;
-    int num_type_o, num_type_m, out_val, ma_val = 1, op_true = 1, op_false = 0;
+    int num_type_o, num_type_m, out_val, px_change = 1, ma_val = 1, op_true = 1, op_false = 0;
     npy_intp array_size, ii, jj, flag, f_size, *offsets, *ff;
     npy_intp *stack, stack_end = 0, stack_prev, stack_stride, *stack_run, *stack_fill;
 
@@ -223,17 +282,16 @@ int PYCV_binary_erosion_iter(PyArrayObject *input,
         }
 
         PYCV_M_BINARY_EROSION(num_type_o, ma_val, pc, f_size, flag, ff, out_val, c_val, op_true, op_false);
-        if (!op_true) {
-            out_val = out_val ? 0 : 1;
-        }
-        PYCV_SET_VALUE(num_type_o, po, out_val);
-
-        if ((op_true && out_val) || (!op_true && !out_val)) {
+        if (out_val) {
             for (jj = 0; jj < stack_stride; jj++) {
                 *stack_fill++ = iter_c.coordinates[jj];
             }
             stack_end++;
         }
+        if (!op_true) {
+            out_val = out_val ? 0 : 1;
+        }
+        PYCV_SET_VALUE(num_type_o, po, out_val);
 
         if (mask) {
             PYCV_NEIGHBORHOOD_ITERATOR_NEXT3(iter_c, pc, iter_o, po, iter_m, ma, ff);
@@ -248,10 +306,11 @@ int PYCV_binary_erosion_iter(PyArrayObject *input,
         goto exit;
     }
 
-    while (iterations && stack_end) {
+    while (iterations && px_change && stack_end) {
         stack_run = stack_fill = stack;
         stack_prev = stack_end;
         stack_end = 0;
+        px_change = 0;
 
         for (ii = 0; ii < stack_prev; ii++) {
             if (mask) {
@@ -261,19 +320,17 @@ int PYCV_binary_erosion_iter(PyArrayObject *input,
                 PYCV_NEIGHBORHOOD_ITERATOR_GOTO2(iter_c, pc_base, pc, iter_o, po_base, po, offsets, ff, stack_run);
             }
 
-            PYCV_M_BINARY_EROSION(num_type_o, ma_val, pc, f_size, flag, ff, out_val, c_val, op_true, op_false);
-            if (!op_true) {
-                out_val = out_val ? 0 : 1;
-            }
-
-            PYCV_SET_VALUE(num_type_o, po, out_val);
-
-            if ((op_true && out_val) || (!op_true && !out_val)) {
+            PYCV_M_BINARY_EROSION_ITER(num_type_o, ma_val, pc, f_size, flag, ff, out_val, c_val, op_true, op_false, px_change);
+            if (out_val) {
                 for (jj = 0; jj < stack_stride; jj++) {
                     *stack_fill++ = iter_c.coordinates[jj];
                 }
                 stack_end++;
             }
+            if (!op_true) {
+                out_val = out_val ? 0 : 1;
+            }
+            PYCV_SET_VALUE(num_type_o, po, out_val);
             stack_run += stack_stride;
         }
         iterations--;

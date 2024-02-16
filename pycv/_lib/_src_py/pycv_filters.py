@@ -46,7 +46,7 @@ def convolve(
         hold_output = output
         output, _ = get_output(hold_output.dtype, inputs, outputs_shape)
 
-    if np.all(inputs == 0):
+    if np.all(inputs == 0) and constant_value == 0:
         output[...] = 0.
     else:
         c_pycv.convolve(inputs, kernel, output, offset, padding_mode, constant_value)
@@ -103,7 +103,7 @@ def rank_filter(
         hold_output = output
         output, _ = get_output(hold_output.dtype, inputs, outputs_shape)
 
-    if np.all(inputs == 0):
+    if np.all(inputs == 0) and constant_value == 0:
         output[...] = 0.
     else:
         c_pycv.rank_filter(inputs, footprint, output, rank, offset, padding_mode, constant_value)
@@ -113,3 +113,6 @@ def rank_filter(
         output = hold_output
 
     return output
+
+
+########################################################################################################################

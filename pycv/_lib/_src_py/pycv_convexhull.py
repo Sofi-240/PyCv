@@ -1,10 +1,12 @@
 import numpy as np
-from pycv._lib._src_py.utils import ctype_convex_hull_mode, axis_transpose_to_last
+from pycv._lib._src_py.utils import ctype_convex_hull_mode, axis_transpose_to_last, valid_axis
 from pycv._lib.array_api.regulator import np_compliance
+from pycv._lib.array_api import iterators
 from pycv._lib._src import c_pycv
 
 __all__ = [
-    "convex_hull_2d"
+    "convex_hull_2d",
+    "convex_hull_2d_image"
 ]
 
 
@@ -41,81 +43,70 @@ def convex_hull_2d(
 
         nd = points.shape[1]
 
-    output = None
-    if convex_image:
-        if image_in:
-            image_shape = np.array(image.shape, np.int64)
-        elif image_shape is None:
-            image_shape = np.max(points, axis=0) + 1
-        elif not (len(image_shape) == nd and all(image_shape[a] >= np.max(points[:, a]) + 1 for a in range(nd))):
-            raise ValueError('image shape is smaller then the points maximum')
-
-        output = np.zeros(image_shape, np.uint8)
-
     mode = ctype_convex_hull_mode(mode)
 
     if axis is not None and len(axis) != 2:
         raise ValueError('axes should contain exactly two values')
-
     if axis is None:
         axis = (nd - 2, nd - 1)
 
     need_transpose, transpose_forward, transpose_back = axis_transpose_to_last(nd, axis, default_nd=2)
-    if image_in and need_transpose:
-        image = image.transpose(transpose_forward)
-        output = output.transpose(transpose_forward) if convex_image else output
-    elif need_transpose:
-        points[:, transpose_forward] = points[:, tuple(range(nd))]
-        output = output.transpose(transpose_forward) if convex_image else output
 
-    iter_ = [0] * (nd - 2)
-    stop_ = [0] * (nd - 2)
-    size = 1
+    if need_transpose:
+        if image_in:
+            image = image.transpose(transpose_forward)
+        else:
+            points[:, transpose_forward] = points[:, tuple(range(nd))]
 
-    convex_points = []
-
-    for i in range(nd - 2):
-        stop_[i] = image.shape[i] - 1 if image_in else (np.max(points[:, i]) if not convex_image else output.shape[i] - 1)
-        size *= (stop_[i] + 1)
-
-    for i in range(size):
-        p, o, ma, im = points, output, mask, image
-        for j in range(nd - 2):
-            im = im[iter_[j]] if image_in else None
-            ma = ma[iter_[j]] if image_in and ma is not None else None
-            p = p[p[:, j] == iter_[j], :] if not image_in else None
-            o = o[iter_[j]] if convex_image else None
-
-        p = p[:, -2:] if not image_in else None
-        cp = c_pycv.convex_hull(mode, im, ma, p, o)
-
-        if cp is None:
-            cp = np.ones((0, 2), np.int64)
-
-        if nd > 2:
-            one = np.ones((cp.shape[0], 1), cp.dtype)
-            cp = np.hstack(tuple(one * iter_[j] for j in range(nd - 2)) + (cp, ))
-            if need_transpose:
-                cp[:, transpose_back] = cp[:, tuple(range(nd))]
-        convex_points.append(cp)
-
-        for j in range(nd - 3, -1, -1):
-            if iter_[j] < stop_[j]:
-                iter_[j] += 1
-                break
-            else:
-                iter_[j] = 0
-
-    if image_in and need_transpose and convex_image:
-        output = output.transpose(transpose_back)
-    elif need_transpose:
-        points[:, transpose_back] = points[:, tuple(range(nd))]
-        output = output.transpose(transpose_back) if convex_image else output
-
-    if size > 1:
-        convex_points = np.vstack(convex_points)
+    if image_in:
+        image_shape = np.array(image.shape, np.int64)
+    elif image_shape is None:
+        image_shape = np.max(points, axis=0) + 1
+    elif convex_image and not (
+            len(image_shape) == nd and all(image_shape[a] >= np.max(points[:, a]) + 1 for a in range(nd))):
+        raise ValueError('image shape is smaller then the points maximum')
     else:
-        convex_points = convex_points[0]
+        image_shape = np.array(image_shape, np.int64)
+
+    output = np.zeros(image_shape, np.uint8) if convex_image else None
+
+    if nd == 2:
+        convex_points = c_pycv.convex_hull(mode, image, mask, points, output)
+    else:
+        mask_in = mask is not None
+
+        if image_in:
+            _iter = iterators.ArrayIteratorSlice(image_shape, 2)
+        else:
+            _iter = iterators.PointsIteratorSlice(points, 2)
+
+        convex_points = []
+        slc_p = None
+        for slc_a in _iter:
+            if not image_in:
+                slc_p = slc_a
+                slc_a = tuple(s for s in points[slc_p[0]][0, :-2])
+            cp = c_pycv.convex_hull(
+                mode,
+                image[slc_a] if image_in else None,
+                mask[slc_a] if image_in and mask_in else None,
+                points[slc_p] if not image_in else None,
+                output[slc_a] if convex_image else None
+            )
+            cs = np.zeros((cp.shape[0], len(slc_a)), np.int64)
+            if not image_in:
+                cs[...] = points[slc_p[0]][0, :-2]
+            convex_points.extend(np.hstack((cs, cp)))
+
+        convex_points = np.vstack(convex_points)
+
+    if need_transpose and convex_image:
+        output = output.transpose(transpose_back)
+
+    if need_transpose:
+        if ~image_in:
+            points[:, transpose_back] = points[:, tuple(range(nd))]
+        convex_points[:, transpose_back] = convex_points[:, tuple(range(nd))]
 
     if not convex_image:
         return convex_points
@@ -123,5 +114,35 @@ def convex_hull_2d(
     return convex_points, output
 
 
-########################################################################################################################
+def convex_hull_2d_image(
+        convex_hull: np.ndarray,
+        output_shape: tuple | None = None,
+        axis: tuple | None = None
+) -> np.ndarray:
+    convex_hull = np.asarray(convex_hull, order='C')
+    convex_hull = np_compliance(convex_hull, 'convex_hull', _check_finite=True)
 
+    if convex_hull.ndim != 2:
+        raise ValueError('convex_hull need to have 2 dimensions (N points, nd)')
+
+    ndim = convex_hull.shape[1]
+
+    if output_shape is None:
+        output_shape = np.amax(convex_hull, axis=0) + 1
+
+    convex_image = np.zeros(output_shape, np.uint8)
+
+    if ndim == 2:
+        c_pycv.convex_hull_image(convex_image, convex_hull)
+    else:
+        _iter = iterators.PointsIteratorSlice(convex_hull, 2)
+        axis = valid_axis(ndim, axis, 2)
+        slc_axis = tuple(set(range(ndim)) - set(axis))
+
+        for slc_p in _iter:
+            slc_a = tuple(int(convex_hull[slc_p[0]][0, s]) for s in slc_axis)
+            c_pycv.convex_hull_image(convex_image[slc_a], convex_hull[slc_p[0]][:, axis])
+
+    return convex_image
+
+########################################################################################################################

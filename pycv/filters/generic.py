@@ -1,144 +1,226 @@
 import numpy as np
-import numbers
+from pycv._lib.array_api.dtypes import cast
 from pycv._lib.array_api.regulator import np_compliance
+from pycv._lib.array_api.array_pad import pad, get_padding_width
+from pycv._lib._src_py.utils import valid_axis, fix_kernel_shape
+from pycv._lib._src_py import pycv_filters
 from pycv._lib.filters_support.windows import gaussian_kernel
-from pycv.filters._utils import kernel_size_valid, filter_with_convolve
-from pycv._lib._src_py.pycv_filters import rank_filter
-
+from pycv.filters._filters import valid_footprint
+from pycv._lib._src_py import pycv_morphology
 
 __all__ = [
     'gaussian_filter',
     'mean_filter',
+    'image_filter',
     'median_filter',
-    'local_max_filter',
+    'rank_filter',
     'local_min_filter',
+    'local_max_filter'
 ]
 
 
 ########################################################################################################################
 
-
 def gaussian_filter(
         image: np.ndarray,
         sigma: float | tuple,
+        truncate: float = 3.,
         axis: tuple | None = None,
         preserve_dtype: bool = True,
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0
 ) -> np.ndarray:
-    if axis is None:
-        axis = tuple()
-        for i in range(min(image.ndim, 2)):
-            axis += (image.ndim - 1 - i,)
-    elif isinstance(axis, numbers.Number):
-        axis = (axis,)
+    image = np_compliance(image, 'image', _check_finite=True)
+    dtype = image.dtype
+    image = cast(image, np.float64)
 
-    if isinstance(sigma, numbers.Number):
+    axis = valid_axis(image.ndim, axis, 2)
+
+    if np.isscalar(sigma):
         sigma = (sigma,) * len(axis)
 
     if len(sigma) != len(axis):
         raise ValueError('Sigma and axis size dont match')
 
-    output = image.copy()
-    for ax, s in zip(axis, sigma):
-        kernel = gaussian_kernel(s)
-        output = filter_with_convolve(output, kernel, None, axis=ax, preserve_dtype=preserve_dtype, padding_mode=padding_mode, constant_value=constant_value)
+    one_pass = len(set(sigma)) == 1
+    if one_pass:
+        kernel = gaussian_kernel(sigma[0], len(axis), truncate=truncate)
+
+        kernel_shape = fix_kernel_shape(kernel.shape, axis, image.ndim)
+        kernel = np.reshape(kernel, kernel_shape)
+
+        output = pycv_filters.convolve(image, kernel, padding_mode=padding_mode, constant_value=constant_value)
+    else:
+        output = image.copy()
+        for s, ax in zip(sigma, axis):
+            kernel = gaussian_kernel(s, 1, truncate=truncate)
+            output = pycv_filters.convolve(
+                output, kernel, axis=ax, padding_mode=padding_mode, constant_value=constant_value
+            )
+
+    if preserve_dtype:
+        output = cast(output, dtype)
 
     return output
 
 
+########################################################################################################################
+
 def mean_filter(
         image: np.ndarray,
-        kernel_size: int | tuple,
+        kernel_size: int | tuple | None = None,
+        footprint: np.ndarray | None = None,
         axis: int | tuple | None = None,
         preserve_dtype: bool = True,
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0
 ) -> np.ndarray:
-    if axis is None:
-        axis = tuple()
-        for i in range(min(image.ndim, 2)):
-            axis += (image.ndim - 1 - i,)
-    elif isinstance(axis, numbers.Number):
-        axis = (axis,)
+    if kernel_size is None and footprint is None:
+        raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
-    if isinstance(kernel_size, numbers.Number):
-        kernel_size = (kernel_size,) * len(axis)
+    image = np_compliance(image, 'image', _check_finite=True)
+    dtype = image.dtype
+    image = cast(image, np.float64)
 
-    kernel_size = kernel_size_valid(kernel_size, axis, image.ndim)
+    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
 
-    kernel = np.ones(kernel_size, np.float64) / np.prod(kernel_size, dtype=np.float64)
+    kernel = footprint.astype(np.float64)
+    kernel /= np.sum(kernel)
 
-    return filter_with_convolve(image, kernel, None, preserve_dtype=preserve_dtype, padding_mode=padding_mode, constant_value=constant_value)
+    output = pycv_filters.convolve(image, kernel, padding_mode=padding_mode, constant_value=constant_value)
 
+    if preserve_dtype:
+        output = cast(output, dtype)
+
+    return output
+
+
+def image_filter(
+        image: np.ndarray,
+        kernel: np.ndarray,
+        axis: int | tuple | None = None,
+        padding_mode: str = 'reflect',
+        constant_value: float | int | None = 0
+) -> np.ndarray:
+    image = np_compliance(image, 'image', _check_finite=True)
+    kernel = np_compliance(kernel, 'kernel', _check_finite=True)
+
+    if image.ndim != kernel.ndim and axis is not None:
+        axis = valid_axis(image.ndim, axis, kernel.ndim)
+        if len(axis) != kernel.ndim:
+            raise ValueError('kernel N dimensions dont match with axis length')
+
+        for ax in range(image.ndim):
+            if ax not in axis:
+                kernel = np.expand_dims(kernel, ax)
+
+    output = pycv_filters.convolve(image, kernel, padding_mode=padding_mode, constant_value=constant_value)
+
+    return output
+
+
+########################################################################################################################
 
 def median_filter(
         image: np.ndarray,
-        kernel_size: int | tuple,
+        kernel_size: int | tuple | None = None,
+        footprint: np.ndarray | None = None,
         axis: int | tuple | None = None,
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0,
 ) -> np.ndarray:
-    image = np.asarray(image)
+    if kernel_size is None and footprint is None:
+        raise ValueError('one of the attribute kernel_size or footprint need to be given')
+
     image = np_compliance(image, 'image', _check_finite=True)
-    if axis is None:
-        axis = tuple()
-        for i in range(min(image.ndim, 2)):
-            axis += (image.ndim - 1 - i,)
-    elif isinstance(axis, numbers.Number):
-        axis = (axis,)
 
-    kernel_size = kernel_size_valid(kernel_size, axis, image.ndim)
-    rank = np.prod(kernel_size) // 2
+    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
 
-    footprint = np.ones(kernel_size, bool)
+    rank = np.sum(footprint) // 2
 
-    return rank_filter(image, footprint, rank, padding_mode=padding_mode, constant_value=constant_value)
+    output = pycv_filters.rank_filter(image, footprint, rank, padding_mode=padding_mode, constant_value=constant_value)
+
+    return output
+
+
+def rank_filter(
+        image: np.ndarray,
+        rank: int,
+        kernel_size: int | tuple | None = None,
+        footprint: np.ndarray | None = None,
+        axis: int | tuple | None = None,
+        padding_mode: str = 'reflect',
+        constant_value: float | int | None = 0,
+) -> np.ndarray:
+    if kernel_size is None and footprint is None:
+        raise ValueError('one of the attribute kernel_size or footprint need to be given')
+
+    image = np_compliance(image, 'image', _check_finite=True)
+
+    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
+
+    if rank > np.sum(footprint):
+        raise ValueError('invalid rank higher then the sum of footprint')
+
+    output = pycv_filters.rank_filter(image, footprint, rank, padding_mode=padding_mode, constant_value=constant_value)
+
+    return output
+
+
+########################################################################################################################
 
 
 def local_min_filter(
         image: np.ndarray,
-        kernel_size: int | tuple,
+        kernel_size: int | tuple | None = None,
+        footprint: np.ndarray | None = None,
         axis: int | tuple | None = None,
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0,
 ) -> np.ndarray:
-    image = np.asarray(image)
+    if kernel_size is None and footprint is None:
+        raise ValueError('one of the attribute kernel_size or footprint need to be given')
+
     image = np_compliance(image, 'image', _check_finite=True)
-    if axis is None:
-        axis = tuple()
-        for i in range(min(image.ndim, 2)):
-            axis += (image.ndim - 1 - i,)
-    elif isinstance(axis, numbers.Number):
-        axis = (axis,)
+    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
 
-    kernel_size = kernel_size_valid(kernel_size, axis, image.ndim)
+    if padding_mode not in ['constant', 'valid']:
+        image = pad(image, get_padding_width(footprint.shape), mode=padding_mode)
+        padding_mode = 'valid'
 
-    footprint = np.ones(kernel_size, bool)
+    output = pycv_morphology.gray_ero_or_dil(0, image, footprint, border_val=constant_value)
 
-    return rank_filter(image, footprint, 0, padding_mode=padding_mode, constant_value=constant_value)
+    if padding_mode == 'valid':
+        pw = get_padding_width(footprint.shape)
+        output = output[tuple(slice(s[0], sh - s[1]) for (s, sh) in zip(pw, image.shape))]
+
+    return output
 
 
 def local_max_filter(
         image: np.ndarray,
-        kernel_size: int | tuple,
+        kernel_size: int | tuple | None = None,
+        footprint: np.ndarray | None = None,
         axis: int | tuple | None = None,
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0,
 ) -> np.ndarray:
-    image = np.asarray(image)
+    if kernel_size is None and footprint is None:
+        raise ValueError('one of the attribute kernel_size or footprint need to be given')
+
     image = np_compliance(image, 'image', _check_finite=True)
-    if axis is None:
-        axis = tuple()
-        for i in range(min(image.ndim, 2)):
-            axis += (image.ndim - 1 - i,)
-    elif isinstance(axis, numbers.Number):
-        axis = (axis,)
+    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
 
-    kernel_size = kernel_size_valid(kernel_size, axis, image.ndim)
+    if padding_mode not in ['constant', 'valid']:
+        image = pad(image, get_padding_width(footprint.shape), mode=padding_mode)
+        padding_mode = 'valid'
 
-    footprint = np.ones(kernel_size, bool)
+    output = pycv_morphology.gray_ero_or_dil(1, image, footprint, border_val=constant_value)
 
-    return rank_filter(image, footprint, np.prod(kernel_size) - 1, padding_mode=padding_mode, constant_value=constant_value)
+    if padding_mode == 'valid':
+        pw = get_padding_width(footprint.shape)
+        output = output[tuple(slice(s[0], sh - s[1]) for (s, sh) in zip(pw, image.shape))]
+
+    return output
 
 ########################################################################################################################

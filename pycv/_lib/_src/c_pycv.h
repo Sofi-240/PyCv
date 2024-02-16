@@ -54,6 +54,8 @@ PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords);
 
 PyObject* convex_hull(PyObject* self, PyObject* args);
 
+PyObject* convex_hull_image(PyObject* self, PyObject* args);
+
 // #####################################################################################################################
 
 PyObject* integral_image(PyObject* self, PyObject* args);

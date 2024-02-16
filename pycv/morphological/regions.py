@@ -1,10 +1,12 @@
 import numpy as np
 from pycv._lib._src_py import pycv_morphology, pycv_convexhull
+from pycv._lib.array_api.regulator import np_compliance
 
 __all__ = [
     'region_fill',
     'im_label',
     'convex_hull',
+    'convex_image',
     'find_object'
 ]
 
@@ -68,8 +70,8 @@ def convex_hull(
         mask: np.ndarray | None = None,
         objects: bool = False,
         labels: np.ndarray | None = None,
-        convex_image: bool = True
-) -> tuple[np.ndarray] | tuple[np.ndarray, np.ndarray]:
+        convex_img: bool = True
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     if objects:
         if labels is None:
             _, labels = im_label(image)
@@ -85,7 +87,16 @@ def convex_hull(
     else:
         inputs = image
 
-    return pycv_convexhull.convex_hull_2d(inputs, mask, convex_image=convex_image)
+    return pycv_convexhull.convex_hull_2d(inputs, mask, convex_image=convex_img)
+
+
+def convex_image(
+        convex_hull_points: np.ndarray,
+        output_shape: tuple | None = None,
+        axis: tuple | None = None
+) -> np.ndarray:
+    return pycv_convexhull.convex_hull_2d_image(convex_hull_points, output_shape, axis)
+
 
 ########################################################################################################################
 
@@ -99,7 +110,10 @@ def find_object(
     as slice if true list[list[slice, ..]]] else list[list[top left, bottom right]]]
 
     """
-    ll_im = labels
+    labels = np_compliance(labels, 'labels')
+    if not np.issubdtype(labels.dtype, np.integer):
+        raise ValueError('labels dtype need to be integer')
+    ll_im = labels.copy()
     if mask is not None:
         if mask.shape != labels.shape:
             raise ValueError('mask shape need to be same as labels shape')

@@ -241,11 +241,11 @@ class TestMorphology(TestModule):
         output = np.zeros(inputs.shape, bool)
         offset = tuple(s // 2 for s in strel.shape)
 
-        c_pycv.binary_erosion(inputs, strel, output, offset, 1, None, 0, 0)
+        c_pycv.binary_erosion(inputs, strel, output, offset, None, 0, 0)
         assert_array_almost_equal(expected, output)
 
         output = np.zeros(inputs.shape, bool)
-        c_pycv.binary_erosion(expected, strel, output, offset, 1, None, 1, 0)
+        c_pycv.binary_erosion(expected, strel, output, offset, None, 1, 0)
         assert_array_almost_equal(inputs, output)
 
     def test_erosion_dilation02(self):
@@ -281,11 +281,42 @@ class TestMorphology(TestModule):
         output = np.zeros(inputs.shape, bool)
         offset = tuple(s // 2 for s in strel.shape)
 
-        c_pycv.binary_erosion(inputs, strel, output, offset, 1, mask, 0, 0)
+        c_pycv.binary_erosion(inputs, strel, output, offset, mask, 0, 0)
         assert_array_almost_equal(expected, output)
 
         output = np.zeros(inputs.shape, bool)
-        c_pycv.binary_erosion(expected, strel, output, offset, 1, mask, 1, 0)
+        c_pycv.binary_erosion(expected, strel, output, offset, mask, 1, 0)
+        assert_array_almost_equal(inputs, output)
+
+    def test_erosion_dilation_iter01(self):
+        inputs = np.array(
+            [[0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0],
+             [0, 0, 1, 0, 0],
+             [0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0]],
+            dtype=bool
+        )
+
+        strel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], inputs.dtype)
+
+        expected = np.array(
+            [[0, 0, 1, 0, 0],
+             [0, 1, 1, 1, 0],
+             [1, 1, 1, 1, 1],
+             [0, 1, 1, 1, 0],
+             [0, 0, 1, 0, 0]],
+            dtype=bool
+        )
+
+        output = np.zeros(inputs.shape, bool)
+        offset = tuple(s // 2 for s in strel.shape)
+
+        c_pycv.binary_erosion_iter(inputs, strel, output, offset, 2, None, 1, 0)
+        assert_array_almost_equal(expected, output)
+
+        output = np.zeros(inputs.shape, bool)
+        c_pycv.binary_erosion_iter(expected, strel, output, offset, 2, None, 0, 0)
         assert_array_almost_equal(inputs, output)
 
     def test_binary_region_fill01(self):

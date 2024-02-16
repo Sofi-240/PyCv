@@ -14,7 +14,7 @@ __all__ = [
     'skeletonize',
     'area_open_close',
     'remove_small_objects',
-    'hit_or_miss'
+    'binary_hit_or_miss',
 ]
 
 
@@ -84,7 +84,7 @@ def binary_erosion(
         if mask.shape != image.shape:
             raise ValueError(f'image and mask shape does not match {image.shape} != {mask.shape}')
 
-    if np.all(image == 0):
+    if np.all(image == 0) and border_val == 0:
         output[...] = 0
     elif iterations == 1:
         c_pycv.binary_erosion(image, strel, output, offset, mask, int(invert), border_val)
@@ -93,7 +93,7 @@ def binary_erosion(
         if center_zero or not extra_memory:
             inp = image.copy()
             change = True
-            while iterations > 0 and change:
+            while iterations != 0 and change:
                 c_pycv.binary_erosion(inp, strel, output, offset, mask, int(invert), border_val)
                 change = np.any(inp != output)
                 inp[...] = output
@@ -187,7 +187,7 @@ def gray_ero_or_dil(
         if not (mask.ndim == image.ndim and mask.shape == image.shape):
             raise ValueError(f'image and mask shape does not match {image.shape} != {mask.shape}')
 
-    if np.all(image == 0):
+    if np.all(image == 0) and border_val == 0:
         output[...] = np.min(image - (np.min(non_flat_strel) if non_flat_strel is not None else 0)) if op == 0 else \
             np.max(image + (np.max(non_flat_strel) if non_flat_strel is not None else 0))
     else:
@@ -331,7 +331,7 @@ def remove_small_objects(
 
 ########################################################################################################################
 
-def hit_or_miss(
+def binary_hit_or_miss(
         image: np.ndarray,
         strel1: np.ndarray | None = None,
         strel2: np.ndarray | None = None,
@@ -383,7 +383,7 @@ def hit_or_miss(
         if mask.shape != image.shape:
             raise ValueError(f'image and mask shape does not match {image.shape} != {mask.shape}')
 
-    if np.all(image == 0):
+    if np.all(image == 0) and border_val == 0:
         output[...] = 0
     else:
         tmp, _ = get_output(output.dtype, image, image.shape)
@@ -397,3 +397,5 @@ def hit_or_miss(
         output = hold_output
 
     return None if input_output else output
+
+########################################################################################################################

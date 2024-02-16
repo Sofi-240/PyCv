@@ -283,7 +283,3 @@ int PYCV_rank_filter(PyArrayObject *input,
 
 
 
-
-
-
-
