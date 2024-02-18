@@ -1,35 +1,23 @@
 import numpy as np
-from _debug_utils.im_load import load_image, load_defualt_binary_image
 # from _debug_utils.im_viz import show_collection
 from pycv._lib._src import c_pycv
-from pycv.morphological import im_label, region_fill, convex_hull, binary_dilation, binary_fill_holes, gray_erosion
-from pycv.filters import median_filter, local_min_filter
-from pycv.segmentation import im_threshold
-from pycv.draw import draw_circle
-from skimage.transform import hough_line_peaks
-from pycv.measurements._regionprops import region_properties, RegionProperties
+from pycv.draw import draw_line
+from pycv.filters import local_max_filter
+from pycv.segmentation import im_binarize
+from pycv.morphological import im_label, find_object
+from pycv.measurements._peaks import find_object_peak
 
+inputs = np.zeros((15, 15), np.uint8)
+inputs[draw_line((1, 1), (13, 13))] = 1
+inputs[draw_line((1, 7), (13, 7))] = 1
+inputs[draw_line((1, 13), (13, 1))] = 1
 
-inputs = np.array([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]])
-footprint = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], bool)
+theta = np.linspace(-np.pi / 2, np.pi / 2, 180, endpoint=False)
+offset = int(np.ceil(np.hypot(inputs.shape[0], inputs.shape[1])))
+dist = np.linspace(-offset, offset, 2 * offset + 1)
 
-out = local_min_filter(inputs, footprint=footprint, padding_mode='reflect')
+h_space = c_pycv.hough_transform(1, inputs, theta, offset=offset)
+peaks = find_object_peak(h_space, min_distance=(9, 10), threshold=0.5 * np.max(h_space))
 
-# inputs = np.zeros((11, 11), np.int64)
-# inputs[draw_circle((5, 5), 4)] = 1
-# inputs[draw_circle((5, 5), 3)] = 1
-#
-# obj = region_properties(inputs)[0]
+lines_start, lines_end = c_pycv.hough_transform(3, inputs, theta, offset=offset, threshold=10, line_length=8, line_gap=10)
 
-
-# coins = load_image('coins.png')[88:]
-# coins_med = median_filter(coins, (5, 5))
-# coins_bin, th = im_threshold(coins_med, 'otsu')
-#
-# # show_collection([coins_med, coins_bin], 1, 2)
-#
-# n_labels, labels = im_label(coins_bin, connectivity=2)
-#
-# a = regionprops(labels, coins_med)
-#
-# objects = region_properties(labels, intensity_image=coins_med)

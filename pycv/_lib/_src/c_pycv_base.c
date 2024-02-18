@@ -535,3 +535,37 @@ int PYCV_DefaultFootprint(npy_intp ndim,
 
 
 // #####################################################################################################################
+
+int PYCV_CoordinatesListInit(npy_intp ndim, npy_intp max_size, PYCV_CoordinatesList *object)
+{
+    npy_intp ii;
+    object->ndim = ndim;
+    object->max_size = max_size;
+    object->coordinates = malloc(max_size * sizeof(npy_intp*));
+    if (!object->coordinates) {
+        object->coordinates_size = -1;
+        return 0;
+    }
+    for (ii = 0; ii < max_size; ii++) {
+        object->coordinates[ii] = malloc(ndim * sizeof(npy_intp));
+        if (!object->coordinates[ii]) {
+            object->coordinates_size = -1;
+            return 0;
+        }
+    }
+    object->coordinates_size = 0;
+    return 1;
+}
+
+int PYCV_CoordinatesListFree(PYCV_CoordinatesList *object)
+{
+    npy_intp ii;
+    for (ii = 0; ii < object->max_size; ii++) {
+        free(object->coordinates[ii]);
+    }
+    free(object->coordinates);
+    object->coordinates_size = 0;
+    return 1;
+}
+
+// #####################################################################################################################

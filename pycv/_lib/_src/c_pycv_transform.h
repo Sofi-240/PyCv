@@ -42,6 +42,7 @@ int PYCV_geometric_transform(PyArrayObject *matrix,
 typedef enum {
     PYCV_HOUGH_LINE = 1,
     PYCV_HOUGH_CIRCLE = 2,
+    PYCV_HOUGH_LINE_PROBABILISTIC = 3
 } PYCV_HoughMode;
 
 PyArrayObject *PYCV_hough_line_transform(PyArrayObject *input,
@@ -52,6 +53,13 @@ PyArrayObject *PYCV_hough_circle_transform(PyArrayObject *input,
                                            PyArrayObject *radius,
                                            int normalize,
                                            int expend);
+
+PyArrayObject *PYCV_hough_probabilistic_line(PyArrayObject *input,
+                                             PyArrayObject *theta,
+                                             npy_intp offset,
+                                             npy_intp threshold,
+                                             npy_intp line_length,
+                                             npy_intp line_gap);
 
 // #####################################################################################################################
 

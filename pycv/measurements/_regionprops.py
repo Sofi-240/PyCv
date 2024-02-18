@@ -64,6 +64,7 @@ class RegionProperties:
         self.slice = slc
         self._bbox_slice = tuple(slice(np.amin(cc), np.amax(cc) + 1) for cc in np.where(labels_image == label))
         self.offset = np.array([s.start for s in self._bbox_slice], np.int64)
+        self._local_offset = np.array([s.start for s in self.slice], np.int64)
         self._connectivity = connectivity
 
         self._convex_hull = None
@@ -105,12 +106,13 @@ class RegionProperties:
         return np.prod(tuple(br - tp + 1 for (tp, br) in zip(*self.bbox)))
 
     @property
-    def centroid(self) -> tuple:
-        return tuple(tl + (br - tl) / 2 for (tl, br) in zip(*self.bbox))
+    def local_centroid(self) -> np.ndarray:
+        return np.stack(np.where(self.object_image), axis=1).mean(axis=0)
 
     @property
-    def local_centroid(self) -> tuple:
-        return tuple((br - tl) / 2 for (tl, br) in zip(*self.bbox))
+    def centroid(self) -> np.ndarray:
+        return self.local_centroid + self._local_offset.astype(np.float)
+
 
     @property
     def filled_image(self) -> np.ndarray:
@@ -122,22 +124,21 @@ class RegionProperties:
         return np.sum(self.filled_image)
 
     @property
-    def convex_hull(self) -> np.ndarray:
+    def local_convex_hull(self) -> np.ndarray:
         if self._convex_hull is not None:
             return self._convex_hull
         self._convex_hull = morph.convex_hull(self.object_image, convex_img=False)
-        self._convex_hull += np.array([s.start for s in self.slice], np.int64)
         return self._convex_hull
 
     @property
-    def local_convex_hull(self) -> np.ndarray:
-        if self.convex_hull.shape[0] == 0:
-            return self.convex_hull
-        return self.convex_hull - np.array([s.start for s in self.slice], np.int64)
+    def convex_hull(self) -> np.ndarray:
+        if self.local_convex_hull.shape[0] > 0:
+            return self.local_convex_hull + self._local_offset
+        return self.local_convex_hull
 
     @property
     def convex_image(self) -> np.ndarray:
-        if self.convex_hull.shape[0] == 0:
+        if self.local_convex_hull.shape[0] == 0:
             return np.zeros_like(self.object_image)
         return morph.convex_image(self.local_convex_hull, self.shape)
 
@@ -153,7 +154,7 @@ class RegionProperties:
     def pixel_list(self) -> np.ndarray:
         if self.area_object == 0:
             return self.local_pixel_list
-        return self.local_pixel_list + np.array([s.start for s in self.slice], np.int64)
+        return self.local_pixel_list + self._local_offset
 
     @property
     def solidity(self) -> float:

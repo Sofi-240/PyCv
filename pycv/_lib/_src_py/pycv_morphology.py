@@ -152,7 +152,7 @@ def gray_ero_or_dil(
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None,
-        border_val: int = 0
+        border_val: float = 0
 ) -> np.ndarray | None:
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)

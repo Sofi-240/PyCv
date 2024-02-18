@@ -506,4 +506,39 @@ int PYCV_DefaultFootprint(npy_intp ndim,
 
 // #####################################################################################################################
 
+typedef struct {
+    npy_intp ndim;
+    npy_intp max_size;
+    npy_intp coordinates_size;
+    npy_intp **coordinates;
+} PYCV_CoordinatesList;
+
+int PYCV_CoordinatesListInit(npy_intp ndim, npy_intp max_size, PYCV_CoordinatesList *object);
+
+#define PYCV_COORDINATES_LIST_APPEND(_object, _coordinate)                                                             \
+{                                                                                                                      \
+    npy_intp _ii;                                                                                                      \
+    if ((_object).max_size > (_object).coordinates_size) {                                                             \
+        for (_ii = 0; _ii < (_object).ndim; _ii++) {                                                                   \
+            (_object).coordinates[(_object).coordinates_size][_ii] = _coordinate[_ii];                                 \
+        }                                                                                                              \
+    }                                                                                                                  \
+    (_object).coordinates_size++;                                                                                      \
+}
+
+#define PYCV_COORDINATES_LIST_SET(_object, _coordinate, _index)                                                        \
+{                                                                                                                      \
+    npy_intp _ii;                                                                                                      \
+    if ((_object).coordinates_size > _index) {                                                                         \
+        for (_ii = 0; _ii < (_object).ndim; _ii++) {                                                                   \
+            (_object).coordinates[_index][_ii] = _coordinate[_ii];                                                     \
+        }                                                                                                              \
+    }                                                                                                                  \
+}
+
+int PYCV_CoordinatesListFree(PYCV_CoordinatesList *object);
+
+
+// #####################################################################################################################
+
 #endif

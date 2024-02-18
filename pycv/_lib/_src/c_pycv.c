@@ -255,11 +255,12 @@ PyObject* gray_erosion_dilation(PyObject* self, PyObject* args)
 {
     PyArrayObject *input = NULL, *flat_strel = NULL, *non_flat_strel = NULL, *output = NULL, *mask = NULL;
     PyArray_Dims center = {NULL, 0};
-    int op, c_val;
+    int op;
+    double c_val;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&O&O&O&O&O&ii",
+            "O&O&O&O&O&O&id",
             InputToArray, &input,
             InputToArray, &flat_strel,
             InputOptionalToArray, &non_flat_strel,
@@ -296,7 +297,7 @@ PyObject* gray_erosion_dilation(PyObject* self, PyObject* args)
     }
 
 
-    PYCV_gray_erosion_dilation(input, flat_strel, non_flat_strel, output, center.ptr, mask, (PYCV_MorphOP)op, c_val);
+    PYCV_gray_erosion_dilation(input, flat_strel, non_flat_strel, output, center.ptr, mask, (PYCV_MorphOP)op, (npy_double)c_val);
 
     PyArray_ResolveWritebackIfCopy(output);
 
@@ -522,17 +523,18 @@ PyObject* geometric_transform(PyObject* self, PyObject* args)
 PyObject* hough_transform(PyObject* self, PyObject* args, PyObject* keywords)
 {
     int hough_mode;
-    static char* kwlist[] = {"", "", "", "offset", "normalize", "expend", NULL};
-    PyArrayObject *input = NULL, *param = NULL, *h_space = NULL;
-    int offset, normalize, expend;
+    static char* kwlist[] = {"", "", "", "offset", "normalize", "expend", "threshold", "line_length", "line_gap", NULL};
+    PyArrayObject *input = NULL, *param = NULL, *output = NULL;
+    int offset, normalize, expend, threshold, line_length, line_gap;
 
     if (!PyArg_ParseTupleAndKeywords(
             args, keywords,
-            "iO&O&|iii", kwlist,
+            "iO&O&|iiiiii", kwlist,
             &hough_mode,
             InputToArray, &input,
             InputToArray, &param,
-            &offset, &normalize, &expend)) {
+            &offset, &normalize, &expend,
+            &threshold, &line_length, &line_gap)) {
         PyErr_SetString(PyExc_RuntimeError, "invalid args or keywords");
         goto exit;
     }
@@ -548,10 +550,14 @@ PyObject* hough_transform(PyObject* self, PyObject* args, PyObject* keywords)
 
     switch ((PYCV_HoughMode)hough_mode) {
         case PYCV_HOUGH_LINE:
-            h_space = PYCV_hough_line_transform(input, param, (npy_intp)offset);
+            output = PYCV_hough_line_transform(input, param, (npy_intp)offset);
             break;
         case PYCV_HOUGH_CIRCLE:
-            h_space = PYCV_hough_circle_transform(input, param, normalize, expend);
+            output = PYCV_hough_circle_transform(input, param, normalize, expend);
+            break;
+        case PYCV_HOUGH_LINE_PROBABILISTIC:
+            output = PYCV_hough_probabilistic_line(input, param, (npy_intp)offset,
+                                                   (npy_intp)threshold, (npy_intp)line_length, (npy_intp)line_gap);
             break;
         default:
             PyErr_SetString(PyExc_RuntimeError, "hough mode not supported");
@@ -561,7 +567,7 @@ PyObject* hough_transform(PyObject* self, PyObject* args, PyObject* keywords)
     exit:
         Py_XDECREF(input);
         Py_XDECREF(param);
-        return PyErr_Occurred() ? NULL : (PyObject *)h_space;
+        return PyErr_Occurred() ? NULL : (PyObject *)output;
 }
 
 // #####################################################################################################################
