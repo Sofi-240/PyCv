@@ -19,6 +19,7 @@ setup(
                 "pycv/_lib/_src/c_pycv_draw.c",
                 "pycv/_lib/_src/c_pycv_convexhull.c",
                 "pycv/_lib/_src/c_pycv_features.c",
+                "pycv/_lib/_src/c_pycv_measure.c",
             ],
             include_dirs=[numpy.get_include()],
             define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")]

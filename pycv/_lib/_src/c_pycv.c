@@ -9,6 +9,7 @@
 #include "c_pycv_draw.h"
 #include "c_pycv_convexhull.h"
 #include "c_pycv_features.h"
+#include "c_pycv_measure.h"
 
 // #####################################################################################################################
 
@@ -812,7 +813,7 @@ PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords)
                 PyErr_SetString(PyExc_RuntimeError, "missing center_point or radius arguments");
                 goto exit;
             }
-            output = PYCV_draw_circle(center_point.ptr, radius);
+            output = PYCV_draw_circle(center_point.ptr, (npy_intp)radius);
             break;
         case PYCV_DRAW_ELLIPSE:
             if (!center_point.ptr || !a || !b) {
@@ -820,9 +821,9 @@ PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords)
                 goto exit;
             }
             if (a == b) {
-                output = PYCV_draw_circle(center_point.ptr, a);
+                output = PYCV_draw_circle(center_point.ptr, (npy_intp)a);
             } else {
-                output = PYCV_draw_ellipse(center_point.ptr, a, b);
+                output = PYCV_draw_ellipse(center_point.ptr, (npy_intp)a, (npy_intp)b);
             }
             break;
         default:
@@ -962,6 +963,52 @@ PyObject* integral_image(PyObject* self, PyObject* args)
 
 // #####################################################################################################################
 
+PyObject* find_object_peaks(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *output = NULL;
+    PyArray_Dims min_distance = {NULL, 0};
+    int mode;
+    double threshold, c_val;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O&O&didO&",
+            InputToArray, &input,
+            PyArray_IntpConverter, &min_distance,
+            &threshold, &mode, &c_val,
+            OutputToArray, &output)) {
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
+        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
+        goto exit;
+    }
+
+
+    PYCV_find_object_peaks(input,
+                           min_distance.ptr,
+                           (npy_double)threshold,
+                           (PYCV_ExtendBorder)mode,
+                           (npy_double)c_val,
+                           output);
+
+    PyArray_ResolveWritebackIfCopy(output);
+
+    exit:
+        Py_XDECREF(input);
+        Py_XDECREF(output);
+        PyDimMem_FREE(min_distance.ptr);
+        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+}
+
+// #####################################################################################################################
+
 
 static PyMethodDef methods[] = {
     {
@@ -1075,6 +1122,12 @@ static PyMethodDef methods[] = {
     {
         "integral_image",
         (PyCFunction)integral_image,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "find_object_peaks",
+        (PyCFunction)find_object_peaks,
         METH_VARARGS,
         NULL
     },

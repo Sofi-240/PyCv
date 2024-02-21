@@ -447,38 +447,7 @@ case NPY_##_NTYPE:                                                              
     }                                                                                                                  \
 }
 
-
-#define PYCV_T_HOUGH_GET_CIRCLE_POINTS(_radius, _circle, _size)                                                        \
-{                                                                                                                      \
-    npy_intp _rr = 0, _sh = 3 - 2 * _radius, _xx = _radius, _yy = 0;                                                   \
-    _size = 0;                                                                                                         \
-    while (_xx >= _yy) {                                                                                               \
-        _circle[_rr++] = _yy;                                                                                          \
-        _circle[_rr++] = _xx;                                                                                          \
-        _circle[_rr++] = _xx;                                                                                          \
-        _circle[_rr++] = _yy;                                                                                          \
-        _circle[_rr++] = _yy;                                                                                          \
-        _circle[_rr++] = -_xx;                                                                                         \
-        _circle[_rr++] = _xx;                                                                                          \
-        _circle[_rr++] = -_yy;                                                                                         \
-        _circle[_rr++] = -_yy;                                                                                         \
-        _circle[_rr++] = -_xx;                                                                                         \
-        _circle[_rr++] = -_xx;                                                                                         \
-        _circle[_rr++] = -_yy;                                                                                         \
-        _circle[_rr++] = -_yy;                                                                                         \
-        _circle[_rr++] = _xx;                                                                                          \
-        _circle[_rr++] = -_xx;                                                                                         \
-        _circle[_rr++] = _yy;                                                                                          \
-        _size += 8;                                                                                                    \
-        if (_sh < 0) {                                                                                                 \
-            _sh += 4 * _yy + 6;                                                                                        \
-        } else {                                                                                                       \
-            _sh += 4 * (_yy - _xx) + 10;                                                                               \
-            _xx -= 1;                                                                                                  \
-        }                                                                                                              \
-        _yy += 1;                                                                                                      \
-    }                                                                                                                  \
-}
+// *********************************************************************************************************************
 
 
 PyArrayObject *PYCV_hough_line_transform(PyArrayObject *input,
@@ -584,6 +553,56 @@ PyArrayObject *PYCV_hough_line_transform(PyArrayObject *input,
         return PyErr_Occurred() ? NULL : h_space;
 }
 
+// *********************************************************************************************************************
+
+#define PYCV_T_HOUGH_CIRCLE_POINTS_ADD_YX(_circle, _yy, _xx, _index)                                                   \
+{                                                                                                                      \
+    _circle[_index] = _yy;                                                                                             \
+    _circle[_index + 1] = _xx;                                                                                         \
+    _index += 2;                                                                                                       \
+}
+
+#define PYCV_T_HOUGH_CIRCLE_POINTS_ADD_POINTS4(_circle, _yy, _xx, _index)                                              \
+{                                                                                                                      \
+    PYCV_T_HOUGH_CIRCLE_POINTS_ADD_YX(_circle, -_yy, _xx, _index);                                                     \
+    PYCV_T_HOUGH_CIRCLE_POINTS_ADD_YX(_circle, _yy, _xx, _index);                                                      \
+    PYCV_T_HOUGH_CIRCLE_POINTS_ADD_YX(_circle, -_yy, -_xx, _index);                                                    \
+    PYCV_T_HOUGH_CIRCLE_POINTS_ADD_YX(_circle, _yy, -_xx, _index);                                                     \
+}
+
+#define PYCV_T_HOUGH_CIRCLE_POINTS_ADD_POINTS8(_circle, _yy, _xx, _index)                                              \
+{                                                                                                                      \
+    PYCV_T_HOUGH_CIRCLE_POINTS_ADD_POINTS4(_circle, _yy, _xx, _index);                                                 \
+    PYCV_T_HOUGH_CIRCLE_POINTS_ADD_POINTS4(_circle, _xx, _yy, _index);                                                 \
+}
+
+
+#define PYCV_T_HOUGH_GET_CIRCLE_POINTS(_radius, _circle, _size)                                                        \
+{                                                                                                                      \
+    npy_intp _rr = 0, _err = 3 - 2 * _radius, _xx = 0, _yy = _radius;                                                  \
+    _size = 0;                                                                                                         \
+    while (_yy > _xx) {                                                                                                \
+        if (_xx == 0) {                                                                                                \
+            PYCV_T_HOUGH_CIRCLE_POINTS_ADD_YX(_circle, _yy, _xx, _rr);                                                 \
+            PYCV_T_HOUGH_CIRCLE_POINTS_ADD_YX(_circle, -_yy, _xx, _rr);                                                \
+            PYCV_T_HOUGH_CIRCLE_POINTS_ADD_YX(_circle, _xx, _yy, _rr);                                                 \
+            PYCV_T_HOUGH_CIRCLE_POINTS_ADD_YX(_circle, _xx, -_yy, _rr);                                                \
+            _size += 4;                                                                                                \
+        } else {                                                                                                       \
+            PYCV_T_HOUGH_CIRCLE_POINTS_ADD_POINTS8(_circle, _yy, _xx, _rr);                                            \
+            _size += 8;                                                                                                \
+        }                                                                                                              \
+        if (_err < 0) {                                                                                                \
+            _err += 4 * _xx + 6;                                                                                       \
+        } else {                                                                                                       \
+            _err += 4 * (_xx - _yy) + 10;                                                                              \
+            _yy -= 1;                                                                                                  \
+        }                                                                                                              \
+        _xx += 1;                                                                                                      \
+    }                                                                                                                  \
+    PYCV_T_HOUGH_CIRCLE_POINTS_ADD_POINTS4(_circle, _yy, _xx, _rr);                                                    \
+    _size += 4;                                                                                                        \
+}
 
 PyArrayObject *PYCV_hough_circle_transform(PyArrayObject *input,
                                            PyArrayObject *radius,
@@ -592,27 +611,20 @@ PyArrayObject *PYCV_hough_circle_transform(PyArrayObject *input,
 {
     int num_type_i, num_type_r, num_type_h;
     PYCV_ArrayIterator iter_i, iter_r, iter_h;
-    char *pi = NULL, *ph = NULL, *pr = NULL, *pr_base = NULL;
-    npy_intp ndim, init_size = 1, input_shape[NPY_MAXDIMS], ndim_init, transform_size = 1;
+    char *pi = NULL, *ph = NULL, *ph_base = NULL, *pr = NULL, *pr_base = NULL, *pi_base = NULL;
+    npy_intp ndim, ndim_init, init_size = 1, transform_size = 1, input_shape[NPY_MAXDIMS];
 
     PyArrayObject *h_space;
-    npy_intp *h_shape, h_size = 1, stride, n_radius, shift = 0;
-    npy_intp **circle_points, circle_size, max_size, max_r = 0, r, y, x, proj_y, proj_x;
+    npy_intp h_shape[NPY_MAXDIMS], coordinates[NPY_MAXDIMS], n_radius, shift = 0, max_r = 0;
+    npy_intp *circle_points, *circle, circle_size, r, y, x, proj_y, proj_x;
     npy_double i_val, incr_val;
 
-    npy_intp ii, jj, hh, hhp, rr, kk;
+    npy_intp ii, jj, rr, kk;
 
     NPY_BEGIN_THREADS_DEF;
 
     ndim = PyArray_NDIM(input);
     ndim_init = ndim - 2;
-
-    h_shape = malloc((ndim + 1) * sizeof(npy_intp));
-
-    if (!h_shape) {
-        PyErr_NoMemory();
-        goto exit;
-    }
 
     for (ii = 0; ii < ndim; ii++) {
         input_shape[ii] = PyArray_DIM(input, (int)ii);
@@ -622,18 +634,16 @@ PyArrayObject *PYCV_hough_circle_transform(PyArrayObject *input,
         } else {
             transform_size *= input_shape[ii];
         }
+        coordinates[ii] = 0;
     }
-
+    coordinates[ndim] = 0;
     n_radius = PyArray_SIZE(radius);
 
-    num_type_h = normalize ? NPY_DOUBLE : NPY_UINT64;
-    num_type_i = PyArray_TYPE(input);
     num_type_r = PyArray_TYPE(radius);
-
     pr_base = pr = (void *)PyArray_DATA(radius);
     PYCV_ArrayIteratorInit(radius, &iter_r);
 
-    for (ii = 0; ii < n_radius; ii++) {
+    for (rr = 0; rr < n_radius; rr++) {
         PYCV_GET_VALUE(num_type_r, npy_intp, pr, r);
         max_r = r > max_r ? r : max_r;
         PYCV_ARRAY_ITERATOR_NEXT(iter_r, pr);
@@ -641,98 +651,80 @@ PyArrayObject *PYCV_hough_circle_transform(PyArrayObject *input,
     pr = pr_base;
     PYCV_ARRAY_ITERATOR_RESET(iter_r);
 
-    if (expend) {
-        shift = max_r;
-    }
-
+    shift = expend ? max_r : 0;
     h_shape[ndim_init] = n_radius;
     h_shape[ndim_init + 1] = input_shape[ndim_init] + 2 * shift;
     h_shape[ndim_init + 2] = input_shape[ndim_init + 1] + 2 * shift;
 
-    h_space = (PyArrayObject *)PyArray_ZEROS((int)(ndim + 1), h_shape, num_type_h, 0);
+    h_space = (PyArrayObject *)PyArray_ZEROS((int)(ndim + 1), h_shape, NPY_DOUBLE, 0);
     if (!h_space) {
         PyErr_NoMemory();
         goto exit;
     }
 
-    stride = PyArray_STRIDE(h_space, (int)(ndim_init - 1));
-
-    circle_points = malloc(n_radius * sizeof(npy_intp*));
-
+    circle_points = malloc(2 * ((max_r * 8) + 8) * sizeof(npy_intp));
     if (!circle_points) {
         PyErr_NoMemory();
         goto exit;
     }
 
-    for (ii = 0; ii < n_radius; ii++) {
-        PYCV_GET_VALUE(num_type_r, npy_intp, pr, r);
-        max_size = 2 * ((r * 8) + 8);
-        circle_points[ii] = malloc((max_size + 1) * sizeof(npy_intp));
-        if (!circle_points[ii]) {
-            PyErr_NoMemory();
-            goto exit;
-        }
-        PYCV_T_HOUGH_GET_CIRCLE_POINTS(r, circle_points[ii], circle_size);
-        circle_points[ii][max_size] = circle_size;
-        PYCV_ARRAY_ITERATOR_NEXT(iter_r, pr);
-    }
-    pr = pr_base;
-    PYCV_ARRAY_ITERATOR_RESET(iter_r);
+    num_type_h = PyArray_TYPE(h_space);
+    num_type_i = PyArray_TYPE(input);
 
     PYCV_ArrayIteratorInit(h_space, &iter_h);
     PYCV_ArrayIteratorInit(input, &iter_i);
 
     NPY_BEGIN_THREADS;
 
-    pi = (void *)PyArray_DATA(input);
-    ph = (void *)PyArray_DATA(h_space);
+    pi_base = pi = (void *)PyArray_DATA(input);
+    ph_base = ph = (void *)PyArray_DATA(h_space);
 
+    for (rr = 0; rr < n_radius; rr++) {
+        PYCV_GET_VALUE(num_type_r, npy_intp, pr, r);
+        PYCV_T_HOUGH_GET_CIRCLE_POINTS(r, circle_points, circle_size);
 
-    while (init_size--) {
-        for (ii = 0; ii < transform_size; ii++) {
-            y = iter_i.coordinates[ndim_init];
-            x = iter_i.coordinates[ndim_init + 1];
-            PYCV_GET_VALUE(num_type_i, npy_double, pi, i_val);
+        incr_val = normalize ? 1 / (npy_double)circle_size : 1;
 
-            if (fabs(i_val) > DBL_EPSILON) {
-                y += shift;
-                x += shift;
+        coordinates[ndim_init] = rr;
 
-                for (rr = 0; rr < n_radius; rr++) {
-                    PYCV_GET_VALUE(num_type_r, npy_intp, pr, r);
-                    max_size = 2 * ((r * 8) + 8);
-                    circle_size = circle_points[rr][max_size];
-
-                    incr_val = normalize ? 1 / (npy_double)circle_size : 1;
-                    hh = rr * iter_h.strides[ndim_init];
-                    kk = 0;
-                    for (jj = 0; jj < circle_size; jj++) {
-                        proj_y = y + circle_points[rr][kk];
-                        proj_x = x + circle_points[rr][kk + 1];
-                        kk += 2;
-
-                        if (shift || (proj_y >= 0 && proj_y < h_shape[ndim_init + 1] && proj_x >= 0 && proj_x < h_shape[ndim_init + 2])) {
-                            hhp = hh + proj_y * iter_h.strides[ndim_init + 1] + proj_x * iter_h.strides[ndim_init + 2];
-                            PYCV_T_HOUGH_ADD_VALUE(num_type_h, (ph + hhp), incr_val);
-                        }
-                    }
-                    PYCV_ARRAY_ITERATOR_NEXT(iter_r, pr);
-                }
-                pr = pr_base;
-                PYCV_ARRAY_ITERATOR_RESET(iter_r);
+        for (kk = 0; kk < init_size; kk++) {
+            for (ii = 0; ii < ndim_init; ii++) {
+                coordinates[ii] = iter_i.coordinates[ii];
             }
 
-            PYCV_ARRAY_ITERATOR_NEXT(iter_i, pi);
+            for (ii = 0; ii < transform_size; ii++) {
+                PYCV_GET_VALUE(num_type_i, npy_double, pi, i_val);
+
+                if (fabs(i_val) > DBL_EPSILON) {
+                    y = iter_i.coordinates[ndim_init] + shift;
+                    x = iter_i.coordinates[ndim_init + 1] + shift;
+
+                    circle = circle_points;
+
+                    for (jj = 0; jj < circle_size; jj++) {
+                        proj_y = y + circle[0];
+                        proj_x = x + circle[1];
+
+                        if (shift || (proj_y >= 0 && proj_y < h_shape[ndim_init + 1] && proj_x >= 0 && proj_x < h_shape[ndim_init + 2])) {
+                            coordinates[ndim_init + 1] = proj_y;
+                            coordinates[ndim_init + 2] = proj_x;
+
+                            PYCV_ARRAY_ITERATOR_GOTO(iter_h, ph_base, ph, coordinates);
+                            PYCV_T_HOUGH_ADD_VALUE(num_type_h, ph, incr_val);
+                        }
+                        circle += 2;
+                    }
+                }
+                PYCV_ARRAY_ITERATOR_NEXT(iter_i, pi);
+            }
         }
-        ph += stride;
+        pi = pi_base;
+        PYCV_ARRAY_ITERATOR_RESET(iter_i);
+        PYCV_ARRAY_ITERATOR_NEXT(iter_r, pr);
     }
 
     NPY_END_THREADS;
     exit:
-        free(h_shape);
-        for (ii = 0; ii < n_radius; ii++) {
-            free(circle_points[ii]);
-        }
         free(circle_points);
         return PyErr_Occurred() ? NULL : h_space;
 }
@@ -784,7 +776,7 @@ PyArrayObject *PYCV_hough_probabilistic_line(PyArrayObject *input,
 
     npy_intp *h_space, n_theta, n_rho, max_hh, max_theta, y_stride, h_size;
     npy_double *cosine, *sine, i_val, y, x, proj, angle, cosine_abs, sine_abs;
-    npy_intp ii, jj, hh, y0, x0, y1, x1, dy, dx, iyx, diy, dix, inter, gap, lx, ly, line[4] = {0, 0, 0, 0}, length;
+    npy_intp ii, jj, hh, y0, x0, y1, x1, dy, dx, iyx, diy, dix, inter, gap, lx, ly, line[4] = {0, 0, 0, 0};
 
     PYCV_CoordinatesList line_start, line_end;
     PyArrayObject *output;

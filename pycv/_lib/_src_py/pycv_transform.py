@@ -1,16 +1,19 @@
 import numpy as np
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.array_api.dtypes import cast, get_dtype_info
-from pycv._lib._src_py.utils import get_output, ctype_border_mode, ctype_interpolation_order, axis_transpose_to_last
+from pycv._lib.array_api.shapes import atleast_nd
+from pycv._lib._src_py.utils import get_output, ctype_border_mode, ctype_interpolation_order, axis_transpose_to_last, \
+    ctype_hough_mode
 from pycv._lib._src import c_pycv
 from pycv._lib.filters_support.windows import gaussian_kernel
 from pycv._lib._src_py.pycv_filters import convolve
-from pycv._lib._src_py._geometric_transform import ProjectiveTransform,  _valid_matrix
+from pycv._lib._src_py._geometric_transform import ProjectiveTransform, _valid_matrix
 
 __all__ = [
     'resize',
     'rotate',
-    'geometric_transform'
+    'geometric_transform',
+    'hough_transform'
 ]
 
 
@@ -172,6 +175,58 @@ def geometric_transform(
 
     if preserve_dtype:
         return cast(output, dtype.type)
+
+    return output
+
+
+########################################################################################################################
+
+
+def hough_transform(
+        hough_mode: str,
+        inputs: np.ndarray,
+        params: np.ndarray | None = None,
+        offset: int | None = None,
+        normalize: bool = False,
+        expend: bool = False,
+        threshold: int = 10,
+        line_length: int = 50,
+        line_gap: int = 8,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | np.ndarray:
+    inputs = np_compliance(inputs, 'Input', _check_finite=True)
+    inputs = atleast_nd(inputs, 2, raise_err=True)
+
+    dist = None
+    if hough_mode in ['line', 'probabilistic_line', 'pp_line']:
+        if params is not None:
+            params = np_compliance(params, 'theta', _check_finite=True)
+        else:
+            params = np.linspace(-np.pi / 2, np.pi / 2, 180, endpoint=False)
+        if offset is None:
+            offset = int(np.ceil(np.hypot(inputs.shape[-2], inputs.shape[-1])))
+            dist = np.linspace(-offset, offset, 2 * offset + 1)
+        elif offset <= 0:
+            raise ValueError('offset cannot be zero')
+        else:
+            dist = np.linspace(-offset, offset, 2 * offset + 1)
+        if hough_mode == 'line':
+            params_in = dict(offset=offset)
+        else:
+            params_in = dict(offset=offset, threshold=threshold, line_length=line_length, line_gap=line_gap)
+    elif hough_mode == 'circle':
+        if params is None:
+            raise ValueError('radius must be given')
+        elif np.isscalar(params):
+            params = np.array([params], np.int64)
+        params = np_compliance(params, 'radius', _check_finite=True)
+        params_in = dict(normalize=normalize, expend=expend)
+    else:
+        raise ValueError('hough mode is not supported')
+
+    output = c_pycv.hough_transform(ctype_hough_mode(hough_mode), inputs, params, **params_in)
+
+    if hough_mode == 'line':
+        return output, params, dist
 
     return output
 

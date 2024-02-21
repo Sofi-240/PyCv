@@ -73,6 +73,19 @@ def ctype_interpolation_order(
     return order
 
 
+def ctype_hough_mode(
+        mode: str
+) -> int:
+    if mode == 'line':
+        return 1
+    elif mode == 'circle':
+        return 2
+    elif mode in ['probabilistic_line', 'pp_line']:
+        return 3
+    else:
+        raise RuntimeError('invalid hough mode')
+
+
 ########################################################################################################################
 
 def as_sequence(
@@ -238,8 +251,8 @@ def valid_axis(
 ) -> tuple:
     if axis is None:
         out = tuple()
-        for i in range(min(default_nd, nd)):
-            out += (nd - i - 1,)
+        for i in range(min(default_nd, nd), 0, -1):
+            out += (nd - i,)
     elif isinstance(axis, numbers.Number):
         out = (axis % nd if axis < 0 else axis,)
     elif isinstance(axis, Iterable):

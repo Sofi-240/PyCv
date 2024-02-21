@@ -347,58 +347,8 @@ int PYCV_binary_erosion_iter(PyArrayObject *input,
         return PyErr_Occurred() ? 0 : 1;
 }
 
+
 // #####################################################################################################################
-
-#define PYCV_M_CASE_GRAY_EROSION_DILATION(_NTYPE, _dtype, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val)     \
-case NPY_##_NTYPE:                                                                                                     \
-{                                                                                                                      \
-    npy_intp _ii;                                                                                                      \
-    npy_double _tmp;                                                                                                   \
-    if (_ma_val) {                                                                                                     \
-        _out = _offsets[0] == _flag ? _c_val : (npy_double)(*(_dtype *)(_x + _offsets[0]));                            \
-        _out += _h[0];                                                                                                 \
-        for (_ii = 1; _ii < _n; _ii++) {                                                                               \
-            if (_offsets[_ii] == _flag) {                                                                              \
-                _tmp = _c_val + _h[_ii];                                                                               \
-            } else {                                                                                                   \
-                _tmp = (npy_double)(*(_dtype *)(_x + _offsets[_ii])) + _h[_ii];                                        \
-            }                                                                                                          \
-            switch (_op) {                                                                                             \
-                case PYCV_MORPH_OP_ERO:                                                                                \
-                    _out = _out < _tmp ? _out : _tmp;                                                                  \
-                    break;                                                                                             \
-                case PYCV_MORPH_OP_DIL:                                                                                \
-                    _out = _out > _tmp ? _out : _tmp;                                                                  \
-                    break;                                                                                             \
-            }                                                                                                          \
-        }                                                                                                              \
-    } else {                                                                                                           \
-        _out = (npy_double)(*(_dtype *)_x);                                                                            \
-    }                                                                                                                  \
-}                                                                                                                      \
-break
-
-
-#define PYCV_M_GRAY_EROSION_DILATION(_NTYPE, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val)                  \
-{                                                                                                                      \
-    switch (_NTYPE) {                                                                                                  \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(BOOL, npy_bool, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);    \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(UBYTE, npy_ubyte, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);  \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(USHORT, npy_ushort, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);\
-        PYCV_M_CASE_GRAY_EROSION_DILATION(UINT, npy_uint, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);    \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(ULONG, npy_ulong, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);  \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(ULONGLONG, npy_ulonglong, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);\
-        PYCV_M_CASE_GRAY_EROSION_DILATION(BYTE, npy_byte, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);    \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(SHORT, npy_short, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);  \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(INT, npy_int, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);      \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(LONG, npy_long, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);    \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(LONGLONG, npy_longlong, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);\
-        PYCV_M_CASE_GRAY_EROSION_DILATION(FLOAT, npy_float, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);  \
-        PYCV_M_CASE_GRAY_EROSION_DILATION(DOUBLE, npy_double, _op, _ma_val, _x, _h, _n, _flag, _offsets, _out, _c_val);\
-    }                                                                                                                  \
-}
-
-// *********************************************************************************************************************
 
 int PYCV_gray_erosion_dilation(PyArrayObject *input,
                                PyArrayObject *flat_strel,
@@ -413,7 +363,7 @@ int PYCV_gray_erosion_dilation(PyArrayObject *input,
     NeighborhoodIterator iter_i;
     char *po = NULL, *pi = NULL, *ma = NULL, *ps = NULL;
     npy_bool *footprint = NULL;
-    npy_double *h = NULL, out_val;
+    npy_double *h = NULL, out_val, val;
     int num_type_i, num_type_o, num_type_m, num_type_s, ma_val = 1;
     npy_intp array_size, ii, jj, flag, f_size, *offsets, *ff;
 
@@ -483,7 +433,22 @@ int PYCV_gray_erosion_dilation(PyArrayObject *input,
         if (mask) {
             PYCV_M_MASK_VALUE(num_type_m, ma, ma_val);
         }
-        PYCV_M_GRAY_EROSION_DILATION(num_type_i, op, ma_val, pi, h, f_size, flag, ff, out_val, c_val);
+
+        if (ma_val && f_size) {
+            for (jj = 0; jj < f_size; jj++) {
+                if (ff[jj] == flag) {
+                    val = c_val + h[jj];
+                } else {
+                    PYCV_GET_VALUE(num_type_i, npy_double, (pi + ff[jj]), val);
+                    val += h[jj];
+                }
+                if (!jj || (op == PYCV_MORPH_OP_ERO && val < out_val) || (op == PYCV_MORPH_OP_DIL && val > out_val)) {
+                    out_val = val;
+                }
+            }
+        } else {
+            PYCV_GET_VALUE(num_type_i, npy_double, pi, out_val);
+        }
         PYCV_SET_VALUE_F2A(num_type_o, po, out_val);
 
         if (mask) {

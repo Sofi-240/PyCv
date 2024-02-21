@@ -19,9 +19,10 @@ py -m pip uninstall C_PyCv
 python c_pycv_setup.py build_ext
 python c_pycv_setup.py develop
 
-
-
-
-# coins = load_image('coins.png')[88:]
-# coins_med = median_filter(coins, (5, 5))
-# coins_bin, th = im_threshold(coins_med, 'otsu')
+for (ii = 0; ii < peaks.coordinates_size; ii++) {
+        printf("[");
+        for (jj = 0; jj < peaks.ndim; jj++) {
+            printf("%" NPY_INTP_FMT ", ", peaks.coordinates[ii][jj]);
+        }
+        printf("]\n");
+    }

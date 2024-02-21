@@ -16,7 +16,7 @@ __all__ = [
 
 def valid_footprint(
         ndim: int,
-        kernel_size: int | tuple | None = None,
+        kernel_shape: int | tuple | None = None,
         footprint: np.ndarray | None = None,
         axis: int | tuple | None = None,
 ) -> np.ndarray:
@@ -30,8 +30,12 @@ def valid_footprint(
             kernel_shape = fix_kernel_shape(kernel_shape, axis, ndim)
             footprint = np.reshape(footprint, kernel_shape)
     else:
-        axis = valid_axis(ndim, axis, 2)
-        kernel_shape = fix_kernel_shape(kernel_size, axis, ndim)
+        if kernel_shape is None:
+            raise ValueError('one of kernel_shape or footprint must be given')
+        elif np.isscalar(kernel_shape):
+            kernel_shape = (kernel_shape, )
+        axis = valid_axis(ndim, axis, len(kernel_shape))
+        kernel_shape = fix_kernel_shape(kernel_shape, axis, ndim)
         footprint = np.ones(kernel_shape, bool)
     return footprint
 

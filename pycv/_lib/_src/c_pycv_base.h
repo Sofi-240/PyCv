@@ -209,6 +209,18 @@ void PYCV_ArrayIteratorInit(PyArrayObject *array, PYCV_ArrayIterator *iterator);
     }                                                                                                                  \
 }
 
+#define PYCV_ARRAY_ITERATOR_GOTO_RAVEL(_iterator, _pointer_base, _pointer, _index)                                     \
+{                                                                                                                      \
+    npy_intp _ii, _ind;                                                                                                \
+    _pointer = _pointer_base;                                                                                          \
+    _ind = _index;                                                                                                     \
+    for (_ii = 0; _ii <= (_iterator.nd_m1); _ii++) {                                                                   \
+        (_iterator).coordinates[_ii] = _ind / (_iterator).strides[_ii];                                                \
+        _pointer += (_iterator).coordinates[_ii] * (_iterator).strides[_ii];                                           \
+        _ind -= (_iterator).coordinates[_ii] * (_iterator).strides[_ii];                                               \
+    }                                                                                                                  \
+}
+
 typedef struct {
     npy_intp nd_m1;
     npy_intp dims_m1[NPY_MAXDIMS];
@@ -479,6 +491,55 @@ void PYCV_NeighborhoodIteratorInit(PyArrayObject *array,
         }                                                                                                              \
     }                                                                                                                  \
 }
+
+#define PYCV_NEIGHBORHOOD_ITERATOR_GOTO_RAVEL(_iterator, _pointer_base, _pointer, _offsets_base, _offsets, _index)     \
+{                                                                                                                      \
+    npy_intp _ii, _ind;                                                                                                \
+    _pointer = _pointer_base;                                                                                          \
+    _offsets = _offsets_base;                                                                                          \
+    _ind = _index;                                                                                                     \
+    for (_ii = 0; _ii <= (_iterator.nd_m1); _ii++) {                                                                   \
+        (_iterator).coordinates[_ii] = _ind / (_iterator).strides[_ii];                                                \
+        _pointer += (_iterator).coordinates[_ii] * (_iterator).strides[_ii];                                           \
+        _ind -= (_iterator).coordinates[_ii] * (_iterator).strides[_ii];                                               \
+        if ((_iterator).coordinates[_ii] < (_iterator).boundary_low[_ii]) {                                            \
+            _offsets += (_iterator).nn_strides[_ii] * (_iterator).coordinates[_ii];                                    \
+        } else if ((_iterator).coordinates[_ii] > (_iterator).boundary_high[_ii] &&                                    \
+                   (_iterator).boundary_high[_ii] >= (_iterator).boundary_low[_ii]) {                                  \
+            _offsets += (_iterator).nn_strides[_ii] *                                                                  \
+                        ((_iterator).coordinates[_ii] + (_iterator).boundary_low[_ii] - (_iterator).boundary_high[_ii]);\
+        } else {                                                                                                       \
+            _offsets += (_iterator).nn_strides[_ii] * (_iterator).boundary_low[_ii];                                   \
+        }                                                                                                              \
+    }                                                                                                                  \
+}
+
+#define PYCV_NEIGHBORHOOD_ITERATOR_GOTO2_RAVEL(_iterator1, _pointer1_base, _pointer1,                                  \
+                                               _iterator2, _pointer2_base, _pointer2,                                  \
+                                               _offsets_base, _offsets, _index)                                        \
+{                                                                                                                      \
+    npy_intp _ii, _ind = _index;                                                                                       \
+    _pointer1 = _pointer1_base;                                                                                        \
+    _pointer2 = _pointer2_base;                                                                                        \
+    _offsets = _offsets_base;                                                                                          \
+    for (_ii = 0; _ii <= (_iterator1.nd_m1); _ii++) {                                                                  \
+        (_iterator1).coordinates[_ii] = _ind / (_iterator1).strides[_ii];                                              \
+        _ind -= (_iterator1).coordinates[_ii] * (_iterator1).strides[_ii];                                             \
+        _pointer1 += (_iterator1).coordinates[_ii] * (_iterator1).strides[_ii];                                        \
+        _pointer2 += (_iterator1).coordinates[_ii] * (_iterator2).strides[_ii];                                        \
+        (_iterator2).coordinates[_ii] = (_iterator1).coordinates[_ii];                                                 \
+        if ((_iterator1).coordinates[_ii] < (_iterator1).boundary_low[_ii]) {                                          \
+            _offsets += (_iterator1).nn_strides[_ii] * (_iterator1).coordinates[_ii];                                  \
+        } else if ((_iterator1).coordinates[_ii] > (_iterator1).boundary_high[_ii] &&                                  \
+                   (_iterator1).boundary_high[_ii] >= (_iterator1).boundary_low[_ii]) {                                \
+            _offsets += (_iterator1).nn_strides[_ii] *                                                                 \
+                        ((_iterator1).coordinates[_ii] + (_iterator1).boundary_low[_ii] - (_iterator1).boundary_high[_ii]);\
+        } else {                                                                                                       \
+            _offsets += (_iterator1).nn_strides[_ii] * (_iterator1).boundary_low[_ii];                                 \
+        }                                                                                                              \
+    }                                                                                                                  \
+}
+
 
 // #####################################################################################################################
 

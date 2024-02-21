@@ -188,7 +188,7 @@ def local_min_filter(
         image = pad(image, get_padding_width(footprint.shape), mode=padding_mode)
         padding_mode = 'valid'
 
-    output = pycv_morphology.gray_ero_or_dil(0, image, footprint, border_val=constant_value)
+    output = pycv_morphology.gray_ero_or_dil(0, image, footprint, offset=tuple(s // 2 for s in footprint.shape), border_val=constant_value)
 
     if padding_mode == 'valid':
         pw = get_padding_width(footprint.shape)
@@ -215,7 +215,7 @@ def local_max_filter(
         image = pad(image, get_padding_width(footprint.shape), mode=padding_mode)
         padding_mode = 'valid'
 
-    output = pycv_morphology.gray_ero_or_dil(1, image, footprint, border_val=constant_value)
+    output = pycv_morphology.gray_ero_or_dil(1, image, footprint, offset=tuple(s // 2 for s in footprint.shape), border_val=constant_value)
 
     if padding_mode == 'valid':
         pw = get_padding_width(footprint.shape)
