@@ -11,7 +11,7 @@ for (ii = 0; ii < sz; ii++) {
 printf("]\n");
 
 printf("[%" NPY_INTP_FMT ", %" NPY_INTP_FMT "]\n", circles_run[0], circles_run[1]);
-
+printf("[%" NPY_LONGDOUBLE_FMT ", %" NPY_LONGDOUBLE_FMT "]\n", self->min_distance, self->max_distance);
 
 python c_pycv_setup.py install
 py -m pip uninstall C_PyCv
@@ -19,10 +19,3 @@ py -m pip uninstall C_PyCv
 python c_pycv_setup.py build_ext
 python c_pycv_setup.py develop
 
-for (ii = 0; ii < peaks.coordinates_size; ii++) {
-        printf("[");
-        for (jj = 0; jj < peaks.ndim; jj++) {
-            printf("%" NPY_INTP_FMT ", ", peaks.coordinates[ii][jj]);
-        }
-        printf("]\n");
-    }

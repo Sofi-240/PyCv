@@ -1,13 +1,14 @@
 import numpy as np
 from _debug_utils.im_load import load_image
-# from _debug_utils.im_viz import show_collection
+from _debug_utils.im_viz import show_collection
 from pycv._lib._src import c_pycv
-from pycv.draw import draw_line, draw_circle, draw_ellipse
-from pycv.filters import median_filter, rank_filter, local_max_filter
+from pycv.filters import median_filter
 from pycv.segmentation import im_threshold
-from pycv.morphological import im_label, find_object, binary_edge
-from pycv.transform import hough_circle, hough_line
+from pycv.morphological import binary_edge, binary_dilation
+from pycv.transform import hough_circle
+from pycv.draw import draw_circle
 from pycv._lib._src_py.pycv_measure import find_object_peaks
+from pycv._lib._src_py.kdtree import KDtree
 
 coins = load_image('coins.png')[160:230, 70:250]
 coins_med = median_filter(coins, (5, 5))
@@ -17,24 +18,41 @@ radius = np.arange(20, 35, 2)
 
 h_space = hough_circle(inputs, radius)
 
-peaks = find_object_peaks(h_space, (1, 1))
-peaks_cc = np.stack(np.where(peaks), axis=1)
+peaks_mask = find_object_peaks(h_space, (1, 1))
+peaks = np.where(peaks_mask)
+
+sorted_ = np.argsort(h_space[peaks])[::-1]
+peaks = tuple(p[sorted_] for p in peaks)
+
+peaks_radius = radius[peaks[0]]
+peaks_cc = np.stack(peaks[1:], axis=1)
+peaks_h = h_space[peaks]
+
+tree = KDtree(peaks_cc, 1)
+
+query_nn = tree.query_ball_point(peaks_cc,  np.hypot(7, 7))
+
+mask = np.ones_like(peaks_radius, bool)
+
+for ii, nn in enumerate(query_nn):
+    if mask[ii]:
+        for jj in nn:
+            if jj != ii:
+                mask[jj] = 0
+
+hh_bin = np.zeros_like(coins_bin)
+
+for ii in mask.nonzero()[0]:
+    hh_bin[draw_circle(tuple(int(i) for i in peaks_cc[ii]), int(peaks_radius[ii]))] = 1
 
 
-# inputs = np.zeros((15, 15), np.uint8)
-# inputs[draw_line((1, 1), (13, 13))] = 1
-# inputs[draw_line((1, 7), (13, 7))] = 1
-# inputs[draw_line((1, 13), (13, 1))] = 1
-#
-# h_space, theta, dist = hough_line(inputs)
-# h_space2, _, _ = hough_line(np.array([inputs, inputs]))
-# h_space3, _, _ = hough_line(inputs)
-#
-# print(np.sum(h_space2[0] != h_space))
-# print(np.sum(h_space3 != h_space))
+hh_bin = binary_dilation(hh_bin)
 
+marked = np.zeros(hh_bin.shape + (3, ), bool)
+marked[..., 0] = coins_bin | hh_bin
+marked[..., 1] = coins_bin & ~hh_bin
+marked[..., 2] = marked[..., 1]
 
-# inputs = np.zeros((25, 25), bool)
-# inputs[draw_circle((12, 12), 7)] = 1
-# inputs[draw_circle((7, 7), 5)] = 1
-# radius = np.arange(2, 10)
+marked = marked.astype(np.uint8) * 255
+
+show_collection([coins_bin, marked], 1, 2)

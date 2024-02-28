@@ -66,4 +66,12 @@ PyObject* find_object_peaks(PyObject* self, PyObject* args);
 
 // #####################################################################################################################
 
+PyObject* build_kdtree(PyObject* self, PyObject* args);
+
+PyObject* query_kdtree(PyObject* self, PyObject* args);
+
+PyObject* query_ball_kdtree(PyObject* self, PyObject* args);
+
+// #####################################################################################################################
+
 #endif

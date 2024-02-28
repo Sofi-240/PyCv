@@ -369,10 +369,10 @@ int PYCV_InitNeighborhoodOffsets(PyArrayObject *array,
 int PYCV_AllocateToFootprint(PyArrayObject *array, npy_bool **footprint, npy_intp *nonzero, int flip)
 {
     PYCV_ArrayIterator iter;
-    npy_intp ndim, array_size, n = 0;
+    npy_intp ndim, array_size, n = 0, ii;
     npy_bool *fpo = NULL, out;
     char *pi = NULL;
-    int num_type, ii;
+    int num_type;
 
     ndim = PyArray_NDIM(array);
     array_size = PyArray_SIZE(array);

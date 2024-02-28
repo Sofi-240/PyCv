@@ -202,7 +202,7 @@ int PYCV_rank_filter(PyArrayObject *input,
 {
     npy_intp array_size, f_size;
     int num_type_i, num_type_o;
-    npy_intp *offsets = NULL, flag, *ff = NULL;;
+    npy_intp *offsets = NULL, flag, *ff = NULL;
     npy_bool *fp = NULL;
     npy_intp ii;
 

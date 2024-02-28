@@ -136,7 +136,7 @@ int PYCV_find_object_peaks(PyArrayObject *input,
     char *pi_base = NULL, *pi = NULL, *po = NULL, *po_base = NULL;
     int num_type_i, num_type_o;
     npy_intp ndim, array_size, itemsize_i, itemsize_o;
-    npy_intp f_mid, f_size, f_shape[NPY_MAXDIMS], *offsets, *ff, flag, *cc_pointer, cc_size, offsets_size;
+    npy_intp f_size, f_shape[NPY_MAXDIMS], *offsets, *ff, flag, *cc_pointer, cc_size, offsets_size;
     npy_intp ii, jj;
     npy_intp *sorted, index, index_pi, is_max, *visited, *stack, *stack_fill, stack_start, stack_end;
     npy_intp cum_sum[NPY_MAXDIMS], n;

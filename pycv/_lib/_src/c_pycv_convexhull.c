@@ -434,8 +434,8 @@ PyArrayObject *PYCV_jarvis_march_convex_hull(PyArrayObject *input,
 {
     PYCV_HullPoints points, stack;
     char *pc = NULL;
-    int itemsize_c;
-    npy_intp candidate = 0, der, ii, left, index = 0, cmp, leftmost_index;
+    npy_intp itemsize_c;
+    npy_intp candidate = 0, ii, left, index = 0, cmp, leftmost_index;
     npy_intp convex_dims[2] = {-1, 2};
     PyArrayObject *convex_hull;
 
