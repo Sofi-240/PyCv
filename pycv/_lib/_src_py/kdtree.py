@@ -91,6 +91,9 @@ class KDtree(object):
         node.data = self.data[node.indices]
 
         if node.split_dim == -1:
+            node.lesser_index = -1
+            node.higher_index = -1
+            node.split_val = 0
             return
 
         node.lesser = self.tree_list[node.lesser_index]

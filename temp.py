@@ -10,6 +10,7 @@ from pycv.draw import draw_circle
 from pycv._lib._src_py.pycv_measure import find_object_peaks
 from pycv._lib._src_py.kdtree import KDtree
 
+
 coins = load_image('coins.png')[160:230, 70:250]
 coins_med = median_filter(coins, (5, 5))
 coins_bin, th = im_threshold(coins_med, 'otsu')

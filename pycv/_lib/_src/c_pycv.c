@@ -10,7 +10,7 @@
 #include "c_pycv_convexhull.h"
 #include "c_pycv_features.h"
 #include "c_pycv_measure.h"
-#include "c_pycv_kd_tree.h"
+#include "c_pycv_kdtree.h"
 
 // #####################################################################################################################
 
@@ -1010,28 +1010,6 @@ PyObject* find_object_peaks(PyObject* self, PyObject* args)
 
 // #####################################################################################################################
 
-static PyObject *kdtree_build_output(KDtree tree)
-{
-    PyObject *output = PyList_New(tree.size);
-    PyObject *node_dict;
-    KDnode *node;
-    kdtree_intp ii;
-
-    for (ii = 0; ii < tree.size; ii++) {
-        node = tree.tree_list + ii;
-        node_dict = Py_BuildValue("{s:i,s:i,s:i,s:f,s:i,s:i,s:i}",
-                                  "start_index", node->start_index,
-                                  "end_index", node->end_index,
-                                  "split_dim", node->split_dim,
-                                  "split_val", node->split_val,
-                                  "lesser_index", node->lesser_index,
-                                  "higher_index", node->higher_index,
-                                  "level", node->level);
-        PyList_SET_ITEM(output, ii, node_dict);
-    }
-    return output;
-}
-
 PyObject* build_kdtree(PyObject* self, PyObject* args)
 {
     PyArrayObject *data = NULL, *dims_min = NULL, *dims_max = NULL, *indices = NULL;
@@ -1050,160 +1028,43 @@ PyObject* build_kdtree(PyObject* self, PyObject* args)
         goto exit;
     }
 
-    if (!PYCV_KDtree_build(&tree, data, dims_min, dims_max, indices, (kdtree_intp)leafsize)) {
+    if (!PYCV_KDtree_build(&tree, data, dims_min, dims_max, indices, (kd_intp)leafsize, &output)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_KDtree_build");
         goto exit;
     }
 
     PyArray_ResolveWritebackIfCopy(indices);
-    output = kdtree_build_output(tree);
+
     exit:
-        Py_XDECREF(data);
-        Py_XDECREF(dims_min);
-        Py_XDECREF(dims_max);
-        Py_XDECREF(indices);
         PYCV_KDtree_free(&tree);
         return PyErr_Occurred() ? Py_BuildValue("") : output;
 }
 
-static int AttrToKdtreeIntp(PyObject *attr, kdtree_intp *attr_out)
-{
-    int output;
-    if (attr == NULL || !PyArg_Parse(attr, "i", &output)) {
-        return 0;
-    }
-    *attr_out = (kdtree_intp)output;
-    return 1;
-}
-
-static int AttrToKdtreeDouble(PyObject *attr, kdtree_double *attr_out)
-{
-    double output;
-    if (attr == NULL || !PyArg_Parse(attr, "d", &output)) {
-        return 0;
-    }
-    *attr_out = (kdtree_double)output;
-    return 1;
-}
-
-static int AttrToKdtreeArray(PyObject *attr, KDarray *attr_out)
-{
-    PyArrayObject *arr;
-    if (attr == NULL || !InputToArray(attr, &arr)) {
-        return 0;
-    }
-    PYCV_KDarray_init(attr_out, arr);
-    return 1;
-}
-
-static int InputToKDnode(KDtree *tree, PyObject *pynode, KDnode *node)
-{
-    if (pynode == NULL) {
-        return 1;
-    }
-    if (!AttrToKdtreeIntp(PyObject_GetAttrString(pynode, "start_index"), &node->start_index) ||
-        !AttrToKdtreeIntp(PyObject_GetAttrString(pynode, "end_index"), &node->end_index) ||
-        !AttrToKdtreeIntp(PyObject_GetAttrString(pynode, "children"), &node->children) ||
-        !AttrToKdtreeIntp(PyObject_GetAttrString(pynode, "split_dim"), &node->split_dim) ||
-        !AttrToKdtreeIntp(PyObject_GetAttrString(pynode, "lesser_index"), &node->lesser_index) ||
-        !AttrToKdtreeIntp(PyObject_GetAttrString(pynode, "higher_index"), &node->higher_index) ||
-        !AttrToKdtreeIntp(PyObject_GetAttrString(pynode, "level"), &node->level) ||
-        !AttrToKdtreeDouble(PyObject_GetAttrString(pynode, "split_val"), &node->split_val)) {
-        return 0;
-    }
-    if (node->split_dim != -1) {
-        if (InputToKDnode(tree, PyObject_GetAttrString(pynode, "lesser"), tree->tree_list + node->lesser_index) &&
-            InputToKDnode(tree, PyObject_GetAttrString(pynode, "higher"), tree->tree_list + node->higher_index)) {
-            node->lesser = tree->tree_list + node->lesser_index;
-            node->higher = tree->tree_list + node->higher_index;
-            return 1;
-        }
-        return 0;
-    }
-    return 1;
-}
-
-static int InputToKDtree(PyObject *pytree, KDtree *tree)
-{
-
-    if (!AttrToKdtreeIntp(PyObject_GetAttrString(pytree, "m"), &tree->m) ||
-        !AttrToKdtreeIntp(PyObject_GetAttrString(pytree, "n"), &tree->n) ||
-        !AttrToKdtreeIntp(PyObject_GetAttrString(pytree, "leafsize"), &tree->leafsize) ||
-        !AttrToKdtreeIntp(PyObject_GetAttrString(pytree, "size"), &tree->size) ||
-        !AttrToKdtreeArray(PyObject_GetAttrString(pytree, "data"), &tree->data) ||
-        !AttrToKdtreeArray(PyObject_GetAttrString(pytree, "dims_min"), &tree->dims_min) ||
-        !AttrToKdtreeArray(PyObject_GetAttrString(pytree, "dims_max"), &tree->dims_max) ||
-        !AttrToKdtreeArray(PyObject_GetAttrString(pytree, "indices"), &tree->indices)) {
-        return 0;
-    }
-    if (!tree->n) {
-        tree->tree_list = NULL;
-        tree->tree = NULL;
-        return 1;
-    }
-    tree->tree_list = calloc(tree->size, sizeof(KDnode));
-    if (!tree->tree_list) {
-        return 0;
-    }
-    if (!InputToKDnode(tree, PyObject_GetAttrString(pytree, "tree"), tree->tree_list)) {
-        return 0;
-    }
-    tree->tree = tree->tree_list;
-    return 1;
-}
-
 PyObject* query_kdtree(PyObject* self, PyObject* args)
 {
-    int p, is_inf;
+    int pnorm, is_inf;
     double distance_max, epsilon;
     PyArrayObject *query_points = NULL, *k = NULL;
-    KDarray kd_dist, kd_indices, kd_slice, kd_k;
-    char *k_ptr = NULL;
-    npy_intp np, ii, ki, slice_dims[1] = {0}, knn_dims[1] = {0};
     KDtree tree;
     PyObject *output;
 
     if (!PyArg_ParseTuple(
             args,
             "O&O&O&iidd",
-            InputToKDtree, &tree,
+            PYCV_input_to_KDtree, &tree,
             InputToArray, &query_points,
             InputToArray, &k,
-            &p, &is_inf, &distance_max, &epsilon)) {
+            &pnorm, &is_inf, &distance_max, &epsilon)) {
         goto exit;
     }
 
-    np = (npy_intp)PyArray_SIZE(k);
-    PYCV_KDarray_init(&kd_k, k);
-
-    k_ptr = kd_k.ptr;
-
-    for (ii = 0; ii < np; ii++) {
-        PYCV_GET_VALUE(kd_k.numtype, npy_intp, k_ptr, ki);
-        knn_dims[0] += ki;
-        k_ptr += kd_k.itemsize;
-    }
-    knn_dims[0] *= np;
-    slice_dims[0] = np + 1;
-
-    PYCV_KDarray_init(&kd_dist, (PyArrayObject *)PyArray_EMPTY(1, knn_dims, NPY_DOUBLE, 0));
-    PYCV_KDarray_init(&kd_indices, (PyArrayObject *)PyArray_EMPTY(1, knn_dims, NPY_INT64, 0));
-    PYCV_KDarray_init(&kd_slice, (PyArrayObject *)PyArray_EMPTY(1, slice_dims, NPY_INT64, 0));
-
-    if (!PYCV_KDtree_query_knn(tree, query_points, kd_k, (kdtree_intp)p, is_inf,
-                               (kdtree_double)distance_max, (kdtree_double)epsilon,
-                               kd_dist, kd_indices, kd_slice)) {
+    if (!PYCV_KDtree_knn_query(&tree, query_points, k, (kd_intp)pnorm, is_inf, (kd_double)epsilon,
+                              (kd_double)distance_max, &output)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_KDtree_query_knn");
         goto exit;
     }
 
-    output = Py_BuildValue("(O,O,O)", (PyObject *)kd_dist.object, (PyObject *)kd_indices.object, (PyObject *)kd_slice.object);
-
     exit:
-        Py_XDECREF(tree.data.object);
-        Py_XDECREF(tree.dims_min.object);
-        Py_XDECREF(tree.dims_max.object);
-        Py_XDECREF(tree.indices.object);
         Py_XDECREF(query_points);
         Py_XDECREF(k);
         PYCV_KDtree_free(&tree);
@@ -1212,52 +1073,30 @@ PyObject* query_kdtree(PyObject* self, PyObject* args)
 
 PyObject* query_ball_kdtree(PyObject* self, PyObject* args)
 {
-    int p, is_inf;
+    int pnorm, is_inf;
     double epsilon;
     PyArrayObject *query_points = NULL, *radius = NULL;
-    KDarray kd_slice, kd_out;
-    npy_intp ii, slice_dims[1] = {0}, out_dims[1] = {0};
     KDtree tree;
-    KDball_results indices;
     PyObject *output;
 
     if (!PyArg_ParseTuple(
             args,
             "O&O&O&iid",
-            InputToKDtree, &tree,
+            PYCV_input_to_KDtree, &tree,
             InputToArray, &query_points,
             InputToArray, &radius,
-            &p, &is_inf, &epsilon)) {
+            &pnorm, &is_inf, &epsilon)) {
         goto exit;
     }
 
-    slice_dims[0] = (npy_intp)PyArray_DIM(query_points, 0) + 1;
-    PYCV_KDarray_init(&kd_slice, (PyArrayObject *)PyArray_EMPTY(1, slice_dims, NPY_INT64, 0));
 
-
-    if (!PYCV_query_ball_points(tree, query_points, radius, (kdtree_intp)p, is_inf,
-                               (kdtree_double)epsilon, &indices, kd_slice)) {
+    if (!PYCV_query_ball_points(&tree, query_points, radius, (kd_intp)pnorm, is_inf, (kd_double)epsilon, &output)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_query_ball_points");
         goto exit;
     }
 
-    out_dims[0] = indices.n;
-    PYCV_KDarray_init(&kd_out, (PyArrayObject *)PyArray_EMPTY(1, out_dims, NPY_INT64, 0));
-
-    for (ii = 0; ii < indices.n; ii++) {
-        PYCV_SET_VALUE(kd_out.numtype, kd_out.ptr, *(indices.list + ii));
-        kd_out.ptr += kd_out.itemsize;
-    }
-
-    output = Py_BuildValue("(O,O)", (PyObject *)kd_out.object, (PyObject *)kd_slice.object);
-
-    free(indices.list);
 
     exit:
-        Py_XDECREF(tree.data.object);
-        Py_XDECREF(tree.dims_min.object);
-        Py_XDECREF(tree.dims_max.object);
-        Py_XDECREF(tree.indices.object);
         Py_XDECREF(query_points);
         Py_XDECREF(radius);
         PYCV_KDtree_free(&tree);
