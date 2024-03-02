@@ -9,7 +9,7 @@ from pycv.transform import hough_circle
 from pycv.draw import draw_circle
 from pycv._lib._src_py.pycv_measure import find_object_peaks
 from pycv._lib._src_py.kdtree import KDtree
-
+from scipy.spatial import cKDTree
 
 coins = load_image('coins.png')[160:230, 70:250]
 coins_med = median_filter(coins, (5, 5))
@@ -30,6 +30,8 @@ peaks_cc = np.stack(peaks[1:], axis=1)
 peaks_h = h_space[peaks]
 
 tree = KDtree(peaks_cc, 1)
+
+t2 = cKDTree(peaks_cc, leafsize=1, balanced_tree=True)
 
 query_nn = tree.query_ball_point(peaks_cc,  np.hypot(7, 7))
 

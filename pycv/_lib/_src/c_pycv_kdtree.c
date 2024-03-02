@@ -120,25 +120,44 @@ static void kd_swap(char *i1, char *i2)
 
 static void kd_nth_element(KDarray *indices, KDarray *data, kd_intp l, kd_intp h, kd_intp nth, kd_intp m)
 {
-    char *ptr_pp, *ptr_ii;
-    ptr_pp = ptr_ii = indices->ptr + l * indices->itemsize;
-    kd_intp pp = l, ii;
-    kd_double v = kdarray_index_dget(data, kdarray_index_iget(indices, h) * m);
+    char *ptr_jj, *ptr_ii;
+    kd_intp ii, jj;
+    kd_double v, v_ii, v_jj;
 
-    for (ii = l; ii < h; ii++) {
-        if (kdarray_index_dget(data, kdarray_iget(indices, ptr_ii) * m) < v) {
-            kd_swap(ptr_pp, ptr_ii);
-            pp++;
-            ptr_pp += indices->itemsize;
+    while (l <= h) {
+        ii = l;
+        ptr_ii = indices->ptr + ii * indices->itemsize;
+
+        jj = h - 1;
+        ptr_jj = indices->ptr + jj * indices->itemsize;
+
+        v = kdarray_index_dget(data, kdarray_index_iget(indices, h) * m);
+
+        while (ii <= jj) {
+            v_ii = kdarray_index_dget(data, kdarray_iget(indices, ptr_ii) * m);
+            v_jj = kdarray_index_dget(data, kdarray_iget(indices, ptr_jj) * m);
+            if (v_ii > v && v_jj < v) {
+                kd_swap(ptr_ii, ptr_jj);
+            }
+            if (v_ii <= v) {
+                ii++;
+                ptr_ii += indices->itemsize;
+            }
+            if (v_jj >= v) {
+                jj--;
+                ptr_jj -= indices->itemsize;
+            }
         }
-        ptr_ii += indices->itemsize;
-    }
-    kd_swap(ptr_pp, ptr_ii);
+        ptr_jj = indices->ptr + h * indices->itemsize;
+        kd_swap(ptr_ii, ptr_jj);
 
-    if (nth < pp) {
-        kd_nth_element(indices, data, l, pp - 1, nth, m);
-    } else if (nth > pp) {
-        kd_nth_element(indices, data, pp + 1, h, nth, m);
+        if (ii == nth - 1) {
+            break;
+        } else if (nth - 1 < ii) {
+            h = ii - 1;
+        } else {
+            l = ii + 1;
+        }
     }
 }
 

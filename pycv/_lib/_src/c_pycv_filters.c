@@ -121,32 +121,35 @@ static void QS_swap(npy_double *i1, npy_double *i2)
     *i2 = tmp;
 }
 
-
-static npy_intp QS_partition(npy_double *buffer, npy_intp low, npy_intp high)
+static npy_double QuickSelect(npy_double *buffer, npy_intp low, npy_intp high, npy_intp rank)
 {
-    npy_double pivot = buffer[high];
-    npy_intp jj, ii = low;
-    for (jj = low; jj < high; jj++) {
-        if (buffer[jj] < pivot) {
-            QS_swap(&buffer[ii], &buffer[jj]);
-            ii++;
+    npy_int ii, jj;
+    npy_double v;
+    while (low <= high) {
+        ii = low;
+        jj = high - 1;
+        v = *(buffer + high);
+        while (ii <= jj) {
+            if (*(buffer + ii) > v && *(buffer + jj) < v) {
+                QS_swap((buffer + ii), (buffer + jj));
+            }
+            if (*(buffer + ii) <= v) {
+                ii++;
+            }
+            if (*(buffer + jj) >= v) {
+                jj--;
+            }
+        }
+        QS_swap((buffer + ii), (buffer + high));
+        if (ii == rank - 1) {
+            return *(buffer + ii);
+        } else if (rank - 1 < ii) {
+            high = ii - 1;
+        } else {
+            low = ii + 1;
         }
     }
-    QS_swap(&buffer[ii], &buffer[high]);
-    return ii;
-}
-
-
-static double QuickSelect(npy_double *buffer, npy_intp low, npy_intp high, npy_intp rank)
-{
-    npy_intp pivot_index = QS_partition(buffer, low, high);
-    if (rank == pivot_index) {
-        return buffer[pivot_index];
-    } else if (rank - 1 < pivot_index) {
-        return QuickSelect(buffer, low, pivot_index - 1, rank);
-    } else {
-        return QuickSelect(buffer, pivot_index + 1, high, rank);
-    }
+    return *(buffer + ii);
 }
 
 #define PYCV_F_CASE_SELECT(_NTYPE, _dtype, _x, _n, _flag, _offsets, _h, _rank, _out, _mode, _c_val, _outside)          \

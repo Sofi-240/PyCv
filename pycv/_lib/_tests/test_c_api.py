@@ -107,9 +107,9 @@ class TestFilters(TestModule):
         footprint = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
         offset = (1, 1)
 
-        rank_median = np.sum(footprint) // 2
-        rank_min = 0
-        rank_max = np.sum(footprint) - 1
+        rank_median = np.sum(footprint) // 2 + 1
+        rank_min = 1
+        rank_max = np.sum(footprint)
 
         mode = ctype_border_mode('valid')
 
@@ -130,9 +130,9 @@ class TestFilters(TestModule):
         footprint = np.array([[1], [1], [1]])
         offset = (1, 0)
 
-        rank_median = footprint.size // 2
-        rank_min = 0
-        rank_max = footprint.size - 1
+        rank_median = footprint.size // 2 + 1
+        rank_min = 1
+        rank_max = footprint.size
         mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
@@ -152,9 +152,9 @@ class TestFilters(TestModule):
         footprint = np.array([[1, 1, 1]])
         offset = (0, 1)
 
-        rank_median = footprint.size // 2
-        rank_min = 0
-        rank_max = footprint.size - 1
+        rank_median = footprint.size // 2 + 1
+        rank_min = 1
+        rank_max = footprint.size
         mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
@@ -174,9 +174,9 @@ class TestFilters(TestModule):
         footprint = np.array([[1, 0], [1, 1]])
         offset = (0, 0)
 
-        rank_median = np.sum(footprint) // 2
-        rank_min = 0
-        rank_max = np.sum(footprint) - 1
+        rank_median = np.sum(footprint) // 2 + 1
+        rank_min = 1
+        rank_max = np.sum(footprint)
         mode = ctype_border_mode('valid')
 
         output_median = np.zeros(output_shape(inputs.shape, footprint.shape), inputs.dtype)
@@ -196,7 +196,7 @@ class TestFilters(TestModule):
         footprint = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
         offset = (1, 1)
 
-        rank_median = np.sum(footprint) // 2
+        rank_median = np.sum(footprint) // 2 + 1
 
         mode = ctype_border_mode('reflect')
 
