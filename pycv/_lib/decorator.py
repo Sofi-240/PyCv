@@ -3,12 +3,13 @@ from pycv._lib._inspect import get_signature, get_params, isfunction, EMPTY, fix
 
 __all__ = [
     'registrate_decorator',
+    'dispatcher_default_values',
 ]
 
 
 ########################################################################################################################
 
-def registrate_decorator(caller_=None, dst_func=None, kw_syntax=False):
+def registrate_decorator(caller_=None, dst_func=None, kw_syntax: bool = False):
     """
     Meta-decorator for decorators that modify or validate function signatures.
 
@@ -131,4 +132,89 @@ def registrate_decorator(caller_=None, dst_func=None, kw_syntax=False):
 
     return decorator if caller_ is None else decorator(caller_)
 
+
 ########################################################################################################################
+
+def dispatcher_default_values(caller, default_kw: dict | None = None):
+    if default_kw is None:
+        return caller
+
+    if not isfunction(caller):
+        raise TypeError('caller need to be type of function')
+
+    caller_sig = get_signature(caller)
+    caller_params = get_params(caller_sig)
+
+    def fix_default_args(*args, **kwargs):
+        out_args = tuple()
+        out_kw = {}
+        _iter_args = iter(args)
+        na = len(args)
+
+        for param in caller_params:
+            if param.name in kwargs:
+                arg = kwargs[param.name]
+            elif param.name in default_kw:
+                arg = default_kw[param.name]
+            elif na:
+                arg = next(_iter_args)
+                na -= 1
+            elif param.default is not EMPTY:
+                arg = param.default
+            else:
+                raise ValueError(f'{param.name} argument is missing')
+
+            if param.default is not EMPTY:
+                out_kw[param.name] = arg
+            else:
+                out_args += (arg,)
+
+        return fix_kw_syntax(out_args, out_kw, caller_sig, False)
+
+    if is_co_routine_function(caller):
+        async def func_out(*f_args, **f_kwargs):
+            f_args, f_kwargs = fix_default_args(*f_args, **f_kwargs)
+            return await caller(*f_args, **f_kwargs)
+
+    elif is_generator_function(caller):
+        def func_out(*f_args, **f_kwargs):
+            f_args, f_kwargs = fix_default_args(*f_args, **f_kwargs)
+            for res in caller(*f_args, **f_kwargs):
+                yield res
+    else:
+        def func_out(*f_args, **f_kwargs):
+            f_args, f_kwargs = fix_default_args(*f_args, **f_kwargs)
+            return caller(*f_args, **f_kwargs)
+
+    func_out.__name__ = caller.__name__
+    func_out.__doc__ = caller.__doc__
+    func_out.__wrapped__ = caller
+    func_out.__signature__ = caller_sig
+    func_out.__qualname__ = caller.__qualname__
+
+    try:
+        func_out.__defaults__ = caller.__defaults__
+    except AttributeError:
+        pass
+    try:
+        func_out.__kwdefaults__ = caller.__kwdefaults__
+    except AttributeError:
+        pass
+    try:
+        func_out.__annotations__ = caller.__annotations__
+    except AttributeError:
+        pass
+    try:
+        func_out.__module__ = caller.__module__
+    except AttributeError:
+        pass
+    try:
+        func_out.__dict__.update(caller.__dict__)
+    except AttributeError:
+        pass
+
+    return func_out
+
+
+########################################################################################################################
+

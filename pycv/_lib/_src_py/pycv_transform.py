@@ -37,7 +37,12 @@ def resize(
     order = ctype_interpolation_order(order)
 
     dtype = get_dtype_info(inputs.dtype)
-    inputs = cast(inputs, np.float64)
+    if dtype.kind != 'f':
+        inputs = cast(inputs, np.float64)
+    elif dtype.itemsize != 8:
+        inputs = cast(inputs, np.float64)
+    else:
+        preserve_dtype = False
 
     output, _ = get_output(None, inputs, output_shape)
 

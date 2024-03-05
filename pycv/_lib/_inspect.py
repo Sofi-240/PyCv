@@ -16,6 +16,7 @@ __all__ = [
     'getargspec',
     'get_signature',
     'get_params',
+    'get_doc',
     'fix_kw_syntax',
 ]
 
@@ -82,6 +83,12 @@ def get_params(signature: SIGNATURE) -> list[PARAMETER]:
     if not isinstance(signature, SIGNATURE):
         raise ValueError('signature need to be type of inspect.Signature')
     return [p for p in signature.parameters.values() if p.kind is POS]
+
+
+def get_doc(func) -> str:
+    if not isfunction(func):
+        raise TypeError('func need to be type of function')
+    return inspect.getdoc(func)
 
 
 def fix_kw_syntax(args: tuple, kwargs: dict, signature: SIGNATURE, kw_syntax: bool = False) -> tuple[tuple, dict]:

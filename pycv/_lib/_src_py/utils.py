@@ -11,6 +11,7 @@ __all__ = [
     'ctype_convex_hull_mode',
     'ctype_interpolation_order',
     'as_sequence',
+    'as_sequence_by_axis',
     'fix_kernel_shape',
     'axis_transpose_to_last',
     'get_output',
@@ -98,6 +99,26 @@ def as_sequence(
         sequence = (sequence,) * rank
     if len(sequence) != rank:
         raise RuntimeError("sequence argument must have length equal to input rank")
+    return sequence
+
+
+def as_sequence_by_axis(
+        sequence: Any,
+        axis: tuple,
+        rank: int,
+        default_val=1
+) -> tuple:
+    if rank < len(axis):
+        raise RuntimeError('rank is smaller then axis size')
+
+    if not isinstance(sequence, str) and isinstance(sequence, Iterable):
+        sequence = tuple(sequence)
+        axis = valid_axis(rank, axis, len(sequence))
+        _iter = iter(sequence)
+        sequence = tuple(next(_iter) if ax in axis else default_val for ax in range(rank))
+    else:
+        axis = valid_axis(rank, axis, 1)
+        sequence = tuple(sequence if ax in axis else default_val for ax in range(rank))
     return sequence
 
 

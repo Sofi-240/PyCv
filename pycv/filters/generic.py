@@ -34,13 +34,10 @@ def gaussian_filter(
     dtype = image.dtype
     image = cast(image, np.float64)
 
-    axis = valid_axis(image.ndim, axis, 2)
+    axis = valid_axis(image.ndim, axis, 2 if np.isscalar(sigma) else len(sigma))
 
     if np.isscalar(sigma):
         sigma = (sigma,) * len(axis)
-
-    if len(sigma) != len(axis):
-        raise ValueError('Sigma and axis size dont match')
 
     one_pass = len(set(sigma)) == 1
     if one_pass:
