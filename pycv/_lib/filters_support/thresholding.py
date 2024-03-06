@@ -1,12 +1,11 @@
 import numpy as np
-import typing
-from pycv._lib.histogram import bin_count, histogram, HIST
+from pycv._lib.misc.histogram import bin_count, histogram, HIST
 from pycv._lib.decorator import registrate_decorator
 from pycv._lib.array_api.dtypes import cast
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.filters_support.windows import gaussian_kernel, sigma_from_size
 from pycv._lib._src_py.pycv_filters import convolve, rank_filter
-from pycv._lib._src_py.utils import as_sequence, valid_axis
+from pycv._lib._src_py.utils import as_sequence, valid_axis, fix_kernel_shape
 
 __all__ = [
     'otsu',
@@ -15,71 +14,33 @@ __all__ = [
     'minimum_error',
     'minimum',
     'mean',
-    'adaptive'
+    'adaptive',
+    'Threshold'
 ]
 
 
 ########################################################################################################################
 
-def get_histogram(
-        inputs: np.ndarray,
-) -> HIST:
+@registrate_decorator(kw_syntax=True)
+def histogram_type(func, *args, **kwargs):
+    if len(args) < 1 and 'image' not in kwargs:
+        raise ValueError('missing image input')
+    elif len(args) < 1:
+        inputs = kwargs.pop('image')
+    else:
+        inputs = args[0]
+        args = args[1:]
+
+    inputs = np_compliance(inputs, 'Image', _check_finite=True)
+
+    # create histogram
     if np.issubdtype(inputs.dtype, np.integer):
         hist = bin_count(inputs)
     else:
         hist = histogram(inputs)
-    return hist
 
+    # non zero histogram
 
-########################################################################################################################
-@registrate_decorator(kw_syntax=True)
-def histogram_dispatcher(
-        func, *args, **kwargs,
-):
-    inputs = np_compliance(args[0], 'Image', _check_finite=True)
-    hist = get_histogram(inputs)
-    return func(hist, *args[1:], **kwargs)
-
-
-@registrate_decorator(kw_syntax=True)
-def array_dispatcher(
-        func, *args, **kwargs,
-):
-    inputs = np_compliance(args[0], 'Image', _check_finite=True)
-    return func(inputs, *args[1:], **kwargs)
-
-
-@registrate_decorator(kw_syntax=True)
-def block_dispatcher(
-        func, *args, **kwargs,
-):
-    inputs = np_compliance(args[0], 'Image', _check_finite=True)
-    if inputs.ndim < 2:
-        raise ValueError('image n dimensions need to be at least 2')
-
-    block_size = args[1]
-
-    if block_size is None:
-        raise ValueError('missing block_size parameter')
-
-    try:
-        block_size = as_sequence(block_size, 2)
-    except RuntimeError:
-        raise ValueError('block_size need to be a single int or a tuple of ints with size of 2')
-
-    if not all(s % 2 != 0 for s in block_size):
-        raise ValueError('block dimensions length need to be odd')
-
-    return func(inputs, block_size, *args[2:], **kwargs)
-
-
-@registrate_decorator(kw_syntax=True)
-def nonzero_histogram(
-        func, *args, **kwargs,
-):
-    hist = args[0]
-    if not isinstance(hist, HIST):
-        raise ValueError(f'hist need to be type of HIST')
     hist_, bins = hist[:]
     e1, e2 = hist_[0], hist_[-1]
 
@@ -89,16 +50,28 @@ def nonzero_histogram(
         c2 = hist_.size - np.argmax(cond[::-1])
         hist._replace(**{'hist': hist_[c1:c2], 'bins': bins[c1:c2]})
 
-    return func(hist, *args[1:], **kwargs)
+    return func(hist, *args, **kwargs)
+
+
+@registrate_decorator(kw_syntax=True)
+def array_type(func, *args, **kwargs):
+    if len(args) < 1 and 'image' not in kwargs:
+        raise ValueError('missing image input')
+    elif len(args) < 1:
+        inputs = kwargs.pop('image')
+    else:
+        inputs = args[0]
+        args = args[1:]
+
+    inputs = np_compliance(inputs, 'Image', _check_finite=True)
+    return func(inputs, *args, **kwargs)
 
 
 ########################################################################################################################
-# Thresholds by Histogram
-@histogram_dispatcher
-@nonzero_histogram
-def otsu(
-        hist: HIST,
-) -> int | float:
+
+
+@histogram_type
+def otsu(hist: HIST) -> int | float:
     hist, bins = hist[:]
     n1 = np.cumsum(hist)
     n2 = np.cumsum(hist[::-1])[::-1]
@@ -111,11 +84,8 @@ def otsu(
     return th
 
 
-@histogram_dispatcher
-@nonzero_histogram
-def li_and_lee(
-        hist: HIST,
-) -> int | float:
+@histogram_type
+def li_and_lee(hist: HIST) -> int | float:
     hist, bins = hist[:]
 
     n1 = np.cumsum(hist)
@@ -130,11 +100,8 @@ def li_and_lee(
     return th
 
 
-@histogram_dispatcher
-@nonzero_histogram
-def kapur(
-        hist: HIST,
-) -> int | float:
+@histogram_type
+def kapur(hist: HIST) -> int | float:
     hist, bins = hist[:]
     hist /= np.sum(hist)
 
@@ -151,11 +118,8 @@ def kapur(
     return th
 
 
-@histogram_dispatcher
-@nonzero_histogram
-def minimum_error(
-        hist: HIST,
-) -> int | float:
+@histogram_type
+def minimum_error(hist: HIST) -> int | float:
     hist, bins = hist[:]
 
     n1 = np.cumsum(hist)
@@ -177,12 +141,8 @@ def minimum_error(
     return th
 
 
-@histogram_dispatcher
-@nonzero_histogram
-def minimum(
-        hist: HIST,
-        max_iterations: int = 10000
-) -> int | float:
+@histogram_type
+def minimum(hist: HIST, max_iterations: int = 10000) -> int | float:
     hist, bins = hist[:]
 
     n_bins = len(bins)
@@ -223,76 +183,135 @@ def minimum(
 
 
 ########################################################################################################################
-# Thresholds on Array
-@array_dispatcher
-def mean(
-        image: np.ndarray
-) -> float:
+
+@array_type
+def mean(image: np.ndarray) -> float:
     return np.mean(image)
 
 
 ########################################################################################################################
-# Thresholds on block
 
-@block_dispatcher
+ADAPTIVE_METHODS = {'gaussian', 'mean', 'median'}
+
+
+def _adaptive_gaussian(
+        inputs: np.ndarray,
+        block_size: tuple,
+        axis: tuple,
+        sigma: tuple | float | None = None,
+        padding_mode: str = 'reflect',
+        constant_value: float = 0
+) -> np.ndarray:
+    if sigma is None:
+        sigma = tuple(sigma_from_size(nn) for nn in block_size if nn != 1)
+    else:
+        try:
+            sigma = as_sequence(sigma, len(axis))
+        except RuntimeError:
+            raise ValueError('sigma need to be a single float or a tuple of floats with size equal to filter dim')
+
+    ndim = len(axis)
+
+    if len(set(sigma)) == 1 and all(b == max(block_size) or b == 1 for b in block_size):
+        kernel = gaussian_kernel(sigma[0], ndim=ndim, radius=max(block_size) // 2)
+        kernel = np.reshape(kernel, fix_kernel_shape(kernel.shape, axis, ndim))
+        threshold = convolve(inputs, kernel, padding_mode=padding_mode, constant_value=constant_value)
+    else:
+        threshold = inputs.copy()
+        for s, a in zip(sigma, axis):
+            kernel = gaussian_kernel(s, ndim=1, radius=block_size[a] // 2)
+            threshold = convolve(threshold, kernel, axis=a, padding_mode=padding_mode, constant_value=constant_value)
+
+    return threshold
+
+
+def _adaptive_mean(
+        inputs: np.ndarray,
+        block_size: tuple,
+        padding_mode: str = 'reflect',
+        constant_value: float = 0
+) -> np.ndarray:
+    kernel = np.ones(block_size, dtype=np.float64) / np.prod(block_size)
+    threshold = convolve(inputs, kernel, padding_mode=padding_mode, constant_value=constant_value)
+    return threshold
+
+
+def _adaptive_median(
+        inputs: np.ndarray,
+        block_size: tuple,
+        padding_mode: str = 'reflect',
+        constant_value: float = 0
+) -> np.ndarray:
+    rank = np.prod(block_size) // 2
+    footprint = np.ones(block_size, bool)
+    threshold = rank_filter(inputs, footprint, rank, padding_mode=padding_mode, constant_value=constant_value)
+    return threshold
+
+
+@array_type
 def adaptive(
         image: np.ndarray,
         block_size: tuple | int,
         method: str = 'gaussian',
-        method_params: typing.Any = None,
+        method_params=None,
         offset_val: int | float = 0,
         padding_mode: str = 'reflect',
-        constant_value: float | int | None = 0,
+        constant_value: float = 0,
         axis: tuple | None = None
 ) -> np.ndarray:
-    supported_mode = {'gaussian', 'mean', 'median'}
+    if method not in ADAPTIVE_METHODS:
+        raise ValueError(f'{method} is not in supported methods use {ADAPTIVE_METHODS}')
     if padding_mode == 'valid':
         raise ValueError('valid padding is not supported for adaptive threshold')
 
-    axis = valid_axis(image.ndim, axis, 2)
-    if len(axis) != 2:
-        raise ValueError('axis need to be tuple of ints with size of 2 or None')
-
-    if method == 'function':
-        raise RuntimeError(f'{method} is currently unsupported')
-    elif method == 'gaussian':
-        if method_params is None:
-            method_params = tuple(sigma_from_size(nn) for nn in block_size)
-        else:
-            try:
-                method_params = as_sequence(method_params, 2)
-            except RuntimeError:
-                raise ValueError('method_params: (sigma) need to be a single float or a tuple of floats with size of 2')
-
-        if block_size[0] == block_size[1]:
-            kernel = gaussian_kernel(method_params[0], ndim=2, radius=block_size[0] // 2)
-            kernel = kernel.reshape(tuple(1 if ax not in axis else block_size[0] for ax in range(image.ndim)))
-            threshold = convolve(cast(image, np.float64), kernel, padding_mode=padding_mode,
-                                 constant_value=constant_value)
-        else:
-            threshold = cast(image, np.float64)
-            for s, r, ax in zip(method_params, block_size, axis):
-                kernel = gaussian_kernel(s, radius=r // 2)
-                threshold = convolve(threshold, kernel, axis=ax, padding_mode=padding_mode,
-                                     constant_value=constant_value)
-        threshold = cast(threshold, image.dtype)
-    elif method == 'mean':
-        threshold = cast(image, np.float64)
-        iter_shape = iter(block_size)
-        kernel_shape = tuple(next(iter_shape) if ax in axis else 1 for ax in range(image.ndim))
-        kernel = np.ones(kernel_shape, np.float64) / np.prod(kernel_shape)
-        threshold = convolve(threshold, kernel, padding_mode=padding_mode, constant_value=constant_value)
-        threshold = cast(threshold, image.dtype)
-    elif method == 'median':
-        iter_shape = iter(block_size)
-        kernel_shape = tuple(next(iter_shape) if ax in axis else 1 for ax in range(image.ndim))
-        rank = np.prod(kernel_shape) // 2
-        footprint = np.ones(kernel_shape, bool)
-        threshold = rank_filter(image, footprint, rank, padding_mode=padding_mode, constant_value=constant_value)
+    dtype = image.dtype
+    casted = True
+    need_float = method != 'median'
+    if need_float and dtype.kind != 'f':
+        image = cast(image, np.float64)
+    elif need_float and dtype.itemsize != 8:
+        image = image.astype(np.float64)
     else:
-        raise RuntimeError(f'{method} is not in supported methods use {supported_mode}')
+        casted = False
+
+    if axis is None and np.isscalar(block_size):
+        block_size = (block_size,) * min(2, image.ndim)
+    elif np.isscalar(block_size):
+        block_size = (block_size,) * len(axis)
+
+    axis = valid_axis(image.ndim, axis, len(block_size))
+    block_size = fix_kernel_shape(block_size, axis, image.ndim)
+
+    if method == 'gaussian':
+        threshold = _adaptive_gaussian(image, block_size, axis, method_params, padding_mode, constant_value)
+    elif method == 'mean':
+        threshold = _adaptive_mean(image, block_size, padding_mode, constant_value)
+    else:
+        threshold = _adaptive_median(image, block_size, padding_mode, constant_value)
+
+    if casted:
+        threshold = cast(threshold, dtype)
 
     return threshold - offset_val
+
+
+########################################################################################################################
+
+class Threshold:
+    OTSU = otsu
+    LI_AND_LEE = li_and_lee
+    KAPUR = kapur
+    MINIMUM_ERROR = minimum_error
+    MINIMUM = minimum
+    MEAN = mean
+    ADAPTIVE = adaptive
+
+    @classmethod
+    def get_method(cls, method: str):
+        try:
+            return getattr(cls, method.upper())
+        except AttributeError:
+            raise Exception(f'{method} method is not supported')
 
 ########################################################################################################################
 

@@ -5,9 +5,6 @@ HIST = collections.namedtuple('histogram', 'counts, bins')
 
 __all__ = [
     'HIST',
-    'get_bins_edge',
-    'get_bins_range',
-    'edge_to_center',
     'histogram',
     'bin_count',
     'cdf',
@@ -132,7 +129,6 @@ def histogram(
 
 ########################################################################################################################
 
-
 def cdf(
         image: np.ndarray,
         bins: int = 255,
@@ -151,3 +147,7 @@ def cdf(
     hist_cdf = hist_cdf.astype(np.float64)
     hist_cdf /= np.reshape(hist_cdf[:, -1], (-1, 1))
     return hist_obj
+
+########################################################################################################################
+
+

@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Any
-from pycv.segmentation._utils import get_method_function
+from pycv._lib.filters_support.thresholding import Threshold
 
 __all__ = [
     'otsu_threshold',
@@ -20,38 +20,38 @@ __all__ = [
 def otsu_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return get_method_function('otsu')(image)
+    return Threshold.OTSU(image)
 
 
 def kapur_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return get_method_function('kapur')(image)
+    return Threshold.KAPUR(image)
 
 
 def li_and_lee_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return get_method_function('li_and_lee')(image)
+    return Threshold.LI_AND_LEE(image)
 
 
 def minimum_error_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return get_method_function('minimum_error')(image)
+    return Threshold.MINIMUM_ERROR(image)
 
 
 def mean_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return get_method_function('mean')(image)
+    return Threshold.MEAN(image)
 
 
 def minimum_threshold(
         image: np.ndarray,
         max_iterations: int = 10000
 ) -> int | float:
-    return get_method_function('minimum')(image, max_iterations=max_iterations)
+    return Threshold.MINIMUM(image, max_iterations=max_iterations)
 
 
 def adaptive_threshold(
@@ -64,7 +64,7 @@ def adaptive_threshold(
         constant_value: float | int | None = 0,
         axis: tuple | None = None
 ) -> np.ndarray:
-    return get_method_function('adaptive')(
+    return Threshold.ADAPTIVE(
         image, block_size, method=method, method_params=method_params, offset_val=offset_val,
         padding_mode=padding_mode, constant_value=constant_value, axis=axis
     )
@@ -86,8 +86,8 @@ def im_threshold(
         image: np.ndarray,
         threshold: str,
         *args, **kwargs
-) -> np.ndarray | tuple[np.ndarray, int | float | np.ndarray]:
-    th = get_method_function(threshold)(image, *args, **kwargs)
+) -> np.ndarray | (np.ndarray, int | float | np.ndarray):
+    th = Threshold.get_method(threshold)(image, *args, **kwargs)
     return im_binarize(image, th), th
 
 ########################################################################################################################
