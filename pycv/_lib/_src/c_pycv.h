@@ -2,6 +2,8 @@
 #define C_PYCV_H
 
 #include <Python.h>
+#include "structmember.h"
+#include <stddef.h>
 
 #define PY_ARRAY_UNIQUE_SYMBOL _c_pycv_ARRAY_API
 #include <numpy/arrayobject.h>
@@ -73,5 +75,12 @@ PyObject* query_kdtree(PyObject* self, PyObject* args);
 PyObject* query_ball_kdtree(PyObject* self, PyObject* args);
 
 // #####################################################################################################################
+
+PyTypeObject CKDnode_Type;
+
+PyTypeObject CKDtree_Type;
+
+// #####################################################################################################################
+
 
 #endif

@@ -30,7 +30,7 @@ peaks_h = h_space[peaks]
 
 tree = KDtree(peaks_cc, 1)
 
-query_nn = tree.query_ball_point(peaks_cc,  np.hypot(7, 7))
+query_nn = tree.ball_point_query(peaks_cc,  np.hypot(7, 7))
 
 mask = np.ones_like(peaks_radius, bool)
 

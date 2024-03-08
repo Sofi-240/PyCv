@@ -1,108 +1,28 @@
 import numpy as np
 from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib._src import c_pycv
+from pycv._lib._src.c_pycv import CKDtree
 
 __all__ = [
-    'KDtree',
-    'KDnode'
+    "KDtree"
 ]
 
 
 ########################################################################################################################
 
-class _KDnode(object):
-    def __init__(self, start_index: int = 0, end_index: int = 0, level: int = 0):
-        self.start_index = start_index
-        self.end_index = end_index
-        self.split_dim = -1
-        self.split_val = 0
-        self.lesser_index = -1
-        self.higher_index = -1
-        self.lesser = None
-        self.higher = None
-        self.level = level
-
-    @property
-    def children(self):
-        return self.end_index - self.start_index
-
-
-########################################################################################################################
-
-
-class KDnode(_KDnode):
-    def __init__(self, **kwargs):
-        super().__init__()
-        for attr, val in kwargs.items():
-            if attr in self.__dict__:
-                setattr(self, attr, val)
-        if self.children < 0:
-            raise ValueError(f'end_index cannot be smaller then start_index')
-        self.data = None
-        self.indices = None
-
-
-class KDtree(object):
+class KDtree(CKDtree):
     def __init__(self, data: np.ndarray, leafsize: int = 4):
         data = np_compliance(data, 'data', _check_finite=True)
         if data.ndim != 2:
             raise ValueError('data must be of shape (n [points], m [dimension])')
-        self.n = data.shape[0]
-        self.m = data.shape[1]
         data = data.astype(np.float64)
-        self.data = data
         if leafsize < 1:
             raise ValueError('leafsize must be positive integer')
-        self.leafsize = leafsize
-        self.dims_min = np.min(data, axis=0)
-        self.dims_max = np.max(data, axis=0)
-        self.indices = np.arange(self.n, dtype=np.int64)
-
-        self.tree_list = []
-
-        if self.n:
-            nodes = c_pycv.build_kdtree(
-                self.data,
-                self.dims_min,
-                self.dims_max,
-                self.indices,
-                self.leafsize
-            )
-            if nodes is None:
-                raise RuntimeError('unexpected error init_kdtree')
-        else:
-            nodes = []
-        self.tree_list.extend(KDnode(**nodes[i]) for i in range(len(nodes)))
-        self.size = len(self.tree_list)
-        self.tree = self.tree_list[0] if self.size else None
-        self.__post_init(self.tree)
+        super().__init__(data, leafsize=leafsize)
 
     def __len__(self):
         return self.size
 
-    def __repr__(self):
-        return f'{self.__class__.__name__}'
-
-    def __post_init(self, node: KDnode):
-        if not node:
-            return
-
-        node.indices = self.indices[node.start_index:node.end_index]
-        node.data = self.data[node.indices]
-
-        if node.split_dim == -1:
-            node.lesser_index = -1
-            node.higher_index = -1
-            node.split_val = 0
-            return
-
-        node.lesser = self.tree_list[node.lesser_index]
-        node.higher = self.tree_list[node.higher_index]
-
-        self.__post_init(node.lesser)
-        self.__post_init(node.higher)
-
-    def query_knn(
+    def knn_query(
             self,
             points: np.ndarray,
             k: int | np.ndarray,
@@ -127,25 +47,22 @@ class KDtree(object):
         if points.shape[0] == 0:
             return np.array([], np.float64), np.array([], np.int64)
 
-        output = c_pycv.query_kdtree(self, points, k, pnorm, int(pnorm == float('inf')), distance_max, epsilon)
-        if output is None:
-            raise RuntimeError('unexpected error in query_kdtree')
+        output = super().knn_query(points, k, pnorm, int(pnorm == float('inf')), distance_max, epsilon)
 
-        dist, indices, slc = output
+        if output is None:
+            raise RuntimeError('unexpected error in knn_query')
+
+        dist, indices = output
 
         if points.shape[0] == 1:
-            return dist[slc[0]:slc[1]], indices[slc[0]:slc[1]]
+            return np.array(dist[0], np.float64), np.array(indices[0], np.int64)
 
-        dist_out = []
-        indices_out = []
+        dist = [np.array(d, np.float64) for d in dist]
+        indices = [np.array(d, np.int64) for d in indices]
 
-        for i in range(points.shape[0]):
-            dist_out.append(dist[slc[i]:slc[i + 1]])
-            indices_out.append(indices[slc[i]:slc[i + 1]])
+        return dist, indices
 
-        return dist_out, indices_out
-
-    def query_ball_point(
+    def ball_point_query(
             self,
             points: np.ndarray,
             radius: int | np.ndarray,
@@ -171,47 +88,14 @@ class KDtree(object):
         if points.shape[0] == 0:
             return np.array([], np.int64)
 
-        output = c_pycv.query_ball_kdtree(self, points, radius, pnorm, int(pnorm == float('inf')), epsilon)
+        output = super().ball_point_query(points, radius, pnorm, int(pnorm == float('inf')), epsilon)
+
         if output is None:
             raise RuntimeError('unexpected error in query_ball_kdtree')
 
-        indices, slc = output
-
         if points.shape[0] == 1:
-            return indices[slc[0]:slc[1]]
+            return np.array(output[0], np.int64)
 
-        indices_out = []
+        output = [np.array(o, np.int64) for o in output]
 
-        for i in range(points.shape[0]):
-            indices_out.append(indices[slc[i]:slc[i + 1]])
-
-        return indices_out
-
-
-def _fill_tree_split(output: np.ndarray, node: KDnode, bound1: list | None = None, bound2: list | None = None):
-    if not node or node.split_dim == -1:
-        return
-    if bound1 is None or bound2 is None:
-        bound1 = [0] * output.ndim
-        bound2 = list(output.shape)
-
-    split_dim = node.split_dim
-    split_point = int(node.split_val)
-
-    slc = tuple()
-    for dim in range(len(bound1)):
-        if dim == split_dim:
-            slc += (split_point,)
-            continue
-        slc += (slice(bound1[dim], bound2[dim]),)
-
-    output[slc] = np.max(output) + 1
-
-    lesser_b1 = bound1[:]
-    lesser_b2 = [bound2[dim] if dim != split_dim else split_point for dim in range(len(bound1))]
-
-    higher_b1 = [bound1[dim] if dim != split_dim else split_point + 1 for dim in range(len(bound1))]
-    higher_b2 = bound2[:]
-
-    _fill_tree_split(output, node.lesser, lesser_b1, lesser_b2)
-    _fill_tree_split(output, node.higher, higher_b1, higher_b2)
+        return output

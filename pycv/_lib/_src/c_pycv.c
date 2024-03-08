@@ -10,7 +10,7 @@
 #include "c_pycv_convexhull.h"
 #include "c_pycv_features.h"
 #include "c_pycv_measure.h"
-#include "c_pycv_kdtree.h"
+#include "c_pycv_kd_tree.h"
 
 // #####################################################################################################################
 
@@ -1010,98 +1010,67 @@ PyObject* find_object_peaks(PyObject* self, PyObject* args)
 
 // #####################################################################################################################
 
-PyObject* build_kdtree(PyObject* self, PyObject* args)
-{
-    PyArrayObject *data = NULL, *dims_min = NULL, *dims_max = NULL, *indices = NULL;
-    int leafsize;
-    KDtree tree;
-    PyObject *output;
+static PyMemberDef CKDnode_members[] = {
+    {"start_index", T_INT, offsetof(CKDnode, start_index), 0, NULL},
+    {"end_index", T_INT, offsetof(CKDnode, end_index), 0, NULL},
+    {"children", T_INT, offsetof(CKDnode, children), 0, NULL},
+    {"split_dim", T_INT, offsetof(CKDnode, split_dim), 0, NULL},
+    {"split_val", T_DOUBLE, offsetof(CKDnode, split_val), 0, NULL},
+    {"lesser_index", T_INT, offsetof(CKDnode, lesser_index), 0, NULL},
+    {"higher_index", T_INT, offsetof(CKDnode, higher_index), 0, NULL},
+    {"level", T_INT, offsetof(CKDnode, level), 0, NULL},
+    {"lesser", T_OBJECT, offsetof(CKDnode, lesser), 0, NULL},
+    {"higher", T_OBJECT, offsetof(CKDnode, higher), 0, NULL},
+    {NULL}  /* Sentinel */
+};
 
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&O&O&i",
-            InputToArray, &data,
-            InputToArray, &dims_min,
-            InputToArray, &dims_max,
-            OutputToArray, &indices,
-            &leafsize)) {
-        goto exit;
-    }
+PyTypeObject CKDnode_Type = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "c_pycv.CKDnode",
+    .tp_doc = PyDoc_STR("CKDnode objects"),
+    .tp_basicsize = sizeof(CKDnode),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = CKDnodePy_new,
+    .tp_init = (initproc)CKDnodePy_init,
+    .tp_dealloc = (destructor)CKDnodePy_dealloc,
+    .tp_members = CKDnode_members,
+};
 
-    if (!PYCV_KDtree_build(&tree, data, dims_min, dims_max, indices, (kd_intp)leafsize, &output)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_KDtree_build");
-        goto exit;
-    }
+static PyMemberDef CKDtree_members[] = {
+    {"m", T_INT, offsetof(CKDtree, m), 0, NULL},
+    {"n", T_INT, offsetof(CKDtree, n), 0, NULL},
+    {"leafsize", T_INT, offsetof(CKDtree, leafsize), 0, NULL},
+    {"data", T_OBJECT, offsetof(CKDtree, data), 0, NULL},
+    {"dims_min", T_OBJECT, offsetof(CKDtree, dims_min), 0, NULL},
+    {"dims_max", T_OBJECT, offsetof(CKDtree, dims_max), 0, NULL},
+    {"indices", T_OBJECT, offsetof(CKDtree, indices), 0, NULL},
+    {"tree_list", T_OBJECT, offsetof(CKDtree, tree_list), 0, NULL},
+    {"tree", T_OBJECT, offsetof(CKDtree, tree), 0, NULL},
+    {"size", T_INT, offsetof(CKDtree, size), 0, NULL},
+    {NULL}  /* Sentinel */
+};
 
-    PyArray_ResolveWritebackIfCopy(indices);
-
-    exit:
-        PYCV_KDtree_free(&tree);
-        return PyErr_Occurred() ? Py_BuildValue("") : output;
-}
-
-PyObject* query_kdtree(PyObject* self, PyObject* args)
-{
-    int pnorm, is_inf;
-    double distance_max, epsilon;
-    PyArrayObject *query_points = NULL, *k = NULL;
-    KDtree tree;
-    PyObject *output;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&O&iidd",
-            PYCV_input_to_KDtree, &tree,
-            InputToArray, &query_points,
-            InputToArray, &k,
-            &pnorm, &is_inf, &distance_max, &epsilon)) {
-        goto exit;
-    }
-
-    if (!PYCV_KDtree_knn_query(&tree, query_points, k, (kd_intp)pnorm, is_inf, (kd_double)epsilon,
-                              (kd_double)distance_max, &output)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_KDtree_query_knn");
-        goto exit;
-    }
-
-    exit:
-        Py_XDECREF(query_points);
-        Py_XDECREF(k);
-        PYCV_KDtree_free(&tree);
-        return PyErr_Occurred() ? NULL : output;
-}
-
-PyObject* query_ball_kdtree(PyObject* self, PyObject* args)
-{
-    int pnorm, is_inf;
-    double epsilon;
-    PyArrayObject *query_points = NULL, *radius = NULL;
-    KDtree tree;
-    PyObject *output;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&O&iid",
-            PYCV_input_to_KDtree, &tree,
-            InputToArray, &query_points,
-            InputToArray, &radius,
-            &pnorm, &is_inf, &epsilon)) {
-        goto exit;
-    }
+static PyMethodDef CKDtree_methods[] = {
+    {"knn_query", (PyCFunction)CKDtree_knn_query, METH_VARARGS, NULL},
+    {"ball_point_query", (PyCFunction)CKDtree_ball_point_query, METH_VARARGS, NULL},
+    {NULL, NULL, 0, NULL} // Sentinel
+};
 
 
-    if (!PYCV_query_ball_points(&tree, query_points, radius, (kd_intp)pnorm, is_inf, (kd_double)epsilon, &output)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_query_ball_points");
-        goto exit;
-    }
-
-
-    exit:
-        Py_XDECREF(query_points);
-        Py_XDECREF(radius);
-        PYCV_KDtree_free(&tree);
-        return PyErr_Occurred() ? NULL : output;
-}
+PyTypeObject CKDtree_Type = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "c_pycv.CKDtree",
+    .tp_doc = PyDoc_STR("CKDtree objects"),
+    .tp_basicsize = sizeof(CKDtree),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = CKDtreePy_new,
+    .tp_init = (initproc)CKDtreePy_init,
+    .tp_dealloc = (destructor)CKDtreePy_dealloc,
+    .tp_members = CKDtree_members,
+    .tp_methods = CKDtree_methods,
+};
 
 // #####################################################################################################################
 
@@ -1227,24 +1196,6 @@ static PyMethodDef methods[] = {
         METH_VARARGS,
         NULL
     },
-    {
-        "build_kdtree",
-        (PyCFunction)build_kdtree,
-        METH_VARARGS,
-        NULL
-    },
-    {
-        "query_kdtree",
-        (PyCFunction)query_kdtree,
-        METH_VARARGS,
-        NULL
-    },
-    {
-        "query_ball_kdtree",
-        (PyCFunction)query_ball_kdtree,
-        METH_VARARGS,
-        NULL
-    },
     {NULL, NULL, 0, NULL} // Sentinel
 };
 
@@ -1262,8 +1213,22 @@ static struct PyModuleDef module = {
 
 PyMODINIT_FUNC
 PyInit_c_pycv(void) {
+    PyObject *m;
+    if ((PyType_Ready(&CKDnode_Type) < 0) || (PyType_Ready(&CKDtree_Type) < 0)) {
+        return NULL;
+    }
+
+    m = PyModule_Create(&module);
+    if (m == NULL)
+        return NULL;
+
+    if ((PyModule_AddObjectRef(m, "CKDnode", (PyObject *) &CKDnode_Type) < 0) ||
+        (PyModule_AddObjectRef(m, "CKDtree", (PyObject *) &CKDtree_Type) < 0)) {
+        Py_DECREF(m);
+        return NULL;
+    }
     import_array(); // Initialize NumPy API
-    return PyModule_Create(&module);
+    return m;
 };
 
 

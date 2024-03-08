@@ -86,7 +86,7 @@ def im_threshold(
         image: np.ndarray,
         threshold: str,
         *args, **kwargs
-) -> np.ndarray | (np.ndarray, int | float | np.ndarray):
+) -> np.ndarray | tuple[np.ndarray, int | float | np.ndarray]:
     th = Threshold.get_method(threshold)(image, *args, **kwargs)
     return im_binarize(image, th), th
 
