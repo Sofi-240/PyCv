@@ -8,7 +8,7 @@ from pycv.morphological import binary_edge, binary_dilation
 from pycv.transform import hough_circle
 from pycv.draw import draw_circle
 from pycv._lib._src_py.pycv_measure import find_object_peaks
-from pycv._lib._src_py.kdtree import KDtree
+from pycv.structures import KDtree
 
 coins = load_image('coins.png')[160:230, 70:250]
 coins_med = median_filter(coins, (5, 5))

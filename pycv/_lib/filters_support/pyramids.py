@@ -165,7 +165,36 @@ class _BasePyramid(abc.ABC):
 ########################################################################################################################
 
 class GaussianPyramid(_BasePyramid):
+    """
+    Gaussian pyramid implementation.
 
+    Gaussian pyramid is a type of image pyramid used in image processing and computer vision.
+    It is constructed by repeatedly applying Gaussian smoothing and downsampling to the input image.
+    Each level of the pyramid is created by blurring and subsampling the previous level.
+
+    Parameters:
+        base (numpy.ndarray): The base image of the pyramid.
+        sigma (tuple or float): The standard deviation of the Gaussian kernel used for smoothing.
+            If a tuple, it specifies the standard deviation along each dimension of the image.
+            If a scalar, the same standard deviation is used along all dimensions.
+        axis (tuple or None): The axes along which to apply the Gaussian smoothing. If None, all axes are used.
+        n_layers (int): The number of layers in the pyramid. If -1, all possible layers are generated.
+        downscale (tuple or float): The downsampling factor along each axis. If a tuple, it specifies
+            the downsampling factor along each dimension of the image. If a scalar, the same downsampling
+            factor is used along all dimensions.
+        down_order (int): The order of downsampling operation. 1 for bilinear interpolation, 2 for quadratic,
+            3 for cubic, etc.
+        upscale (tuple or float or None): The upsampling factor along each axis. If None, no upsampling is performed.
+        up_order (int): The order of upsampling operation. 0 for nearest neighbor interpolation,
+            1 for bilinear interpolation, 2 for quadratic, 3 for cubic, etc.
+        preserve_dtype (bool): Whether to preserve the data type of the input image in the pyramid levels.
+        padding_mode (str): The padding mode to use during convolution.
+        constant_value (float): The constant value to use for padding if padding_mode is 'constant'.
+
+    Attributes:
+        n_layers (int): The number of layers in the pyramid.
+
+    """
     def __init__(
             self,
             base: np.ndarray,
@@ -259,6 +288,40 @@ class GaussianPyramid(_BasePyramid):
 ########################################################################################################################
 
 class LaplacianPyramid(GaussianPyramid):
+    """
+    Laplacian pyramid implementation.
+
+    Laplacian pyramid is a type of image pyramid used in image processing and computer vision.
+    It is constructed from a Gaussian pyramid by taking the difference between each level and its
+    downsampled and blurred version. The resulting pyramid contains the details at each level.
+
+    Parameters:
+        base (numpy.ndarray): The base image of the pyramid.
+        sigma (tuple or float): The standard deviation of the Gaussian kernel used for smoothing.
+            If a tuple, it specifies the standard deviation along each dimension of the image.
+            If a scalar, the same standard deviation is used along all dimensions.
+        axis (tuple or None): The axes along which to apply the Gaussian smoothing. If None, all axes are used.
+        n_layers (int): The number of layers in the pyramid. If -1, all possible layers are generated.
+        downscale (tuple or float): The downsampling factor along each axis. If a tuple, it specifies
+            the downsampling factor along each dimension of the image. If a scalar, the same downsampling
+            factor is used along all dimensions.
+        down_order (int): The order of downsampling operation. 1 for bilinear interpolation, 2 for quadratic,
+            3 for cubic, etc.
+        upscale (tuple or float or None): The upsampling factor along each axis. If None, no upsampling is performed.
+        up_order (int): The order of upsampling operation. 0 for nearest neighbor interpolation,
+            1 for bilinear interpolation, 2 for quadratic, 3 for cubic, etc.
+        preserve_dtype (bool): Whether to preserve the data type of the input image in the pyramid levels.
+        padding_mode (str): The padding mode to use during convolution.
+        constant_value (float): The constant value to use for padding if padding_mode is 'constant'.
+
+    Attributes:
+        n_layers (int): The number of layers in the pyramid.
+
+    Notes:
+        - This class inherits from GaussianPyramid, which implements the Gaussian pyramid.
+        - The Laplacian pyramid is constructed by taking the difference between each level of the Gaussian pyramid
+          and its downsampled and smoothed version. It represents the details of the image at different scales.
+    """
 
     def __iter__(self):
         self._layer = 0
@@ -284,6 +347,36 @@ class LaplacianPyramid(GaussianPyramid):
 ########################################################################################################################
 
 class GaussianScaleSpace(_BasePyramid):
+    """
+    Gaussian Scale Space implementation.
+
+    Gaussian scale space is a multi-scale representation of an image computed by convolving the image
+    with Gaussian kernels of increasing standard deviations.
+
+    Parameters:
+        base (numpy.ndarray): The base image of the scale space.
+        sigma (float): The standard deviation of the first Gaussian kernel.
+        sigma_in (float): The standard deviation of the inner Gaussian kernels.
+        axis (tuple or None): The axes along which to apply the Gaussian smoothing. If None, all axes are used.
+        n_octaves (int): The number of octaves in the scale space.
+        n_scales (int): The number of scales per octave.
+        down_order (int): The order of downsampling operation. 0 for nearest neighbor interpolation,
+            1 for bilinear interpolation, 2 for quadratic, 3 for cubic, etc.
+        up_order (int): The order of upsampling operation. 0 for nearest neighbor interpolation,
+            1 for bilinear interpolation, 2 for quadratic, 3 for cubic, etc.
+        preserve_dtype (bool): Whether to preserve the data type of the input image in the scale space.
+        padding_mode (str): The padding mode to use during convolution.
+        constant_value (float): The constant value to use for padding if padding_mode is 'constant'.
+
+    Attributes:
+        n_octaves (int): The number of octaves in the scale space.
+
+    Notes:
+        - This class inherits from _BasePyramid, which implements the base functionality for image pyramids.
+        - The Gaussian scale space is computed by convolving the image with Gaussian kernels of increasing
+          standard deviations. The resulting images are downsampled to form a multi-scale representation
+          of the original image.
+    """
     def __init__(
             self,
             base: np.ndarray,
@@ -379,6 +472,47 @@ class GaussianScaleSpace(_BasePyramid):
 
 
 class DOGPyramid(GaussianScaleSpace):
+    """
+    Difference of Gaussians (DoG) Pyramid implementation.
+
+    DoG pyramid is a multi-scale representation of an image computed by taking the difference between
+    consecutive scales in a Gaussian scale space.
+
+    Parameters:
+        base (numpy.ndarray): The base image of the scale space.
+        sigma (float): The standard deviation of the first Gaussian kernel.
+        sigma_in (float): The standard deviation of the inner Gaussian kernels.
+        axis (tuple or None): The axes along which to apply the Gaussian smoothing. If None, all axes are used.
+        n_octaves (int): The number of octaves in the scale space.
+        n_scales (int): The number of scales per octave.
+        down_order (int): The order of downsampling operation. 0 for nearest neighbor interpolation,
+            1 for bilinear interpolation, 2 for quadratic, 3 for cubic, etc.
+        up_order (int): The order of upsampling operation. 0 for nearest neighbor interpolation,
+            1 for bilinear interpolation, 2 for quadratic, 3 for cubic, etc.
+        preserve_dtype (bool): Whether to preserve the data type of the input image in the scale space.
+        padding_mode (str): The padding mode to use during convolution.
+        constant_value (float): The constant value to use for padding if padding_mode is 'constant'.
+
+    Notes:
+        - This class inherits from GaussianScaleSpace, which computes the Gaussian scale space
+          representation of an image.
+        - The DoG pyramid is computed by taking the difference between consecutive scales in a Gaussian
+          scale space. It provides a multi-scale representation of the image with enhanced features.
+
+    Attributes:
+        n_octaves (int): The number of octaves in the scale space.
+
+    Example:
+        # Create a DoG pyramid from an image
+        image = np.random.rand(256, 256)
+        dog_pyramid = DOGPyramid(image, sigma=1.6, sigma_in=0.5, n_octaves=8, n_scales=3)
+
+        # Iterate over the pyramid and access each octave
+        for octave in dog_pyramid:
+            # Process each octave of the DoG pyramid
+            process_octave(octave)
+
+    """
     def __next__(self):
         output = super().__next__()
         return np.diff(output, axis=0)

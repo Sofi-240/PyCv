@@ -30,6 +30,24 @@ def gaussian_filter(
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0
 ) -> np.ndarray:
+    """
+    Apply Gaussian filter to the input image.
+
+    Gaussian filter is a widely used filter in image processing for smoothing images by reducing noise and details.
+
+    Parameters:
+        image (numpy.ndarray): Input image to which the Gaussian filter will be applied.
+        sigma (float or tuple): Standard deviation(s) of the Gaussian kernel. If a tuple is provided, it represents the standard deviation
+            in each dimension. The higher the sigma, the more the image will be blurred.
+        truncate (float, optional): Truncate the Gaussian filter at this many standard deviations. Defaults to 3.
+        axis (tuple or None, optional): Specifies the axis or axes along which the Gaussian filter is applied. If None, the filter is applied to all axes. Defaults to None.
+        preserve_dtype (bool, optional): If True, the dtype of the input image is preserved in the output. Defaults to True.
+        padding_mode (str, optional): Specifies the padding mode for the convolution operation. Possible values are 'reflect', 'constant', 'edge', or 'symmetric'. Defaults to 'reflect'.
+        constant_value (float or int or None, optional): Value to use for padding if padding_mode is set to 'constant'. If None, it defaults to 0. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: Output image after applying the Gaussian filter.
+    """
     image = np_compliance(image, 'image', _check_finite=True)
     dtype = image.dtype
     image = cast(image, np.float64)
@@ -72,6 +90,23 @@ def mean_filter(
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0
 ) -> np.ndarray:
+    """
+    Apply mean filter to the input image.
+
+    Mean filter is a simple and commonly used filter for smoothing images by replacing each pixel value with the average value of its neighborhood.
+
+    Parameters:
+        image (numpy.ndarray): Input image to which the mean filter will be applied.
+        kernel_size (int or tuple or None, optional): Size of the kernel for the mean filter. If None, the footprint parameter must be provided. Defaults to None.
+        footprint (numpy.ndarray or None, optional): Custom footprint for the mean filter. If provided, kernel_size parameter will be ignored. Defaults to None.
+        axis (int or tuple or None, optional): Specifies the axis or axes along which the mean filter is applied. Defaults to None.
+        preserve_dtype (bool, optional): If True, the dtype of the input image is preserved in the output. Defaults to True.
+        padding_mode (str, optional): Specifies the padding mode for the convolution operation. Possible values are 'reflect', 'constant', 'edge', or 'symmetric'. Defaults to 'reflect'.
+        constant_value (float or int or None, optional): Value to use for padding if padding_mode is set to 'constant'. If None, it defaults to 0. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: Output image after applying the mean filter.
+    """
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
@@ -99,6 +134,21 @@ def image_filter(
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0
 ) -> np.ndarray:
+    """
+    Apply custom image filter to the input image.
+
+    Custom image filter is applied by convolving the input image with the provided kernel.
+
+    Parameters:
+        image (numpy.ndarray): Input image to which the custom image filter will be applied.
+        kernel (numpy.ndarray): Custom kernel for the image filter.
+        axis (int or tuple or None, optional): Specifies the axis or axes along which the filter is applied. Defaults to None.
+        padding_mode (str, optional): Specifies the padding mode for the convolution operation. Possible values are 'reflect', 'constant', 'edge', or 'symmetric'. Defaults to 'reflect'.
+        constant_value (float or int or None, optional): Value to use for padding if padding_mode is set to 'constant'. If None, it defaults to 0. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: Output image after applying the custom image filter.
+    """
     image = np_compliance(image, 'image', _check_finite=True)
     kernel = np_compliance(kernel, 'kernel', _check_finite=True)
 
@@ -126,6 +176,22 @@ def median_filter(
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0,
 ) -> np.ndarray:
+    """
+    Apply median filter to the input image.
+
+    Median filter is a nonlinear filter used for noise reduction in images by replacing each pixel value with the median value of its neighborhood.
+
+    Parameters:
+        image (numpy.ndarray): Input image to which the median filter will be applied.
+        kernel_size (int or tuple or None, optional): Size of the kernel for the median filter. If None, the footprint parameter must be provided. Defaults to None.
+        footprint (numpy.ndarray or None, optional): Custom footprint for the median filter. If provided, kernel_size parameter will be ignored. Defaults to None.
+        axis (int or tuple or None, optional): Specifies the axis or axes along which the median filter is applied. Defaults to None.
+        padding_mode (str, optional): Specifies the padding mode for the convolution operation. Possible values are 'reflect', 'constant', 'edge', or 'symmetric'. Defaults to 'reflect'.
+        constant_value (float or int or None, optional): Value to use for padding if padding_mode is set to 'constant'. If None, it defaults to 0. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: Output image after applying the median filter.
+    """
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
@@ -149,6 +215,24 @@ def rank_filter(
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0,
 ) -> np.ndarray:
+    """
+    Apply rank filter to the input image.
+
+    Rank filter is a nonlinear filter used for various image processing tasks, including noise reduction, edge detection, and image enhancement.
+    It replaces each pixel value with the value of the rank-th element in its neighborhood.
+
+    Parameters:
+        image (numpy.ndarray): Input image to which the rank filter will be applied.
+        rank (int): Rank of the element to be selected from the neighborhood.
+        kernel_size (int or tuple or None, optional): Size of the kernel for the rank filter. If None, the footprint parameter must be provided. Defaults to None.
+        footprint (numpy.ndarray or None, optional): Custom footprint for the rank filter. If provided, kernel_size parameter will be ignored. Defaults to None.
+        axis (int or tuple or None, optional): Specifies the axis or axes along which the rank filter is applied. Defaults to None.
+        padding_mode (str, optional): Specifies the padding mode for the convolution operation. Possible values are 'reflect', 'constant', 'edge', or 'symmetric'. Defaults to 'reflect'.
+        constant_value (float or int or None, optional): Value to use for padding if padding_mode is set to 'constant'. If None, it defaults to 0. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: Output image after applying the rank filter.
+    """
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
@@ -175,6 +259,22 @@ def local_min_filter(
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0,
 ) -> np.ndarray:
+    """
+    Apply local minimum filter to the input image.
+
+    Local minimum filter is a morphological filter used for finding local minima in images by replacing each pixel value with the minimum value within its neighborhood.
+
+    Parameters:
+        image (numpy.ndarray): Input image to which the local minimum filter will be applied.
+        kernel_size (int or tuple or None, optional): Size of the kernel for the local minimum filter. If None, the footprint parameter must be provided. Defaults to None.
+        footprint (numpy.ndarray or None, optional): Custom footprint for the local minimum filter. If provided, kernel_size parameter will be ignored. Defaults to None.
+        axis (int or tuple or None, optional): Specifies the axis or axes along which the local minimum filter is applied. Defaults to None.
+        padding_mode (str, optional): Specifies the padding mode for the convolution operation. Possible values are 'reflect', 'constant', 'edge', or 'symmetric'. Defaults to 'reflect'.
+        constant_value (float or int or None, optional): Value to use for padding if padding_mode is set to 'constant'. If None, it defaults to 0. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: Output image after applying the local minimum filter.
+    """
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
@@ -202,6 +302,23 @@ def local_max_filter(
         padding_mode: str = 'reflect',
         constant_value: float | int | None = 0,
 ) -> np.ndarray:
+    """
+    Apply local maximum filter to the input image.
+
+    Local maximum filter is a morphological operation used for various image processing tasks, including noise reduction,
+    edge detection, and image enhancement. It replaces each pixel value with the maximum value within its neighborhood.
+
+    Parameters:
+        image (numpy.ndarray): Input image to which the local maximum filter will be applied.
+        kernel_size (int or tuple or None, optional): Size of the kernel for the local maximum filter. If None, the footprint parameter must be provided. Defaults to None.
+        footprint (numpy.ndarray or None, optional): Custom footprint for the local maximum filter. If provided, kernel_size parameter will be ignored. Defaults to None.
+        axis (int or tuple or None, optional): Specifies the axis or axes along which the local maximum filter is applied. Defaults to None.
+        padding_mode (str, optional): Specifies the padding mode for the convolution operation. Possible values are 'reflect', 'constant', 'edge', or 'symmetric'. Defaults to 'reflect'.
+        constant_value (float or int or None, optional): Value to use for padding if padding_mode is set to 'constant'. If None, it defaults to 0. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: Output image after applying the local maximum filter.
+    """
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
