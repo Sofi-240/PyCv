@@ -1,6 +1,6 @@
 import numpy as np
-from pycv._lib.misc.histogram import bin_count, histogram, HIST
-from pycv._lib.decorator import registrate_decorator
+from pycv._lib.misc.histogram import histogram, Histogram
+from pycv._lib._inspect import get_signature, isfunction
 from pycv._lib.array_api.dtypes import cast
 from pycv._lib.array_api.regulator import np_compliance
 from pycv._lib.filters_support.windows import gaussian_kernel, sigma_from_size
@@ -8,147 +8,177 @@ from pycv._lib._src_py.pycv_filters import convolve, rank_filter
 from pycv._lib._src_py.utils import as_sequence, valid_axis, fix_kernel_shape
 
 __all__ = [
-    'otsu',
-    'li_and_lee',
-    'kapur',
-    'minimum_error',
-    'minimum',
-    'mean',
-    'adaptive',
-    'Threshold'
+    "otsu",
+    "li_and_lee",
+    "kapur",
+    "minimum_error",
+    "minimum",
+    "mean",
+    "adaptive",
+    "Thresholds"
 ]
 
 
 ########################################################################################################################
 
-@registrate_decorator(kw_syntax=True)
-def histogram_type(func, *args, **kwargs):
-    if len(args) < 1 and 'image' not in kwargs:
-        raise ValueError('missing image input')
-    elif len(args) < 1:
-        inputs = kwargs.pop('image')
-    else:
-        inputs = args[0]
-        args = args[1:]
+def _N1N2(
+        hist: Histogram
+) -> tuple[np.ndarray, np.ndarray]:
+    n1 = np.cumsum(hist.counts[0])
+    n2 = np.cumsum(hist.counts[0][::-1])[::-1]
+    return n1, n2
 
-    inputs = np_compliance(inputs, 'Image', _check_finite=True)
 
-    # create histogram
-    if np.issubdtype(inputs.dtype, np.integer):
-        hist = bin_count(inputs)
-    else:
-        hist = histogram(inputs)
+def _Mu1Mu2(
+        hist: Histogram,
+        n1: np.ndarray | None = None,
+        n2: np.ndarray | None = None
+) -> tuple[np.ndarray, np.ndarray]:
+    if n1 is None or n2 is None:
+        n1, n2 = _N1N2(hist)
+    mu1 = np.cumsum(hist.counts[0] * hist.bins) / n1
+    mu2 = np.cumsum((hist.counts[0] * hist.bins)[::-1])[::-1] / n2
+    return mu1, mu2
 
-    # non zero histogram
 
-    hist_, bins = hist[:]
-    e1, e2 = hist_[0], hist_[-1]
+def _P1P2(
+        hist: Histogram
+) -> tuple[np.ndarray, np.ndarray]:
+    p1 = np.cumsum(hist.normalize[0])
+    p2 = np.cumsum(hist.normalize[0][::-1])[::-1]
+    return p1, p2
 
+
+def _S1S2(
+        hist: Histogram,
+        n1: np.ndarray | None = None,
+        n2: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    if n1 is None or n2 is None:
+        n1, n2 = _N1N2(hist)
+    mu1, mu2 = _Mu1Mu2(hist, n1, n2)
+
+    s1 = np.sqrt(np.cumsum((hist.bins - mu1) ** 2) / n1)
+    s2 = np.sqrt(np.cumsum(((hist.bins - mu2) ** 2)[::-1])[::-1] / n2)
+    return s1, s2
+
+
+def _non_zero_histogram(hist: Histogram):
+    e1, e2 = hist.counts[0, 0], hist.counts[0, -1]
     if e1 == 0 or e2 == 0:
-        cond = hist_ > 0
-        c1 = np.argmax(cond)
-        c2 = hist_.size - np.argmax(cond[::-1])
-        hist._replace(**{'hist': hist_[c1:c2], 'bins': bins[c1:c2]})
-
-    return func(hist, *args, **kwargs)
+        c1 = np.argmax(hist.counts[0] > 0)
+        c2 = hist.n_bins - np.argmax((hist.counts[0] > 0)[::-1])
+        hist.__init__(hist.counts[:, c1:c2], hist.bins[c1:c2])
 
 
-@registrate_decorator(kw_syntax=True)
-def array_type(func, *args, **kwargs):
-    if len(args) < 1 and 'image' not in kwargs:
-        raise ValueError('missing image input')
-    elif len(args) < 1:
-        inputs = kwargs.pop('image')
-    else:
-        inputs = args[0]
-        args = args[1:]
-
-    inputs = np_compliance(inputs, 'Image', _check_finite=True)
-    return func(inputs, *args, **kwargs)
+def _get_histogram(image: np.ndarray, nbin: int | None = None) -> Histogram:
+    image = np_compliance(image, 'Image', _check_finite=True)
+    hist = histogram(image, bins=nbin)
+    _non_zero_histogram(hist)
+    return hist
 
 
 ########################################################################################################################
 
 
-@histogram_type
-def otsu(hist: HIST) -> int | float:
-    hist, bins = hist[:]
-    n1 = np.cumsum(hist)
-    n2 = np.cumsum(hist[::-1])[::-1]
+class Thresholds(object):
+    _methods = ''
 
-    m1 = np.cumsum(hist * bins) / n1
-    m2 = np.cumsum((hist * bins)[::-1])[::-1] / n2
+    def __repr__(self):
+        return self._methods
 
+    def __contains__(self, item):
+        if not isinstance(item, str):
+            return hasattr(self, item)
+        return hasattr(self, item.upper())
+
+    def __setattr__(self, attr, value):
+        raise AttributeError("Trying to set attribute on a frozen instance")
+
+    def get_method(self, method: str):
+        if not isinstance(method, str):
+            raise TypeError('method need to be type of str')
+        if method not in self:
+            raise ValueError(f'{method} method is not supported use {self}')
+        return getattr(self, method.upper())
+
+    @classmethod
+    def set_method(cls, func):
+        if not isfunction(func):
+            raise ValueError('func need to be function type')
+        name = func.__name__.upper()
+        if hasattr(cls, name):
+            raise ValueError(f'{name} is already in Thresholds')
+
+        call = staticmethod(func)
+        call.__signature__ = get_signature(func)
+        setattr(cls, name, call)
+        if not cls._methods:
+            cls._methods += name
+        else:
+            cls._methods += f', {name}'
+        return getattr(cls, name)
+
+
+########################################################################################################################
+@Thresholds.set_method
+def otsu(image: np.ndarray, nbin: int | None = None) -> int | float:
+    hist = _get_histogram(image, nbin)
+    n1, n2 = _N1N2(hist)
+    m1, m2 = _Mu1Mu2(hist, n1, n2)
     var = n1[:-1] * n2[1:] * (m1[:-1] - m2[1:]) ** 2
-    th = bins[np.argmax(var)]
+    th = hist.bins[np.argmax(var)]
     return th
 
 
-@histogram_type
-def li_and_lee(hist: HIST) -> int | float:
-    hist, bins = hist[:]
-
-    n1 = np.cumsum(hist)
-    n2 = np.cumsum(hist[::-1])[::-1]
-
-    m1 = np.cumsum(hist * bins) / n1
-    m2 = np.cumsum((hist * bins)[::-1])[::-1] / n2
-
+@Thresholds.set_method
+def li_and_lee(image: np.ndarray, nbin: int | None = None) -> int | float:
+    hist = _get_histogram(image, nbin)
+    n1, n2 = _N1N2(hist)
+    m1, m2 = _Mu1Mu2(hist, n1, n2)
     ni = (n1[:-1] * m1[:-1] * np.log(m1[:-1] + (m1[:-1] == 0))) + (n2[1:] * m2[1:] * np.log(m2[1:] + (m2[1:] == 0)))
-
-    th = bins[np.argmax(ni) + 1]
+    th = hist.bins[np.argmax(ni) + 1]
     return th
 
 
-@histogram_type
-def kapur(hist: HIST) -> int | float:
-    hist, bins = hist[:]
-    hist /= np.sum(hist)
+@Thresholds.set_method
+def kapur(image: np.ndarray, nbin: int | None = None) -> int | float:
+    hist = _get_histogram(image, nbin)
+    p1, p2 = _P1P2(hist)
+    h_norm = hist.normalize[0]
 
-    p1 = np.cumsum(hist)
-    p2 = np.cumsum(hist[::-1])[::-1]
-
-    ent = np.cumsum(hist * np.log(hist + (hist <= 0)))
+    ent = np.cumsum(h_norm * np.log(h_norm + (h_norm <= 0)))
 
     e1 = - (ent / p1) + np.log(p1)
     e2 = - ((ent[-1] - ent) / p2) + np.log(p2)
 
     fi = e1 + e2
-    th = bins[np.argmax(fi)]
+    th = hist.bins[np.argmax(fi)]
     return th
 
 
-@histogram_type
-def minimum_error(hist: HIST) -> int | float:
-    hist, bins = hist[:]
-
-    n1 = np.cumsum(hist)
-    n2 = np.cumsum(hist[::-1])[::-1]
-
-    m1 = np.cumsum(hist * bins) / n1
-    m2 = np.cumsum((hist * bins)[::-1])[::-1] / n2
-
-    s1 = np.sqrt(np.cumsum((bins - m1) ** 2) / n1)
-
-    s2 = np.sqrt(np.cumsum(((bins - m2) ** 2)[::-1])[::-1] / n2)
+@Thresholds.set_method
+def minimum_error(image: np.ndarray, nbin: int | None = None) -> int | float:
+    hist = _get_histogram(image, nbin)
+    n1, n2 = _N1N2(hist)
+    s1, s2 = _S1S2(hist, n1, n2)
 
     j1 = n1[1:] * np.log((s1[1:] + (s1[1:] == 0)) / (s2[:-1] + (s2[:-1] == 0)))
     j2 = n2[:-1] * np.log((s2[:-1] + (s2[:-1] == 0)) / (s1[1:] + (s1[1:] == 0)))
 
     j = 1 + 2 * (j1 + j2)
-
-    th = bins[np.argmin(j) + 1]
+    th = hist.bins[np.argmin(j) + 1]
     return th
 
 
-@histogram_type
-def minimum(hist: HIST, max_iterations: int = 10000) -> int | float:
-    hist, bins = hist[:]
-
-    n_bins = len(bins)
+@Thresholds.set_method
+def minimum(image: np.ndarray, nbin: int | None = None, max_iterations: int = 10000) -> int | float:
+    hist = _get_histogram(image, nbin)
+    bins = hist.bins
+    n_bins = hist.n_bins
 
     h = np.ones((3,), ) / 3
-    smooth = hist
+    smooth = hist.counts[0]
     count = 0
 
     local_max = []
@@ -178,14 +208,14 @@ def minimum(hist: HIST, max_iterations: int = 10000) -> int | float:
         raise RuntimeError(f'reach maximum iterations, 2 local maxima not fount in the histogram')
 
     min_, max_ = local_max
-    th = np.argmin(smooth[min_:max_]) + min_
+    th = np.argmin(smooth[int(min_):int(max_)]) + min_
     return th
 
 
 ########################################################################################################################
-
-@array_type
+@Thresholds.set_method
 def mean(image: np.ndarray) -> float:
+    image = np_compliance(image, 'Image', _check_finite=True)
     return np.mean(image)
 
 
@@ -248,7 +278,7 @@ def _adaptive_median(
     return threshold
 
 
-@array_type
+@Thresholds.set_method
 def adaptive(
         image: np.ndarray,
         block_size: tuple | int,
@@ -263,6 +293,8 @@ def adaptive(
         raise ValueError(f'{method} is not in supported methods use {ADAPTIVE_METHODS}')
     if padding_mode == 'valid':
         raise ValueError('valid padding is not supported for adaptive threshold')
+
+    image = np_compliance(image, 'Image', _check_finite=True)
 
     dtype = image.dtype
     casted = True
@@ -297,21 +329,8 @@ def adaptive(
 
 ########################################################################################################################
 
-class Threshold:
-    OTSU = otsu
-    LI_AND_LEE = li_and_lee
-    KAPUR = kapur
-    MINIMUM_ERROR = minimum_error
-    MINIMUM = minimum
-    MEAN = mean
-    ADAPTIVE = adaptive
 
-    @classmethod
-    def get_method(cls, method: str):
-        try:
-            return getattr(cls, method.upper())
-        except AttributeError:
-            raise Exception(f'{method} method is not supported')
+delattr(Thresholds, 'set_method')
+Thresholds = Thresholds()
 
 ########################################################################################################################
-

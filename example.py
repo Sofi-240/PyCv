@@ -56,3 +56,14 @@ marked[..., 2] = marked[..., 1]
 marked = marked.astype(np.uint8) * 255
 
 show_collection([coins_bin, marked], 1, 2)
+
+
+# import os.path as osp
+# from pycv.io import ImageLoader
+# from pycv._lib.filters_support.thresholding import Thresholds, otsu
+#
+# loader = ImageLoader(osp.join(osp.dirname(__file__), "_debug_utils", "data"))
+# im = loader.load('coins')[160:230, 70:250]
+#
+#
+# th = Thresholds.OTSU(im)

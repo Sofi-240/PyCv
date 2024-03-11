@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Any
-from pycv._lib.filters_support.thresholding import Threshold
+from pycv._lib.filters_support.thresholding import Thresholds
 
 __all__ = [
     'otsu_threshold',
@@ -20,38 +20,38 @@ __all__ = [
 def otsu_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return Threshold.OTSU(image)
+    return Thresholds.OTSU(image)
 
 
 def kapur_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return Threshold.KAPUR(image)
+    return Thresholds.KAPUR(image)
 
 
 def li_and_lee_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return Threshold.LI_AND_LEE(image)
+    return Thresholds.LI_AND_LEE(image)
 
 
 def minimum_error_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return Threshold.MINIMUM_ERROR(image)
+    return Thresholds.MINIMUM_ERROR(image)
 
 
 def mean_threshold(
         image: np.ndarray,
 ) -> int | float:
-    return Threshold.MEAN(image)
+    return Thresholds.MEAN(image)
 
 
 def minimum_threshold(
         image: np.ndarray,
         max_iterations: int = 10000
 ) -> int | float:
-    return Threshold.MINIMUM(image, max_iterations=max_iterations)
+    return Thresholds.MINIMUM(image, max_iterations=max_iterations)
 
 
 def adaptive_threshold(
@@ -64,7 +64,7 @@ def adaptive_threshold(
         constant_value: float | int | None = 0,
         axis: tuple | None = None
 ) -> np.ndarray:
-    return Threshold.ADAPTIVE(
+    return Thresholds.ADAPTIVE(
         image, block_size, method=method, method_params=method_params, offset_val=offset_val,
         padding_mode=padding_mode, constant_value=constant_value, axis=axis
     )
@@ -87,7 +87,9 @@ def im_threshold(
         threshold: str,
         *args, **kwargs
 ) -> np.ndarray | tuple[np.ndarray, int | float | np.ndarray]:
-    th = Threshold.get_method(threshold)(image, *args, **kwargs)
+    if threshold not in Thresholds:
+        raise ValueError(f'{threshold} method is not supported use {Thresholds}')
+    th = Thresholds.get_method(threshold)(image, *args, **kwargs)
     return im_binarize(image, th), th
 
 ########################################################################################################################

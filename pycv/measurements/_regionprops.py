@@ -113,7 +113,6 @@ class RegionProperties:
     def centroid(self) -> np.ndarray:
         return self.local_centroid + self._local_offset.astype(np.float)
 
-
     @property
     def filled_image(self) -> np.ndarray:
         se = default_binary_strel(self.ndim, self._connectivity)

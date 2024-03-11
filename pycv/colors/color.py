@@ -1,20 +1,22 @@
 import numpy as np
-from pycv.colors._utils import color_dispatcher
-from pycv.colors._coordinate import *
+from pycv._lib.array_api.dtypes import cast, get_dtype_info
+from pycv.colors._utils import color_dispatcher, _Coordinates
 
 __all__ = [
     'rgb2gray',
+    'gray2rgb',
+    'gray2rgba',
     'rgb2yuv',
     'yuv2rgb',
     'rgb2hsv',
+    'hsv2rgb',
 ]
+
 
 ########################################################################################################################
 
-@color_dispatcher(n_channels=3, same_type=True)
-def rgb2gray(
-        image: np.ndarray
-) -> np.ndarray:
+@color_dispatcher
+def rgb2gray(image: np.ndarray) -> np.ndarray:
     """
     Convert RGB img to grayscale.
 
@@ -29,15 +31,28 @@ def rgb2gray(
         Grayscale img with the same dtype as the input.
 
     """
-    h = np.array(RGB2GRAY, image.dtype)
+    h = np.array(_Coordinates.get_coordinates("RGB2GRAY"), image.dtype)
 
     return image @ h
 
 
-@color_dispatcher(n_channels=3, same_type=True)
-def rgb2yuv(
-        image: np.ndarray
-) -> np.ndarray:
+@color_dispatcher(n_channels=1, as_float=False)
+def gray2rgb(image: np.ndarray) -> np.ndarray:
+    return np.stack([image] * 3, axis=-1)
+
+
+@color_dispatcher(n_channels=1, as_float=False)
+def gray2rgba(image: np.ndarray, alpha: int | float | None = None) -> np.ndarray:
+    if alpha is None:
+        alpha = get_dtype_info(image.dtype).max_val
+    alpha_arr = np.full(image.shape, alpha, dtype=image.dtype)
+    if not np.array_equal(alpha_arr, alpha):
+        raise ValueError('alpha cannot be safely casted to image dtype')
+    return np.stack([image] * 3 + [alpha_arr], axis=-1)
+
+
+@color_dispatcher
+def rgb2yuv(image: np.ndarray) -> np.ndarray:
     """
     Convert RGB img to YUV.
 
@@ -57,16 +72,14 @@ def rgb2yuv(
         If the input array doesn't have the expected number of channels.
     """
 
-    h = np.array(RGB2YUV, image.dtype)
+    h = np.array(_Coordinates.get_coordinates("RGB2YUV"), image.dtype)
     image = (image @ h) + np.array([0, 0.5, 0.5], image.dtype)
 
     return image
 
 
-@color_dispatcher(n_channels=3, same_type=True)
-def yuv2rgb(
-        image: np.ndarray
-) -> np.ndarray:
+@color_dispatcher
+def yuv2rgb(image: np.ndarray) -> np.ndarray:
     """
     Convert YUV img to RGB.
 
@@ -85,15 +98,13 @@ def yuv2rgb(
     ValueError
         If the input array doesn't have the expected number of channels.
     """
-    h = np.array(YUV2RGB, image.dtype)
+    h = np.array(_Coordinates.get_coordinates("YUV2RGB"), image.dtype)
     image = (image - np.array([0, 0.5, 0.5], image.dtype)) @ h
     return image
 
 
-@color_dispatcher(n_channels=3, same_type=False)
-def rgb2hsv(
-        image: np.ndarray
-) -> np.ndarray:
+@color_dispatcher(same_type=False)
+def rgb2hsv(image: np.ndarray) -> np.ndarray:
     """
     Convert RGB img to HSV.
 
@@ -111,6 +122,8 @@ def rgb2hsv(
     ------
     ValueError
         If the input array doesn't have the expected number of channels.
+
+    [1] https://mattlockyer.github.io/iat455/documents/rgb-hsv.pdf
     """
 
     out = np.zeros_like(image)
@@ -132,7 +145,7 @@ def rgb2hsv(
     h[green_cond] = 2. + (image[green_cond, 2] - image[green_cond, 0]) / delta[green_cond]
     h[blue_cond] = 4. + (image[blue_cond, 0] - image[blue_cond, 1]) / delta[blue_cond]
 
-    h = (h * 6.) % 1
+    h = (h / 6.) % 1
     h[delta == 0] = 0.
 
     np.seterr(**ignor_settings)
@@ -144,5 +157,38 @@ def rgb2hsv(
     out[np.isnan(out)] = 0.
 
     return out
+
+
+@color_dispatcher
+def hsv2rgb(image: np.ndarray, dtype: np.dtype | None = None) -> np.ndarray:
+    h = image[..., 0]
+    s = image[..., 1]
+    v = image[..., 2]
+
+    hi = np.floor(h * 6)
+    hf = image[..., 0] * 6 - hi
+
+    alpha = v * (1 - s)
+    betta = v * (1 - hf * s)
+    gamma = v * (1 - (1 - hf) * s)
+
+    hi = np.stack([hi, hi, hi], axis=-1).astype(np.uint8) % 6
+    out = np.choose(
+        hi,
+        np.stack(
+            [
+                np.stack((v, gamma, alpha), axis=-1),
+                np.stack((betta, v, alpha), axis=-1),
+                np.stack((alpha, v, gamma), axis=-1),
+                np.stack((alpha, betta, v), axis=-1),
+                np.stack((gamma, alpha, v), axis=-1),
+                np.stack((v, alpha, betta), axis=-1),
+            ]
+        ),
+    )
+    if dtype is not None:
+        out = cast(out, dtype)
+    return out
+
 
 ########################################################################################################################
