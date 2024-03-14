@@ -1,17 +1,10 @@
 import numpy as np
-from numpy.lib.stride_tricks import as_strided
 import numbers
 
 __all__ = [
     'atleast_nd',
-    'check_nd',
-    'flat_to_ndim',
-    'sliding_window_view',
     'output_shape',
-    'RAVEL_ORDER',
 ]
-
-RAVEL_ORDER = 'C'
 
 
 ########################################################################################################################
@@ -57,139 +50,6 @@ def atleast_nd(
         return _expand(arr)
 
     return _expand(inputs)
-
-
-def check_nd(
-        inputs: np.ndarray,
-        ndim: int,
-        raise_err: bool = False
-) -> bool:
-    if not isinstance(inputs, np.ndarray):
-        inputs = np.asarray(inputs)
-    if inputs.ndim == ndim:
-        return True
-    if raise_err and inputs.ndim != ndim:
-        raise ValueError(
-            f'Array need to be with {ndim} dimensions got {inputs.ndim}'
-        )
-    raise False
-
-
-def flat_to_ndim(
-        inputs: np.ndarray,
-        ndim: int,
-        order: str = RAVEL_ORDER
-) -> np.ndarray:
-    """
-    Reshape a flattened array to have a specified number of dimensions.
-
-    Parameters
-    ----------
-    inputs : numpy.ndarray
-        N-dimensional array.
-    ndim: int
-        Number of dimensions for the output array.
-    order: str (default 'C')
-        ravel order
-
-    Returns
-    -------
-    outputs : numpy.ndarray
-        An array with the specified number of dimensions.
-
-    Raises
-    ------
-    TypeError:
-        If the input is not of type numpy.ndarray.
-    ValueError:
-        If the array rank is smaller than the specified number of dimensions (ndim).
-    """
-    if not isinstance(inputs, np.ndarray):
-        raise TypeError(f'Input array must be of type numpy.ndarray, got {type(inputs)}')
-
-    arr_shape = inputs.shape
-    arr_rank = inputs.ndim
-    if arr_rank < ndim:
-        raise ValueError(f'Array rank is smaller than ndim.')
-
-    if arr_rank - ndim == 0: return inputs
-    product = np.prod(arr_shape[:-ndim + 1])
-
-    return inputs.reshape((product, *arr_shape[-ndim + 1:]), order=order)
-
-
-def sliding_window_view(
-        arr: np.ndarray,
-        window_shape: tuple | list,
-        stride: int | tuple | list = 1
-) -> np.ndarray:
-    """
-    Generate a sliding window view for the input array.
-
-    Parameters
-    ----------
-    arr : numpy.ndarray
-        N-dimensional array (..., N, M).
-    window_shape: tuple or list
-        Window dimensions specified by the corresponding shape.
-    stride: tuple, list, or int, optional
-        Stride values for each dimension. If tuple or list, dimensions must match window dimensions.
-        If an int, the same stride is applied to all dimensions.
-
-    Returns
-    -------
-    outputs : numpy.ndarray
-        An N-dimensional array with a shape of (..., W1, W2, ...).
-
-    Raises
-    ------
-    TypeError:
-        If the input is not of type numpy.ndarray.
-    ValueError:
-        If the window rank exceeds the array rank.
-    ValueError:
-        If the stride rank is incompatible with the window rank.
-    ValueError:
-        If the window size is larger than the array in terms of shape.
-    """
-    if not isinstance(arr, np.ndarray):
-        raise TypeError(f'Input array must be of type numpy.ndarray, got {type(arr)}')
-
-    arr_rank = arr.ndim
-    arr_shape = arr.shape
-
-    window_rank = len(window_shape)
-
-    if window_rank > arr_rank:
-        raise ValueError('Window rank must be smaller or equal to the array rank.')
-
-    dsz = arr_rank - window_rank
-
-    if isinstance(stride, numbers.Number):
-        stride = (stride,) * window_rank
-
-    if len(stride) != window_rank:
-        raise ValueError('Stride rank is incompatible with window rank.')
-
-    if not all(na > nk for na, nk in zip(arr_shape[-window_rank:], window_shape)):
-        raise ValueError("Window dimensions cannot be larger than the input array's dimensions.")
-
-    if not all((nk - 1) >= 0 for nk in window_shape):
-        raise ValueError("Window shape is too small.")
-
-    stride = (1,) * dsz + tuple(stride)
-    window_shape = (1,) * dsz + tuple(window_shape)
-
-    slices = tuple(slice(None, None, st) for st in stride)
-
-    win_indices_shape = tuple(
-        ((arr_s - win_s) // str_s) + 1 for arr_s, win_s, str_s in zip(arr_shape, window_shape, stride))
-
-    new_shape = win_indices_shape + window_shape
-    strides = arr[slices].strides + arr.strides
-
-    out = as_strided(arr, shape=new_shape, strides=strides)
-    return out
 
 
 def output_shape(

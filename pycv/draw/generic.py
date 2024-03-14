@@ -1,6 +1,6 @@
 import numpy as np
-from pycv._lib.array_api.dtypes import get_dtype_limits
-from pycv._lib._src_py import pycv_minsc
+from .._lib.array_api.dtypes import get_dtype_limits
+from .._lib._src_py import pycv_minsc
 
 __all__ = [
     'draw_line',

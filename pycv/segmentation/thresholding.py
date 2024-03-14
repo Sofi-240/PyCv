@@ -1,6 +1,6 @@
 import numpy as np
-from typing import Any
-from pycv._lib.filters_support.thresholding import Thresholds
+from .._lib._decorator import wrapper_decorator
+from .._lib.filters_support.thresholding import Thresholds
 
 __all__ = [
     'otsu_threshold',
@@ -10,6 +10,7 @@ __all__ = [
     'minimum_error_threshold',
     'mean_threshold',
     'adaptive_threshold',
+    'Thresholds',
     'im_binarize',
     'im_threshold'
 ]
@@ -17,65 +18,66 @@ __all__ = [
 
 ########################################################################################################################
 
-def otsu_threshold(
-        image: np.ndarray,
-) -> int | float:
-    return Thresholds.OTSU(image)
+def _threshold(func):
+    name = '_'.join(func.__name__.split('_')[:-1]).upper()
+    if name not in Thresholds:
+        raise ValueError(f'{name} is not member of Thresholds')
 
+    def _wrapper(f, *args, **kwargs):
+        return f(*args, **kwargs)
 
-def kapur_threshold(
-        image: np.ndarray,
-) -> int | float:
-    return Thresholds.KAPUR(image)
-
-
-def li_and_lee_threshold(
-        image: np.ndarray,
-) -> int | float:
-    return Thresholds.LI_AND_LEE(image)
-
-
-def minimum_error_threshold(
-        image: np.ndarray,
-) -> int | float:
-    return Thresholds.MINIMUM_ERROR(image)
-
-
-def mean_threshold(
-        image: np.ndarray,
-) -> int | float:
-    return Thresholds.MEAN(image)
-
-
-def minimum_threshold(
-        image: np.ndarray,
-        max_iterations: int = 10000
-) -> int | float:
-    return Thresholds.MINIMUM(image, max_iterations=max_iterations)
-
-
-def adaptive_threshold(
-        image: np.ndarray,
-        block_size: tuple | int,
-        method: str = 'gaussian',
-        method_params: Any = None,
-        offset_val: int | float = 0,
-        padding_mode: str = 'reflect',
-        constant_value: float | int | None = 0,
-        axis: tuple | None = None
-) -> np.ndarray:
-    return Thresholds.ADAPTIVE(
-        image, block_size, method=method, method_params=method_params, offset_val=offset_val,
-        padding_mode=padding_mode, constant_value=constant_value, axis=axis
-    )
+    return wrapper_decorator(wrapper=_wrapper)(Thresholds[name].function)
 
 
 ########################################################################################################################
 
-def im_binarize(
+@_threshold
+def otsu_threshold(image: np.ndarray, nbin: int | None = None) -> int | float:
+    pass
+
+
+@_threshold
+def kapur_threshold(image: np.ndarray, nbin: int | None = None) -> int | float:
+    pass
+
+
+@_threshold
+def li_and_lee_threshold(image: np.ndarray, nbin: int | None = None) -> int | float:
+    pass
+
+
+@_threshold
+def minimum_error_threshold(image: np.ndarray, nbin: int | None = None) -> int | float:
+    pass
+
+
+@_threshold
+def mean_threshold(image: np.ndarray) -> int | float:
+    pass
+
+
+@_threshold
+def minimum_threshold(image: np.ndarray, nbin: int | None = None, max_iterations: int = 10000) -> int | float:
+    pass
+
+
+@_threshold
+def adaptive_threshold(
         image: np.ndarray,
-        threshold: int | float | np.ndarray,
+        block_size: tuple | int,
+        method: str = 'gaussian',
+        method_params=None,
+        offset_val: int | float = 0,
+        padding_mode: str = 'reflect',
+        constant_value: float = 0,
+        axis: tuple | None = None
 ) -> np.ndarray:
+    pass
+
+
+########################################################################################################################
+
+def im_binarize(image: np.ndarray, threshold: int | float | np.ndarray) -> np.ndarray:
     if isinstance(threshold, np.ndarray):
         if threshold.shape != image.shape:
             raise ValueError('threshold shape and image shape need to be equal')
@@ -83,13 +85,13 @@ def im_binarize(
 
 
 def im_threshold(
-        image: np.ndarray,
-        threshold: str,
-        *args, **kwargs
+        image: np.ndarray, threshold: str | Thresholds, *args, **kwargs
 ) -> np.ndarray | tuple[np.ndarray, int | float | np.ndarray]:
-    if threshold not in Thresholds:
-        raise ValueError(f'{threshold} method is not supported use {Thresholds}')
-    th = Thresholds.get_method(threshold)(image, *args, **kwargs)
+    if isinstance(threshold, str):
+        threshold = Thresholds[threshold.upper()]
+    if not isinstance(threshold, Thresholds):
+        raise ValueError(f'{threshold} need to be type of str or Thresholds member')
+    th = threshold(image, *args, **kwargs)
     return im_binarize(image, th), th
 
 ########################################################################################################################

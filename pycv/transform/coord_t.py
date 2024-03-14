@@ -1,7 +1,6 @@
 import numpy as np
-from pycv._lib._src_py import pycv_transform
-from pycv._lib._src_py._geometric_transform import (ProjectiveTransform, RidgeTransform,
-                                                    SimilarityTransform, AffineTransform)
+from .._lib._src_py import pycv_transform
+from .._lib._src_py._geometric_transform import (ProjectiveTransform, RidgeTransform, SimilarityTransform, AffineTransform)
 
 __all__ = [
     'resize',

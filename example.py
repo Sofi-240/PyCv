@@ -3,7 +3,7 @@ from _debug_utils.im_load import load_image
 from _debug_utils.im_viz import show_collection
 from pycv._lib._src import c_pycv
 from pycv.filters import median_filter
-from pycv.segmentation import im_threshold
+from pycv.segmentation import im_threshold, Thresholds
 from pycv.morphological import binary_edge, binary_dilation
 from pycv.transform import hough_circle
 from pycv.draw import draw_circle
@@ -12,11 +12,12 @@ from pycv.structures import KDtree
 
 coins = load_image('coins.png')[160:230, 70:250]
 coins_med = median_filter(coins, (5, 5))
-coins_bin, th = im_threshold(coins_med, 'otsu')
+coins_bin, th = im_threshold(coins_med, Thresholds.OTSU)
 inputs = binary_edge(coins_bin, 'outer')
 radius = np.arange(20, 35, 2)
 
 h_space = hough_circle(inputs, radius)
+
 
 peaks_mask = find_object_peaks(h_space, (1, 1))
 peaks = np.where(peaks_mask)

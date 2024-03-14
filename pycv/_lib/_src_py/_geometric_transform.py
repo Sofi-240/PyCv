@@ -1,6 +1,6 @@
 import numpy as np
 import abc
-from pycv._lib.array_api.regulator import np_compliance
+from ..array_api.regulator import np_compliance
 
 __all__ = [
     'src_coordinates',

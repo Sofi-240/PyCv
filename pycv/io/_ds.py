@@ -1,5 +1,5 @@
 import numpy as np
-from pycv.io._rw import load_image
+from ..io._rw import load_image
 
 __all__ = [
     'ImageCollection'

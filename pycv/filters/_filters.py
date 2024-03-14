@@ -1,11 +1,11 @@
 import numpy as np
-from pycv._lib.array_api.dtypes import cast, as_binary_array
-from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib._src_py.utils import valid_axis, fix_kernel_shape
-from pycv._lib._src_py.pycv_filters import convolve
-from pycv._lib.filters_support.windows import edge_kernel
-from pycv._lib._src_py import pycv_morphology
-from pycv._lib.filters_support.kernel_utils import border_mask
+from .._lib.array_api.dtypes import cast, as_binary_array
+from .._lib.array_api.regulator import np_compliance
+from .._lib._src_py.utils import valid_axis, fix_kernel_shape
+from .._lib._src_py.pycv_filters import convolve
+from .._lib.filters_support.windows import edge_kernel
+from .._lib._src_py import pycv_morphology
+from .._lib.filters_support.kernel_utils import border_mask
 
 __all__ = [
     'edge_filters',

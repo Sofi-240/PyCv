@@ -1,7 +1,7 @@
 import numpy as np
 import collections
-from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib._src_py.utils import get_output, valid_same_shape
+from ..array_api.regulator import np_compliance
+from .utils import get_output, valid_same_shape
 from pycv._lib._src import c_pycv
 
 __all__ = [

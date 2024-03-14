@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib._src_py import pycv_morphology
+from .._lib._src_py import pycv_morphology
 
 __all__ = [
     'binary_erosion',

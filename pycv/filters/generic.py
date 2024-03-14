@@ -1,12 +1,12 @@
 import numpy as np
-from pycv._lib.array_api.dtypes import cast
-from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib.array_api.array_pad import pad, get_padding_width
-from pycv._lib._src_py.utils import valid_axis, fix_kernel_shape
-from pycv._lib._src_py import pycv_filters
-from pycv._lib.filters_support.windows import gaussian_kernel
-from pycv.filters._filters import valid_footprint
-from pycv._lib._src_py import pycv_morphology
+from .._lib.array_api.dtypes import cast
+from .._lib.array_api.regulator import np_compliance
+from .._lib.array_api.array_pad import pad, get_padding_width
+from .._lib._src_py.utils import valid_axis, fix_kernel_shape
+from .._lib._src_py import pycv_filters
+from .._lib.filters_support.windows import gaussian_kernel
+from ._filters import valid_footprint
+from .._lib._src_py import pycv_morphology
 
 __all__ = [
     'gaussian_filter',

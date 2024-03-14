@@ -1,6 +1,6 @@
 import numpy as np
-from pycv._lib._src_py import pycv_morphology, pycv_convexhull
-from pycv._lib.array_api.regulator import np_compliance
+from .._lib._src_py import pycv_morphology, pycv_convexhull
+from .._lib.array_api.regulator import np_compliance
 
 __all__ = [
     'region_fill',

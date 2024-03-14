@@ -1,7 +1,8 @@
 import numpy as np
 import math
 import numbers
-from pycv._lib.filters_support.kernel_utils import reshape_1d_kernel, default_binary_strel
+from .kernel_utils import reshape_1d_kernel, default_binary_strel
+
 
 __all__ = [
     'binary_strel',

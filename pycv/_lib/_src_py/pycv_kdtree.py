@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.array_api.regulator import np_compliance
+from ..array_api.regulator import np_compliance
 from pycv._lib._src.c_pycv import CKDtree
 
 __all__ = [

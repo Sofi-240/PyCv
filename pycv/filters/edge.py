@@ -1,7 +1,7 @@
 import numpy as np
-from pycv._lib.filters_support.windows import SOBEL_EDGE, SOBEL_WEIGHTS, PREWITT_WEIGHTS, PREWITT_EDGE
-from pycv.filters._filters import edge_filters
-from pycv._lib.filters_support.canny_edge import canny_filter
+from .._lib.filters_support.windows import SOBEL_EDGE, SOBEL_WEIGHTS, PREWITT_WEIGHTS, PREWITT_EDGE
+from ._filters import edge_filters
+from .._lib.filters_support.canny_edge import canny_filter
 
 __all__ = [
     'sobel',

@@ -1,10 +1,10 @@
 import numpy as np
 from typing import Iterable, Any
 import numbers
-from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib.array_api.shapes import atleast_nd
-from pycv._lib.array_api.dtypes import get_dtype_info
-from pycv._lib.filters_support.kernel_utils import valid_offset, cast_kernel_dilation
+from ..array_api.regulator import np_compliance
+from ..array_api.shapes import atleast_nd
+from ..array_api.dtypes import get_dtype_info
+from ..filters_support.kernel_utils import valid_offset, cast_kernel_dilation
 
 __all__ = [
     'ctype_border_mode',

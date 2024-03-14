@@ -2,7 +2,8 @@ import numpy as np
 import os
 import os.path as osp
 from PIL import Image
-from pycv._lib.array_api.dtypes import cast
+from .._lib.array_api.dtypes import cast
+from ..colors import Colors
 
 
 __all__ = [
@@ -67,8 +68,17 @@ def _to_path(im: np.ndarray, path: str, format_: str | None = None, **kwargs) ->
 
 ########################################################################################################################
 
-def load_image(path: str, dtype=None, frame_num: int | None = None) -> np.ndarray:
-    return _from_path(path, dtype, frame_num)
+def load_image(path: str, dtype=None, frame_num: int | None = None, _color_fmt: Colors | str | None = None, *args, **kwargs) -> np.ndarray:
+    out = _from_path(path, dtype, frame_num)
+    if _color_fmt is None:
+        return out
+    if isinstance(_color_fmt, Colors):
+        if not hasattr(_color_fmt, 'function'):
+            raise ValueError('_color_fmt need to be member of Colors got Colors')
+        return _color_fmt(out, *args, **kwargs)
+    elif isinstance(_color_fmt, str):
+        return Colors[_color_fmt.upper()](out, *args, **kwargs)
+    raise TypeError('invalid _color_fmt type')
 
 
 def save_image(image: np.ndarray, path: str, format_: str | None = None) -> None:
@@ -102,10 +112,10 @@ class ImageLoader(object):
                 continue
             self.files[''.join(f[:-1])] = f[-1]
 
-    def load(self, name: str, dtype: np.dtype | None = None) -> np.ndarray:
+    def load(self, name: str, dtype=None, frame_num: int | None = None, _color_fmt: Colors | str | None = None, *args, **kwargs) -> np.ndarray:
         if name not in self.files:
             raise AttributeError(f'no such file {self._dir_path}')
         path = osp.join(self._dir_path, f'{name}.{self.files[name]}')
-        return load_image(path, dtype=dtype)
+        return load_image(path, dtype=dtype, frame_num=frame_num, _color_fmt=_color_fmt, *args, **kwargs)
 
 ########################################################################################################################

@@ -1,9 +1,9 @@
 import numpy as np
-from pycv._lib._src_py.utils import get_output, get_kernel, valid_kernel_shape_with_ref, invert_values
+from .._src_py.utils import get_output, get_kernel, valid_kernel_shape_with_ref, invert_values
 from pycv._lib._src import c_pycv
-from pycv._lib.filters_support.kernel_utils import default_binary_strel, color_mapping_range
-from pycv._lib.array_api.dtypes import as_binary_array, get_dtype_info
-from pycv._lib.array_api.regulator import np_compliance
+from ..filters_support.kernel_utils import default_binary_strel, color_mapping_range
+from ..array_api.dtypes import as_binary_array, get_dtype_info
+from ..array_api.regulator import np_compliance
 
 __all__ = [
     'default_strel',

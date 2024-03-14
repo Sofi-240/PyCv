@@ -1,11 +1,12 @@
 import numpy as np
-from pycv._lib.misc.histogram import histogram, Histogram
-from pycv._lib._inspect import get_signature, isfunction
-from pycv._lib.array_api.dtypes import cast
-from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib.filters_support.windows import gaussian_kernel, sigma_from_size
-from pycv._lib._src_py.pycv_filters import convolve, rank_filter
-from pycv._lib._src_py.utils import as_sequence, valid_axis, fix_kernel_shape
+from ..misc.histogram import histogram, Histogram
+from .._members_struct import function_members
+from ..array_api.dtypes import cast
+from ..array_api.regulator import np_compliance
+from ..filters_support.windows import gaussian_kernel, sigma_from_size
+from .._src_py.pycv_filters import convolve, rank_filter
+from .._src_py.utils import as_sequence, valid_axis, fix_kernel_shape
+
 
 __all__ = [
     "otsu",
@@ -72,6 +73,8 @@ def _non_zero_histogram(hist: Histogram):
 
 
 def _get_histogram(image: np.ndarray, nbin: int | None = None) -> Histogram:
+    if not isinstance(image, np.ndarray):
+        raise TypeError('image must be type of numpy.ndarray')
     image = np_compliance(image, 'Image', _check_finite=True)
     hist = histogram(image, bins=nbin)
     _non_zero_histogram(hist)
@@ -81,47 +84,6 @@ def _get_histogram(image: np.ndarray, nbin: int | None = None) -> Histogram:
 ########################################################################################################################
 
 
-class Thresholds(object):
-    _methods = ''
-
-    def __repr__(self):
-        return self._methods
-
-    def __contains__(self, item):
-        if not isinstance(item, str):
-            return hasattr(self, item)
-        return hasattr(self, item.upper())
-
-    def __setattr__(self, attr, value):
-        raise AttributeError("Trying to set attribute on a frozen instance")
-
-    def get_method(self, method: str):
-        if not isinstance(method, str):
-            raise TypeError('method need to be type of str')
-        if method not in self:
-            raise ValueError(f'{method} method is not supported use {self}')
-        return getattr(self, method.upper())
-
-    @classmethod
-    def set_method(cls, func):
-        if not isfunction(func):
-            raise ValueError('func need to be function type')
-        name = func.__name__.upper()
-        if hasattr(cls, name):
-            raise ValueError(f'{name} is already in Thresholds')
-
-        call = staticmethod(func)
-        call.__signature__ = get_signature(func)
-        setattr(cls, name, call)
-        if not cls._methods:
-            cls._methods += name
-        else:
-            cls._methods += f', {name}'
-        return getattr(cls, name)
-
-
-########################################################################################################################
-@Thresholds.set_method
 def otsu(image: np.ndarray, nbin: int | None = None) -> int | float:
     hist = _get_histogram(image, nbin)
     n1, n2 = _N1N2(hist)
@@ -131,7 +93,6 @@ def otsu(image: np.ndarray, nbin: int | None = None) -> int | float:
     return th
 
 
-@Thresholds.set_method
 def li_and_lee(image: np.ndarray, nbin: int | None = None) -> int | float:
     hist = _get_histogram(image, nbin)
     n1, n2 = _N1N2(hist)
@@ -141,7 +102,6 @@ def li_and_lee(image: np.ndarray, nbin: int | None = None) -> int | float:
     return th
 
 
-@Thresholds.set_method
 def kapur(image: np.ndarray, nbin: int | None = None) -> int | float:
     hist = _get_histogram(image, nbin)
     p1, p2 = _P1P2(hist)
@@ -157,7 +117,6 @@ def kapur(image: np.ndarray, nbin: int | None = None) -> int | float:
     return th
 
 
-@Thresholds.set_method
 def minimum_error(image: np.ndarray, nbin: int | None = None) -> int | float:
     hist = _get_histogram(image, nbin)
     n1, n2 = _N1N2(hist)
@@ -171,7 +130,6 @@ def minimum_error(image: np.ndarray, nbin: int | None = None) -> int | float:
     return th
 
 
-@Thresholds.set_method
 def minimum(image: np.ndarray, nbin: int | None = None, max_iterations: int = 10000) -> int | float:
     hist = _get_histogram(image, nbin)
     bins = hist.bins
@@ -213,7 +171,7 @@ def minimum(image: np.ndarray, nbin: int | None = None, max_iterations: int = 10
 
 
 ########################################################################################################################
-@Thresholds.set_method
+
 def mean(image: np.ndarray) -> float:
     image = np_compliance(image, 'Image', _check_finite=True)
     return np.mean(image)
@@ -278,7 +236,6 @@ def _adaptive_median(
     return threshold
 
 
-@Thresholds.set_method
 def adaptive(
         image: np.ndarray,
         block_size: tuple | int,
@@ -293,6 +250,9 @@ def adaptive(
         raise ValueError(f'{method} is not in supported methods use {ADAPTIVE_METHODS}')
     if padding_mode == 'valid':
         raise ValueError('valid padding is not supported for adaptive threshold')
+
+    if not isinstance(image, np.ndarray):
+        raise TypeError('image must be type of numpy.ndarray')
 
     image = np_compliance(image, 'Image', _check_finite=True)
 
@@ -330,7 +290,13 @@ def adaptive(
 ########################################################################################################################
 
 
-delattr(Thresholds, 'set_method')
-Thresholds = Thresholds()
+class Thresholds(function_members):
+    OTSU = otsu
+    LI_AND_LEE = li_and_lee
+    KAPUR = kapur
+    MINIMUM_ERROR = minimum_error
+    MINIMUM = minimum
+    MEAN = mean
+    ADAPTIVE = adaptive
 
 ########################################################################################################################

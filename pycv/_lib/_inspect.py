@@ -1,4 +1,5 @@
 import types
+import typing
 import collections
 import inspect
 
@@ -11,13 +12,18 @@ __all__ = [
     'ismethod',
     'iscode',
     'isfunction',
+    'isclass',
     'is_co_routine_function',
     'is_generator_function',
+    'isCallable',
     'getargspec',
     'get_signature',
     'get_params',
     'get_doc',
     'fix_kw_syntax',
+    'is_magic_method',
+    'is_class_method',
+    'is_privet_method'
 ]
 
 ArgSpec = collections.namedtuple('ArgSpec', 'args varargs varkw defaults')
@@ -41,12 +47,20 @@ def iscode(co) -> bool:
     return isinstance(co, types.CodeType)
 
 
+def isclass(cls) -> bool:
+    return inspect.isclass(cls)
+
+
 def is_co_routine_function(func) -> bool:
     return inspect.iscoroutinefunction(func)
 
 
 def is_generator_function(func) -> bool:
     return inspect.isgeneratorfunction(func)
+
+
+def isCallable(obj) -> bool:
+    return isinstance(obj, typing.Callable)
 
 
 ########################################################################################################################
@@ -122,5 +136,28 @@ def fix_kw_syntax(args: tuple, kwargs: dict, signature: SIGNATURE, kw_syntax: bo
             out_kwargs[par.name] = kwargs.get(par.name, par.default)
 
     return out_args, out_kwargs
+
+
+########################################################################################################################
+
+def is_magic_method(name: str) -> bool:
+    if len(name) > 4 and name[:2] == name[-2:] == '__':
+        return True
+    return False
+
+
+def is_class_method(cls_name: str, func: types.FunctionType) -> bool:
+    if not isfunction(func):
+        return False
+    qualname = func.__qualname__.split('.')
+    if len(qualname) > 1 and qualname[-2] == cls_name:
+        return True
+    return False
+
+
+def is_privet_method(name: str) -> bool:
+    if len(name) > 1 and name[0] == "_":
+        return True
+    return False
 
 ########################################################################################################################

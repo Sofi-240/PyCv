@@ -1,16 +1,11 @@
 import numpy as np
 import math
-from pycv._lib.array_api.dtypes import get_dtype_info
+from ..array_api.dtypes import get_dtype_info
 import numbers
 
 __all__ = [
     'valid_offset',
     'cast_kernel_dilation',
-    'unraveled_offsets',
-    'ravel_offsets',
-    'unravel_offsets',
-    'isvalid_neighbor_raveled',
-    'isvalid_neighbor_unraveled',
     'border_mask',
     'reshape_1d_kernel',
     'color_mapping_range',
@@ -85,222 +80,6 @@ def cast_kernel_dilation(
     casted_kernel[tuple(slice(None, None, d) for d in dilation)] = kernel
 
     return casted_kernel
-
-
-def unraveled_offsets(
-        kernel: np.ndarray,
-        center: tuple | list | None = None
-) -> np.ndarray:
-    """
-    Generate neighborhood offsets in unraveled coordinate space.
-
-    Parameters
-    ----------
-    kernel : np.ndarray
-        The kernel where zero values are not included in the neighborhood. The array can have any dtype.
-    center : tuple of int, or None, optional
-        Tuple of indices to the center of the structuring element. If not provided, it is assumed to be the center
-        of the structuring element.
-
-    Returns
-    -------
-    unraveled_neighborhood : np.ndarray
-        The offsets to a sample's neighbors in the unraveled form (number of offsets, kernel dimensions).
-
-    Raises
-    ------
-    TypeError:
-        If the kernel is not a numpy.ndarray instance.
-    ValueError:
-        If the number of dimensions in the center does not match the number of dimensions in the kernel.
-    """
-    if not isinstance(kernel, np.ndarray):
-        raise TypeError(f'Kernel must be an instance of numpy.ndarray, got {type(kernel)}')
-    if center is None:
-        center = tuple(s // 2 for s in kernel.shape)
-    if len(center) != kernel.ndim:
-        raise ValueError(f'Number of dimensions in center and kernel do not match: {len(center)} != {kernel.ndim}')
-    unraveled_neighborhood = np.stack([(idx - c) for idx, c in zip(np.nonzero(kernel), center)], axis=-1)
-    return unraveled_neighborhood
-
-
-def ravel_offsets(
-        offsets_unraveled: np.ndarray | list,
-        image_shape: tuple,
-        order: str = 'C'
-) -> np.ndarray:
-    """
-    Generate neighborhood offsets in raveled coordinate space.
-
-    Parameters
-    ----------
-    offsets_unraveled : np.ndarray or list[list]
-        Neighborhood offsets in unraveled coordinate space. Shape: (number of offsets, dimensions).
-    image_shape : tuple of int
-        Tuple representing the shape of the img.
-    order : str, optional
-        The index order. 'C' (default) means to index the elements in row-major, 'F' means to index the elements
-        in column-major.
-
-    Returns
-    -------
-    raveled_neighborhood : np.ndarray
-        The offsets to a sample's neighbors in the raveled form.
-
-    Raises
-    ------
-    ValueError:
-        If the number of dimensions in offsets_unraveled does not match the number of dimensions in the img.
-    ValueError:
-        If order is not 'C' or 'F'.
-    """
-    if not isinstance(offsets_unraveled, np.ndarray):
-        offsets_unraveled = np.asarray(offsets_unraveled, dtype=np.int64)
-
-    if offsets_unraveled.shape[-1] != len(image_shape):
-        raise ValueError(
-            f'Number of dimensions in offsets_unraveled and img do not match:'
-            f' {offsets_unraveled.shape[-1]} != {len(image_shape)}'
-        )
-
-    if order == 'F':
-        offsets_unraveled = offsets_unraveled[:, ::-1]
-        image_shape = image_shape[::-1]
-    elif order != 'C':
-        raise ValueError("Order must be 'C' or 'F'")
-
-    jump = image_shape[1:] + (1,)
-    jump = np.cumprod(jump[::-1])[::-1]
-    raveled_neighborhood = (offsets_unraveled * jump).sum(axis=1)
-
-    return raveled_neighborhood
-
-
-def unravel_offsets(
-        offsets: np.ndarray | list[int],
-        center: tuple,
-        image_shape: tuple,
-        order: str = 'C'
-) -> np.ndarray:
-    """
-    Return offsets in unraveled coordinate space.
-
-    Parameters
-    ----------
-    offsets : np.ndarray or list of int
-        The offsets in raveled coordinate space.
-    center : tuple of int
-        Tuple of indices to the center coordinate.
-    image_shape : tuple of int
-        Tuple representing the shape of the img.
-    order : str, optional
-        The index order. 'C' (default) means to index the elements in row-major, 'F' means to index the elements
-        in column-major.
-
-    Returns
-    -------
-    unraveled_neighborhood : np.ndarray
-        The offsets coordinate in the unraveled form (number of offsets, kernel dimensions).
-
-    Raises
-    ------
-    ValueError:
-        If the number of dimensions in the center does not match the number of dimensions in the img.
-    ValueError:
-        If order is not 'C' or 'F'.
-    """
-    if len(center) != len(image_shape):
-        raise ValueError(f'Number of dimensions in center and img do not match: {len(center)} != {len(image_shape)}')
-    if order != 'C' and order != 'F':
-        raise ValueError("Order must be 'C' or 'F'")
-    Np = len(offsets)
-    Nd = len(image_shape)
-    shift = np.ravel_multi_index(center, image_shape, order=order)
-    unraveled_neighborhood = np.zeros((Np, Nd), dtype=np.int64)
-
-    for i, cord in enumerate(offsets):
-        c = np.unravel_index(cord + shift, image_shape, order=order)
-        for d in range(Nd):
-            unraveled_neighborhood[i, d] = c[d] - center[d]
-
-    return unraveled_neighborhood
-
-
-def isvalid_neighbor_raveled(
-        raveled_index: int,
-        neighbor_offset: tuple | list,
-        image_shape: tuple | list,
-        order: str = 'C'
-) -> bool:
-    """
-    Check whether a neighbor of a given index is inside the img.
-
-    Parameters
-    ----------
-    raveled_index : int
-        The index in raveled coordinate space.
-    neighbor_offset : tuple or list of int
-        Tuple of offsets from the index in each dimension.
-    image_shape : tuple or list of int
-        Tuple representing the shape of the img.
-    order : str, optional
-        The index order. 'C' (default) means to index the elements in row-major, 'F' means to index the elements
-        in column-major.
-
-    Returns
-    -------
-    isvalid : bool
-        True if valid, else False.
-
-    Raises
-    ------
-    ValueError:
-        If the number of dimensions in the neighbor and img does not match.
-    ValueError:
-        If order is not 'C' or 'F'.
-    """
-    if len(neighbor_offset) != len(image_shape):
-        raise ValueError(
-            f'Number of dimensions in img and neighbor does not match: {len(image_shape)} != {len(neighbor_offset)}'
-        )
-    if order != 'C' and order != 'F':
-        raise ValueError("Order must be 'C' or 'F'")
-    unraveled_index = np.unravel_index(raveled_index, image_shape, order=order)
-    return all(0 <= i + n < s for i, n, s in zip(unraveled_index, neighbor_offset, image_shape))
-
-
-def isvalid_neighbor_unraveled(
-        unraveled_index: tuple | list,
-        neighbor_offset: tuple | list,
-        image_shape: tuple | list,
-) -> bool:
-    """
-    Check whether a neighbor of a given index is inside the img.
-
-    Parameters
-    ----------
-    unraveled_index : tuple or list of int
-        The index in unraveled coordinate space.
-    neighbor_offset : tuple or list of int
-        Tuple of offsets from the index in each dimension.
-    image_shape : tuple or list of int
-        Tuple representing the shape of the img.
-
-    Returns
-    -------
-    isvalid : bool
-        True if valid, else False.
-
-    Raises
-    ------
-    ValueError:
-        If the number of dimensions in the neighbor and img does not match.
-    """
-    if len(neighbor_offset) != len(image_shape):
-        raise ValueError(
-            f'Number of dimensions in img and neighbor does not match: {len(image_shape)} != {len(neighbor_offset)}'
-        )
-    return all(0 <= i + n < s for i, n, s in zip(unraveled_index, neighbor_offset, image_shape))
 
 
 def border_mask(
@@ -493,6 +272,7 @@ def color_mapping_range(
         raise ValueError(f'method need to be "sqr", "log" or "linear"')
 
     return np.array(ranges, dtype=np.uint8)
+
 
 ########################################################################################################################
 

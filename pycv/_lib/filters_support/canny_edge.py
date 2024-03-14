@@ -1,11 +1,11 @@
 import numpy as np
-from pycv._lib.array_api.dtypes import cast, get_dtype_limits
-from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib._src_py.pycv_filters import convolve
-from pycv._lib.filters_support.windows import gaussian_kernel, SOBEL_EDGE, SOBEL_WEIGHTS, edge_kernel
-from pycv._lib._src_py.pycv_minsc import canny_nonmaximum_suppression
-from pycv._lib.filters_support.kernel_utils import default_binary_strel, border_mask
-from pycv._lib._src_py import pycv_morphology
+from ..array_api.dtypes import cast, get_dtype_limits
+from ..array_api.regulator import np_compliance
+from .._src_py.pycv_filters import convolve
+from .windows import gaussian_kernel, SOBEL_EDGE, SOBEL_WEIGHTS, edge_kernel
+from .._src_py.pycv_minsc import canny_nonmaximum_suppression
+from .kernel_utils import default_binary_strel, border_mask
+from .._src_py import pycv_morphology
 
 
 __all__ = [

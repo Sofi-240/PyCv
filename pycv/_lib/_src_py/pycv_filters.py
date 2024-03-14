@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib._src_py.utils import ctype_border_mode, get_output, get_kernel, valid_kernel_shape_with_ref
+from .utils import ctype_border_mode, get_output, get_kernel, valid_kernel_shape_with_ref
 from pycv._lib._src import c_pycv
 
 __all__ = [

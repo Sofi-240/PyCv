@@ -1,6 +1,6 @@
 import numpy as np
-from pycv._lib.filters_support.kernel_utils import default_binary_strel
-from pycv import morphological as morph
+from .._lib.filters_support.kernel_utils import default_binary_strel
+from .. import morphological as morph
 
 __all__ = [
     'RegionProperties',

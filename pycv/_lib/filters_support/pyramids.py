@@ -1,11 +1,11 @@
 import numpy as np
 import abc
 from pycv._lib._src import c_pycv
-from pycv._lib.array_api.dtypes import cast
-from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib._src_py.utils import valid_axis, fix_kernel_shape, as_sequence_by_axis
-from pycv._lib._src_py.utils import get_output, ctype_border_mode, ctype_interpolation_order
-from pycv._lib.filters_support.windows import gaussian_kernel
+from ..array_api.dtypes import cast
+from ..array_api.regulator import np_compliance
+from .._src_py.utils import valid_axis, fix_kernel_shape, as_sequence_by_axis
+from .._src_py.utils import get_output, ctype_border_mode, ctype_interpolation_order
+from .windows import gaussian_kernel
 
 __all__ = [
     "GaussianPyramid",

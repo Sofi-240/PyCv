@@ -1,5 +1,8 @@
-from pycv.transform.coord_t import *
-from pycv.transform.hough import *
-from pycv.transform.pyramids import *
+from ..transform.coord_t import *
+from ..transform.hough import *
+from ..transform.pyramids import *
 
 __all__ = [s for s in dir() if not s.startswith('_')]
+
+def __dir__():
+    return __all__

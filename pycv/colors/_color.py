@@ -1,21 +1,55 @@
 import numpy as np
+from pycv._lib._members_struct import function_members
+from pycv._lib._decorator import wrapper_decorator
 from pycv._lib.array_api.dtypes import cast, get_dtype_info
-from pycv.colors._utils import color_dispatcher, _Coordinates
+from pycv._lib.array_api.regulator import np_compliance, check_finite
 
 __all__ = [
+    'Colors',
     'rgb2gray',
     'gray2rgb',
     'gray2rgba',
     'rgb2yuv',
     'yuv2rgb',
     'rgb2hsv',
-    'hsv2rgb',
+    'hsv2rgb'
 ]
+
+
+def __dir__():
+    return __all__
 
 
 ########################################################################################################################
 
-@color_dispatcher
+@wrapper_decorator
+def _color_dispatcher(func, n_channels: int = 3, as_float: bool = True, same_type: bool = True, *args, **kwargs):
+    image = np_compliance(args[0], arg_name='Image')
+    check_finite(image, raise_err=True)
+
+    if image.shape[-1] != n_channels:
+        raise ValueError(
+            f'Image need to have size {n_channels} along the last dimension got {image.shape}'
+        )
+
+    if not as_float:
+        return func(image, *args[1:], **kwargs)
+
+    dt = get_dtype_info(image.dtype)
+    if dt.kind == 'f':
+        float_image = image
+    else:
+        float_image = cast(image, np.float64)
+
+    if not same_type:
+        return func(float_image, *args[1:], **kwargs)
+
+    out = func(float_image, *args[1:], **kwargs)
+    return cast(out, dt.type)
+
+
+########################################################################################################################
+@_color_dispatcher
 def rgb2gray(image: np.ndarray) -> np.ndarray:
     """
     Convert RGB img to grayscale.
@@ -31,17 +65,17 @@ def rgb2gray(image: np.ndarray) -> np.ndarray:
         Grayscale img with the same dtype as the input.
 
     """
-    h = np.array(_Coordinates.get_coordinates("RGB2GRAY"), image.dtype)
+    h = np.array([0.2989, 0.5870, 0.1140], image.dtype)
 
     return image @ h
 
 
-@color_dispatcher(n_channels=1, as_float=False)
+@_color_dispatcher(n_channels=1, as_float=False)
 def gray2rgb(image: np.ndarray) -> np.ndarray:
     return np.stack([image] * 3, axis=-1)
 
 
-@color_dispatcher(n_channels=1, as_float=False)
+@_color_dispatcher(n_channels=1, as_float=False)
 def gray2rgba(image: np.ndarray, alpha: int | float | None = None) -> np.ndarray:
     if alpha is None:
         alpha = get_dtype_info(image.dtype).max_val
@@ -51,7 +85,7 @@ def gray2rgba(image: np.ndarray, alpha: int | float | None = None) -> np.ndarray
     return np.stack([image] * 3 + [alpha_arr], axis=-1)
 
 
-@color_dispatcher
+@_color_dispatcher()
 def rgb2yuv(image: np.ndarray) -> np.ndarray:
     """
     Convert RGB img to YUV.
@@ -72,13 +106,13 @@ def rgb2yuv(image: np.ndarray) -> np.ndarray:
         If the input array doesn't have the expected number of channels.
     """
 
-    h = np.array(_Coordinates.get_coordinates("RGB2YUV"), image.dtype)
+    h = np.array([[0.299, -0.147, 0.615], [0.578, -0.289, -0.515], [0.114, 0.436, -0.100]], image.dtype)
     image = (image @ h) + np.array([0, 0.5, 0.5], image.dtype)
 
     return image
 
 
-@color_dispatcher
+@_color_dispatcher()
 def yuv2rgb(image: np.ndarray) -> np.ndarray:
     """
     Convert YUV img to RGB.
@@ -98,12 +132,12 @@ def yuv2rgb(image: np.ndarray) -> np.ndarray:
     ValueError
         If the input array doesn't have the expected number of channels.
     """
-    h = np.array(_Coordinates.get_coordinates("YUV2RGB"), image.dtype)
+    h = np.array([[1., 1., 1.], [0., -0.395, 2.032], [1.140, -0.581, 0.]], image.dtype)
     image = (image - np.array([0, 0.5, 0.5], image.dtype)) @ h
     return image
 
 
-@color_dispatcher(same_type=False)
+@_color_dispatcher(same_type=False)
 def rgb2hsv(image: np.ndarray) -> np.ndarray:
     """
     Convert RGB img to HSV.
@@ -159,7 +193,7 @@ def rgb2hsv(image: np.ndarray) -> np.ndarray:
     return out
 
 
-@color_dispatcher
+@_color_dispatcher(same_type=False)
 def hsv2rgb(image: np.ndarray, dtype: np.dtype | None = None) -> np.ndarray:
     h = image[..., 0]
     s = image[..., 1]
@@ -190,5 +224,17 @@ def hsv2rgb(image: np.ndarray, dtype: np.dtype | None = None) -> np.ndarray:
         out = cast(out, dtype)
     return out
 
+
+########################################################################################################################
+
+
+class Colors(function_members):
+    RGB2GRAY = rgb2gray
+    GRAY2RGB = gray2rgb
+    GRAY2RGBA = gray2rgba
+    RGB2YUV = rgb2yuv
+    YUV2RGB = yuv2rgb
+    RGB2HSV = rgb2hsv
+    HSV2RGB = hsv2rgb
 
 ########################################################################################################################

@@ -1,5 +1,5 @@
 import numpy as np
-from pycv._lib.array_api.dtypes import get_dtype_info
+from .._lib.array_api.dtypes import get_dtype_info
 
 __all__ = [
     'imshow',

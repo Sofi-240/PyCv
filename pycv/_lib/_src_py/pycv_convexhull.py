@@ -1,7 +1,7 @@
 import numpy as np
-from pycv._lib._src_py.utils import ctype_convex_hull_mode, axis_transpose_to_last, valid_axis
-from pycv._lib.array_api.regulator import np_compliance
-from pycv._lib.array_api import iterators
+from .utils import ctype_convex_hull_mode, axis_transpose_to_last, valid_axis
+from ..array_api.regulator import np_compliance
+from ..array_api import iterators
 from pycv._lib._src import c_pycv
 
 __all__ = [
