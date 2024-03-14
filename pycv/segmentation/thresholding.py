@@ -1,5 +1,4 @@
 import numpy as np
-from .._lib._decorator import wrapper_decorator
 from .._lib.filters_support.thresholding import Thresholds
 
 __all__ = [
@@ -18,61 +17,14 @@ __all__ = [
 
 ########################################################################################################################
 
-def _threshold(func):
-    name = '_'.join(func.__name__.split('_')[:-1]).upper()
-    if name not in Thresholds:
-        raise ValueError(f'{name} is not member of Thresholds')
 
-    def _wrapper(f, *args, **kwargs):
-        return f(*args, **kwargs)
-
-    return wrapper_decorator(wrapper=_wrapper)(Thresholds[name].function)
-
-
-########################################################################################################################
-
-@_threshold
-def otsu_threshold(image: np.ndarray, nbin: int | None = None) -> int | float:
-    pass
-
-
-@_threshold
-def kapur_threshold(image: np.ndarray, nbin: int | None = None) -> int | float:
-    pass
-
-
-@_threshold
-def li_and_lee_threshold(image: np.ndarray, nbin: int | None = None) -> int | float:
-    pass
-
-
-@_threshold
-def minimum_error_threshold(image: np.ndarray, nbin: int | None = None) -> int | float:
-    pass
-
-
-@_threshold
-def mean_threshold(image: np.ndarray) -> int | float:
-    pass
-
-
-@_threshold
-def minimum_threshold(image: np.ndarray, nbin: int | None = None, max_iterations: int = 10000) -> int | float:
-    pass
-
-
-@_threshold
-def adaptive_threshold(
-        image: np.ndarray,
-        block_size: tuple | int,
-        method: str = 'gaussian',
-        method_params=None,
-        offset_val: int | float = 0,
-        padding_mode: str = 'reflect',
-        constant_value: float = 0,
-        axis: tuple | None = None
-) -> np.ndarray:
-    pass
+otsu_threshold = Thresholds.OTSU
+kapur_threshold = Thresholds.KAPUR
+li_and_lee_threshold = Thresholds.LI_AND_LEE
+minimum_error_threshold = Thresholds.MINIMUM_ERROR
+mean_threshold = Thresholds.MEAN
+minimum_threshold = Thresholds.MINIMUM
+adaptive_threshold = Thresholds.ADAPTIVE
 
 
 ########################################################################################################################
