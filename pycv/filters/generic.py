@@ -1,11 +1,10 @@
 import numpy as np
-from .._lib.array_api.dtypes import cast
+from .._lib.array_api.dtypes import cast, as_binary_array
 from .._lib.array_api.regulator import np_compliance
 from .._lib.array_api.array_pad import pad, get_padding_width
 from .._lib._src_py.utils import valid_axis, fix_kernel_shape
 from .._lib._src_py import pycv_filters
-from .._lib.filters_support.windows import gaussian_kernel
-from ._filters import valid_footprint
+from .._lib.filters_support._windows import gaussian_kernel
 from .._lib._src_py import pycv_morphology
 
 __all__ = [
@@ -17,6 +16,34 @@ __all__ = [
     'local_min_filter',
     'local_max_filter'
 ]
+
+
+########################################################################################################################
+
+def _valid_footprint(
+        ndim: int,
+        kernel_shape: int | tuple | None = None,
+        footprint: np.ndarray | None = None,
+        axis: int | tuple | None = None,
+) -> np.ndarray:
+    if footprint is not None:
+        footprint = as_binary_array(footprint, 'footprint')
+        kernel_shape = footprint.shape
+        if footprint.ndim != ndim and axis is not None:
+            axis = valid_axis(ndim, axis, footprint.ndim)
+            if len(axis) != footprint.ndim:
+                raise ValueError('footprint ndim dont match axis len')
+            kernel_shape = fix_kernel_shape(kernel_shape, axis, ndim)
+            footprint = np.reshape(footprint, kernel_shape)
+    else:
+        if kernel_shape is None:
+            raise ValueError('one of kernel_shape or footprint must be given')
+        elif np.isscalar(kernel_shape):
+            kernel_shape = (kernel_shape, )
+        axis = valid_axis(ndim, axis, len(kernel_shape))
+        kernel_shape = fix_kernel_shape(kernel_shape, axis, ndim)
+        footprint = np.ones(kernel_shape, bool)
+    return footprint
 
 
 ########################################################################################################################
@@ -114,7 +141,7 @@ def mean_filter(
     dtype = image.dtype
     image = cast(image, np.float64)
 
-    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
+    footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
 
     kernel = footprint.astype(np.float64)
     kernel /= np.sum(kernel)
@@ -197,7 +224,7 @@ def median_filter(
 
     image = np_compliance(image, 'image', _check_finite=True)
 
-    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
+    footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
 
     rank = np.sum(footprint) // 2
 
@@ -238,7 +265,7 @@ def rank_filter(
 
     image = np_compliance(image, 'image', _check_finite=True)
 
-    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
+    footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
 
     if rank > np.sum(footprint):
         raise ValueError('invalid rank higher then the sum of footprint')
@@ -279,7 +306,7 @@ def local_min_filter(
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
     image = np_compliance(image, 'image', _check_finite=True)
-    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
+    footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
 
     if padding_mode not in ['constant', 'valid']:
         image = pad(image, get_padding_width(footprint.shape), mode=padding_mode)
@@ -323,7 +350,7 @@ def local_max_filter(
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
     image = np_compliance(image, 'image', _check_finite=True)
-    footprint = valid_footprint(image.ndim, kernel_size, footprint, axis)
+    footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
 
     if padding_mode not in ['constant', 'valid']:
         image = pad(image, get_padding_width(footprint.shape), mode=padding_mode)

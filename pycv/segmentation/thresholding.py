@@ -41,7 +41,7 @@ def im_threshold(
 ) -> np.ndarray | tuple[np.ndarray, int | float | np.ndarray]:
     if isinstance(threshold, str):
         threshold = Thresholds[threshold.upper()]
-    if not isinstance(threshold, Thresholds):
+    if not isinstance(threshold, Thresholds) or not hasattr(threshold, 'function'):
         raise ValueError(f'{threshold} need to be type of str or Thresholds member')
     th = threshold(image, *args, **kwargs)
     return im_binarize(image, th), th

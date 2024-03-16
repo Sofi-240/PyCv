@@ -630,13 +630,13 @@ int PYCV_labeling(PyArrayObject *input,
         goto exit;
     }
 
-    fix = malloc(array_size * sizeof(npy_intp));
+    fix = calloc(array_size, sizeof(npy_intp));
     if (!fix) {
         PyErr_NoMemory();
         goto exit;
     }
 
-    labels = malloc(array_size * sizeof(npy_intp));
+    labels = calloc(array_size, sizeof(npy_intp));
     if (!labels) {
         PyErr_NoMemory();
         goto exit;

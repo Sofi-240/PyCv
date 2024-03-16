@@ -2,7 +2,7 @@ import numpy as np
 from ..array_api.dtypes import cast, get_dtype_limits
 from ..array_api.regulator import np_compliance
 from .._src_py.pycv_filters import convolve
-from .windows import gaussian_kernel, SOBEL_EDGE, SOBEL_WEIGHTS, edge_kernel
+from ._windows import gaussian_kernel, EdgeKernels
 from .._src_py.pycv_minsc import canny_nonmaximum_suppression
 from .kernel_utils import default_binary_strel, border_mask
 from .._src_py import pycv_morphology
@@ -88,6 +88,34 @@ def canny_filter(
         padding_mode: str = 'constant',
         constant_value: float | None = 0.0
 ) -> np.ndarray:
+    """
+        Applies the Canny edge detection algorithm to the input image.
+
+        Parameters:
+            image (numpy.ndarray): Input image to which the Canny edge detection algorithm will be applied.
+            sigma (float or tuple, optional): Standard deviation of the Gaussian filter used for image smoothing.
+                                              If a tuple is provided, it represents the standard deviation
+                                              in the x and y directions respectively. Defaults to 1.0.
+            low_threshold (float or None, optional): Lower threshold for edge detection.
+                                                     If None, it is automatically calculated based on the image intensity distribution.
+                                                     Defaults to None.
+            high_threshold (float or None, optional): Higher threshold for edge detection.
+                                                      If None, it is automatically calculated based on the low_threshold value.
+                                                      Defaults to None.
+            as_percentile (bool, optional): If True, low_threshold and high_threshold are interpreted as percentiles of the image intensity distribution.
+                                            Defaults to False.
+            mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image.
+                                                    If provided, only the edges within the mask will be detected.
+                                                    Defaults to None.
+            padding_mode (str, optional): Specifies the padding mode for the convolution operations.
+                                          Possible values are 'constant', 'symmetric', 'reflect', or 'edge'.
+                                          Defaults to 'constant'.
+            constant_value (float or None, optional): Value to use for padding if padding_mode is set to 'constant'.
+                                                      If None, it defaults to 0.0. Defaults to 0.0.
+
+        Returns:
+            numpy.ndarray: Output image containing the edges detected by the Canny algorithm.
+    """
     image = np.asarray(image)
     image = np_compliance(image, 'image', _check_finite=True)
 
@@ -101,8 +129,8 @@ def canny_filter(
 
     blur_image, mask = _smooth_image(image, sigma, mask, padding_mode, constant_value)
 
-    dy_kernel = edge_kernel(SOBEL_WEIGHTS, SOBEL_EDGE, 2, 0) * 4
-    dx_kernel = edge_kernel(SOBEL_WEIGHTS, SOBEL_EDGE, 2, 1) * 4
+    dy_kernel = EdgeKernels.SOBEL.get_kernel(2, 0, normalize=False)
+    dx_kernel = EdgeKernels.SOBEL.get_kernel(2, 1, normalize=False)
 
     gy = convolve(blur_image, dy_kernel, padding_mode='symmetric')
     gx = convolve(blur_image, dx_kernel, padding_mode='symmetric')

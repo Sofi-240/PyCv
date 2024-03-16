@@ -2,12 +2,14 @@ from .._lib._inspect import get_signature, isfunction, is_class_method, is_prive
 from types import DynamicClassAttribute, MappingProxyType
 from typing import Iterable
 from typing import final
+import numpy as np
 
 __all__ = [
     'members',
     'Members',
     'extend_members',
     'function_members',
+    'array_members',
 ]
 
 ########################################################################################################################
@@ -462,7 +464,7 @@ def extend_members(cls: members, _members: members | Iterable) -> None:
 ########################################################################################################################
 
 @final
-class _function_members_counts(object):
+class _members_counts(object):
     _counts = dict()
 
     def __new__(cls):
@@ -470,8 +472,6 @@ class _function_members_counts(object):
 
     @classmethod
     def add_method(cls, fcls) -> int:
-        if not issubclass(fcls, function_members):
-            raise TypeError(f'members_cls must be subclass of {function_members}')
         clsname = fcls.__name__
         if clsname not in cls._counts:
             cls._counts[clsname] = 0
@@ -479,15 +479,15 @@ class _function_members_counts(object):
         return cls._counts[clsname]
 
 
+########################################################################################################################
+
 class function_members(Members):
     def __init__(self, function):
         super().__init__()
         if not isfunction(function):
             raise TypeError(f'function members need to be type of function got {type(function)}')
-        self._member_value = _function_members_counts.add_method(self.__class__)
+        self._member_value = _members_counts.add_method(self.__class__)
         self.function = function
-
-        self.__call__.__func__.__signature__ = get_signature(self.function)
 
     def __repr__(self):
         return f'{self.__class__.__name__}.{self._member_name}: {str(get_signature(self.function))}'
@@ -497,3 +497,20 @@ class function_members(Members):
 
 
 ########################################################################################################################
+
+class array_members(Members):
+
+    def __init__(self, array):
+        super().__init__()
+        self._member_value = _members_counts.add_method(self.__class__)
+        self.array = array
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}.{self._member_name}: {np.array2string(self.array, separator=", ")}'
+
+    def __array__(self):
+        return np.asarray(self.array)
+
+
+########################################################################################################################
+

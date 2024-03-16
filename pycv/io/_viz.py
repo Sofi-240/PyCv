@@ -70,7 +70,7 @@ def show_collection(collection: list | np.ndarray, fig=None):
 
     if n_split < 3:
         nrows, ncols = 1, n_split
-    elif n_split == 4:
+    elif n_split <= 4:
         nrows = ncols = 2
     else:
         nrows, ncols = 2, 3
