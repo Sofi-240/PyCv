@@ -3,7 +3,7 @@ from ..misc.histogram import histogram, Histogram
 from .._members_struct import function_members
 from ..array_api.dtypes import cast
 from ..array_api.regulator import np_compliance
-from ..filters_support.windows import gaussian_kernel, sigma_from_size
+from ..filters_support._windows import gaussian_kernel, sigma_from_size
 from .._src_py.pycv_filters import convolve, rank_filter
 from .._src_py.utils import as_sequence, valid_axis, fix_kernel_shape
 

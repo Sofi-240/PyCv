@@ -5,7 +5,7 @@ from ..array_api.dtypes import cast
 from ..array_api.regulator import np_compliance
 from .._src_py.utils import valid_axis, fix_kernel_shape, as_sequence_by_axis
 from .._src_py.utils import get_output, ctype_border_mode, ctype_interpolation_order
-from .windows import gaussian_kernel
+from ._windows import gaussian_kernel
 
 __all__ = [
     "GaussianPyramid",

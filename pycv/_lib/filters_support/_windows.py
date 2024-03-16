@@ -8,7 +8,18 @@ __all__ = [
     'EdgeKernels',
     'sigma_from_size',
     'gaussian_kernel',
-    'Strel'
+    'Strel',
+    'rectangle',
+    'square',
+    'cube',
+    'cuboid',
+    'cross',
+    'diamond',
+    'octahedron',
+    'disk',
+    'circle',
+    'sphere',
+    'cylinder'
 ]
 
 ########################################################################################################################
@@ -26,7 +37,7 @@ class edge_kernel_members(Members):
         _edge_counts += 1
         self._member_value = _edge_counts
 
-    def get_kernel(self, ndim: int, axis: int, dtype: np.dtype = np.float64, normalize: bool = True) -> np.ndarray:
+    def __call__(self, ndim: int, axis: int, dtype: np.dtype = np.float64, normalize: bool = True) -> np.ndarray:
         edge_values = np.asarray(self._edge, dtype)
         smooth_values = np.asarray(self._weights, dtype)
         if normalize:

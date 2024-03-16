@@ -37,7 +37,7 @@ def edge_filter(
     if not isinstance(kernel, EdgeKernels):
         raise TypeError('kernel need to be type of EdgeKernels')
 
-    kernel_ = kernel.get_kernel(image.ndim, axis[0])
+    kernel_ = kernel(image.ndim, axis[0])
 
     magnitude = len(axis) > 1
 
@@ -45,7 +45,7 @@ def edge_filter(
     if magnitude:
         output *= output
         for ax in axis[1:]:
-            kernel_ = kernel.get_kernel(image.ndim, ax)
+            kernel_ = kernel(image.ndim, ax)
             tmp = convolve(image, kernel_, padding_mode=padding_mode, constant_value=constant_value)
             output += (tmp * tmp)
         output = np.sqrt(output) / np.sqrt(len(axis))

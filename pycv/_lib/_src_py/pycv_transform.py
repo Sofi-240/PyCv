@@ -5,7 +5,7 @@ from ..array_api.shapes import atleast_nd
 from .._src_py.utils import get_output, ctype_border_mode, ctype_interpolation_order, axis_transpose_to_last, \
     ctype_hough_mode
 from pycv._lib._src import c_pycv
-from ..filters_support.windows import gaussian_kernel
+from ..filters_support._windows import gaussian_kernel
 from .._src_py.pycv_filters import convolve
 from ._geometric_transform import ProjectiveTransform, _valid_matrix
 
