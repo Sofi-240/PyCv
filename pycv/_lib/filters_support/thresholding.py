@@ -85,6 +85,26 @@ def _get_histogram(image: np.ndarray, nbin: int | None = None) -> Histogram:
 
 
 def otsu(image: np.ndarray, nbin: int | None = None) -> int | float:
+    """
+    Compute Otsu's threshold for thresholding an image.
+
+    Parameters:
+        image (np.ndarray): Input image, must be a 2D array (grayscale image).
+        nbin (int | None, optional): Number of bins for histogram computation. If None, the number of bins is determined
+            automatically. Defaults to None.
+
+    Returns:
+        int | float: Otsu's threshold value.
+
+    Raises:
+        ValueError: If the input image is not a 2D array (grayscale image).
+        ValueError: If the number of bins is less than or equal to 1.
+
+    References:
+        1. Otsu, Nobuyuki. "A Threshold Selection Method from Gray-Level Histograms." IEEE Transactions on Systems,
+           Man, and Cybernetics 9.1 (1979): 62-66.
+        2. https://en.wikipedia.org/wiki/Otsu%27s_method
+    """
     hist = _get_histogram(image, nbin)
     n1, n2 = _N1N2(hist)
     m1, m2 = _Mu1Mu2(hist, n1, n2)
@@ -94,6 +114,25 @@ def otsu(image: np.ndarray, nbin: int | None = None) -> int | float:
 
 
 def li_and_lee(image: np.ndarray, nbin: int | None = None) -> int | float:
+    """
+    Compute Li and Lee's threshold for thresholding an image.
+
+    Parameters:
+        image (np.ndarray): Input image, must be a 2D array (grayscale image).
+        nbin (int | None, optional): Number of bins for histogram computation. If None, the number of bins is determined
+            automatically. Defaults to None.
+
+    Returns:
+        int | float: Li and Lee's threshold value.
+
+    Raises:
+        ValueError: If the input image is not a 2D array (grayscale image).
+        ValueError: If the number of bins is less than or equal to 1.
+
+    References:
+        1. Li, C. H., & Lee, C. K. (1993). Minimum cross entropy thresholding. Pattern Recognition, 26(4), 617-625.
+        2. https://ieeexplore.ieee.org/document/251122
+    """
     hist = _get_histogram(image, nbin)
     n1, n2 = _N1N2(hist)
     m1, m2 = _Mu1Mu2(hist, n1, n2)
@@ -103,6 +142,25 @@ def li_and_lee(image: np.ndarray, nbin: int | None = None) -> int | float:
 
 
 def kapur(image: np.ndarray, nbin: int | None = None) -> int | float:
+    """
+    Compute Kapur's entropy-based threshold for thresholding an image.
+
+    Parameters:
+        image (np.ndarray): Input image, must be a 2D array (grayscale image).
+        nbin (int | None, optional): Number of bins for histogram computation. If None, the number of bins is determined
+            automatically. Defaults to None.
+
+    Returns:
+        int | float: Kapur's threshold value.
+
+    Raises:
+        ValueError: If the input image is not a 2D array (grayscale image).
+        ValueError: If the number of bins is less than or equal to 1.
+
+    References:
+        1. Kapur, J. N., Sahoo, P. K., & Wong, A. K. (1985). A new method for gray-level picture thresholding using
+           the entropy of the histogram. Computer Vision, Graphics, and Image Processing, 29(3), 273-285.
+    """
     hist = _get_histogram(image, nbin)
     p1, p2 = _P1P2(hist)
     h_norm = hist.normalize[0]
@@ -118,6 +176,28 @@ def kapur(image: np.ndarray, nbin: int | None = None) -> int | float:
 
 
 def minimum_error(image: np.ndarray, nbin: int | None = None) -> int | float:
+    """
+    Compute the threshold using Minimum Error thresholding method.
+
+    Parameters:
+        image (np.ndarray): Input image, must be a 2D array (grayscale image).
+        nbin (int | None, optional): Number of bins for histogram computation. If None, the number of bins is determined
+            automatically. Defaults to None.
+
+    Returns:
+        int | float: Threshold value computed using the Minimum Error method.
+
+    Raises:
+        ValueError: If the input image is not a 2D array (grayscale image).
+        ValueError: If the number of bins is less than or equal to 1.
+
+    Note:
+        This function internally computes the histogram of the input image and then applies the Minimum Error method to
+        determine the optimal threshold.
+
+    References:
+        1. Kittler, J., & Illingworth, J. (1986). Minimum error thresholding. Pattern Recognition, 19(1), 41-47.
+    """
     hist = _get_histogram(image, nbin)
     n1, n2 = _N1N2(hist)
     s1, s2 = _S1S2(hist, n1, n2)
@@ -131,6 +211,25 @@ def minimum_error(image: np.ndarray, nbin: int | None = None) -> int | float:
 
 
 def minimum(image: np.ndarray, nbin: int | None = None, max_iterations: int = 10000) -> int | float:
+    """
+    Compute the threshold using the Minimum thresholding method.
+
+    Parameters:
+        image (np.ndarray): Input image, must be a 2D array (grayscale image).
+        nbin (int | None, optional): Number of bins for histogram computation. If None, the number of bins is determined
+            automatically. Defaults to None.
+        max_iterations (int, optional): Maximum number of iterations to perform. Defaults to 10000.
+
+    Returns:
+        int | float: Threshold value computed using the Minimum thresholding method.
+
+    Raises:
+        ValueError: If the input image is not a 2D array (grayscale image).
+        ValueError: If the number of bins is less than or equal to 1.
+        RuntimeError: If 2 local maxima are not found in the histogram.
+        RuntimeError: If the maximum number of iterations is reached without finding 2 local maxima.
+
+    """
     hist = _get_histogram(image, nbin)
     bins = hist.bins
     n_bins = hist.n_bins
@@ -173,6 +272,19 @@ def minimum(image: np.ndarray, nbin: int | None = None, max_iterations: int = 10
 ########################################################################################################################
 
 def mean(image: np.ndarray) -> float:
+    """
+    Compute the mean threshold value of pixel intensities in the image.
+
+    Parameters:
+        image (np.ndarray): Input image.
+
+    Returns:
+        float: Mean value of pixel intensities in the image.
+
+    Raises:
+        ValueError: If the input image is not a numpy array.
+
+    """
     image = np_compliance(image, 'Image', _check_finite=True)
     return np.mean(image)
 
@@ -246,6 +358,30 @@ def adaptive(
         constant_value: float = 0,
         axis: tuple | None = None
 ) -> np.ndarray:
+    """
+    Apply adaptive thresholding to the input image.
+
+    Parameters:
+        image (np.ndarray): Input image.
+        block_size (tuple | int): Size of the local neighborhood for computing the threshold. If an integer is provided,
+            the same size will be used along all dimensions.
+        method (str, optional): Method used for adaptive thresholding. Supported methods are 'gaussian', 'mean', and 'median'.
+            Defaults to 'gaussian'.
+        method_params (dict, optional): Additional parameters for the chosen method sigma for 'gaussian'. Defaults to None.
+        offset_val (int | float, optional): Offset value added to the computed threshold. Defaults to 0.
+        padding_mode (str, optional): Padding mode for handling borders. Supported modes are 'reflect', 'constant', 'edge',
+            'symmetric', and 'wrap'. Defaults to 'reflect'.
+        constant_value (float, optional): Constant value used in 'constant' padding mode. Defaults to 0.
+        axis (tuple | None, optional): Axes along which the local neighborhoods are computed. If None, the computation
+            is performed along all dimensions. Defaults to None.
+
+    Returns:
+        np.ndarray: Thresholded image.
+
+    Raises:
+        ValueError: If 'valid' padding mode is used, which is not supported for adaptive thresholding.
+
+    """
     if method not in ADAPTIVE_METHODS:
         raise ValueError(f'{method} is not in supported methods use {ADAPTIVE_METHODS}')
     if padding_mode == 'valid':

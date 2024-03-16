@@ -29,7 +29,9 @@ def gray_erosion(
 
     Parameters:
         image (numpy.ndarray): Input grayscale image to which the grayscale erosion operation will be applied.
-        strel (numpy.ndarray or None, optional): Structuring element used for erosion. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for erosion. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the erosion operation. If None, a new array will be created. Defaults to None.
@@ -57,7 +59,9 @@ def gray_dilation(
 
     Parameters:
         image (numpy.ndarray): Input grayscale image to which the grayscale dilation operation will be applied.
-        strel (numpy.ndarray or None, optional): Structuring element used for dilation. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for dilation. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the dilation operation. If None, a new array will be created. Defaults to None.
@@ -85,7 +89,9 @@ def gray_opening(
 
     Parameters:
         image (numpy.ndarray): Input grayscale image to which the grayscale opening operation will be applied.
-        strel (numpy.ndarray or None, optional): Structuring element used for opening. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for opening. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the opening operation. If None, a new array will be created. Defaults to None.
@@ -114,7 +120,9 @@ def gray_closing(
 
     Parameters:
         image (numpy.ndarray): Input grayscale image to which the grayscale closing operation will be applied.
-        strel (numpy.ndarray or None, optional): Structuring element used for closing. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for closing. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the closing operation. If None, a new array will be created. Defaults to None.
@@ -145,7 +153,9 @@ def black_top(
 
     Parameters:
         image (numpy.ndarray): Input grayscale image to which the black top hat operation will be applied.
-        strel (numpy.ndarray or None, optional): Structuring element used for the closing operation. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for the operation. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the operation. If None, a new array will be created. Defaults to None.
@@ -174,7 +184,9 @@ def white_top(
 
     Parameters:
         image (numpy.ndarray): Input grayscale image to which the white top hat operation will be applied.
-        strel (numpy.ndarray or None, optional): Structuring element used for the opening operation. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for the operation. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the operation. If None, a new array will be created. Defaults to None.
@@ -196,17 +208,19 @@ def area_open(
         connectivity: int = 1,
 ) -> np.ndarray:
     """
-    Apply area opening operation to the input binary image.
+    Apply area opening operation to the input image.
 
-    Area opening is a morphological operation that removes connected components (objects) from the binary image that have an area smaller than the specified threshold.
+    Area opening is a morphological operation that removes connected components (objects) from the image that have an area smaller than the specified threshold.
 
     Parameters:
-        image (numpy.ndarray): Input binary image to which the area opening operation will be applied.
+        image (numpy.ndarray): Input grayscale image to which the area opening operation will be applied.
         threshold (int, optional): Minimum area (number of pixels) of connected components to be retained. Objects with smaller areas will be removed. Defaults to 32.
-        connectivity (int, optional): Connectivity of the objects. It can be 1 for 4-connectivity or 2 for 8-connectivity. Defaults to 1.
+        connectivity (int, optional): Connectivity value must be in the range from 1 (no diagonal elements are neighbors)
+                                      to ndim (all elements are neighbors).
+                                      Defaults to 1.
 
     Returns:
-        numpy.ndarray: Output binary image after applying the area opening operation.
+        numpy.ndarray: Output grayscale image after applying the area opening operation.
     """
     return pycv_morphology.area_open_close('open', image, threshold=threshold, connectivity=connectivity)
 
@@ -217,17 +231,19 @@ def area_close(
         connectivity: int = 1,
 ) -> np.ndarray:
     """
-    Apply area closing operation to the input binary image.
+    Apply area closing operation to the input grayscale image.
 
-    Area closing is a morphological operation that fills holes and connects gaps in connected components (objects) of the binary image that have an area smaller than the specified threshold.
+    Area closing is a morphological operation that fills holes and connects gaps in connected components (objects) of the image that have an area smaller than the specified threshold.
 
     Parameters:
-        image (numpy.ndarray): Input binary image to which the area closing operation will be applied.
+        image (numpy.ndarray): Input grayscale image to which the area closing operation will be applied.
         threshold (int, optional): Minimum area (number of pixels) of connected components to be filled or connected. Objects with smaller areas will be affected. Defaults to 32.
-        connectivity (int, optional): Connectivity of the objects. It can be 1 for 4-connectivity or 2 for 8-connectivity. Defaults to 1.
+        connectivity (int, optional): Connectivity value must be in the range from 1 (no diagonal elements are neighbors)
+                                      to ndim (all elements are neighbors).
+                                      Defaults to 1.
 
     Returns:
-        numpy.ndarray: Output binary image after applying the area closing operation.
+        numpy.ndarray: Output grayscale image after applying the area closing operation.
     """
     return pycv_morphology.area_open_close('close', image, threshold=threshold, connectivity=connectivity)
 

@@ -16,7 +16,37 @@ def draw_line(
         point2: tuple,
         output: np.ndarray | None = None,
         fill_value: int | float | None = None
-) -> tuple[np.ndarray, np.ndarray] | np.ndarray:
+) -> np.ndarray:
+    """
+    Draw line image. if output is None then return the points of the line else draw the line on the output image.
+
+    Parameters
+    ----------
+    point1 : tuple
+        coordinates of the first point.
+    point2 : tuple
+        coordinates of the second point.
+    output : np.ndarray | None
+        default is None. if the output is given the line will be drawn on the output
+    fill_value : int | float | None
+        The value of the line in the output image.
+        if the output image is None ignor this parameter.
+        default the maximum value of the output dtype.
+
+    Returns
+    -------
+    points coordinates or the output image: numpy.ndarray
+
+
+    Raises
+    ------
+    TypeError
+        If the output is not type of numpy.ndarray.
+    ValueError
+        If the output ndim is smaller than 2.
+    ValueError
+        If the points is out of range for the output shape
+    """
     if output is None:
         return pycv_minsc.draw('line', point1=point1, point2=point2)
 
@@ -50,6 +80,36 @@ def draw_circle(
         output: np.ndarray | None = None,
         fill_value: int | float | None = None
 ) -> tuple[np.ndarray, np.ndarray] | np.ndarray:
+    """
+    Draw circle image. if output is None then return the points of the circle else draw the circle on the output image.
+
+    Parameters
+    ----------
+    center_point : tuple
+        coordinates of the circle center.
+    radius : int
+        circle radius.
+    output : np.ndarray | None
+        default is None. if the output is given the circle will be drawn on the output
+    fill_value : int | float | None
+        The value of the circle in the output image.
+        if the output image is None ignor this parameter.
+        default the maximum value of the output dtype.
+
+    Returns
+    -------
+    points coordinates or the output image: numpy.ndarray
+
+
+    Raises
+    ------
+    TypeError
+        If the output is not type of numpy.ndarray.
+    ValueError
+        If the output ndim is smaller than 2.
+    ValueError
+        If the points or the points with the radius is out of range for the output shape
+    """
     if output is None:
         return pycv_minsc.draw('circle', center_point=center_point, radius=radius)
 
@@ -83,6 +143,38 @@ def draw_ellipse(
         output: np.ndarray | None = None,
         fill_value: int | float | None = None
 ) -> tuple[np.ndarray, np.ndarray] | np.ndarray:
+    """
+    Draw ellipse image. if output is None then return the points of the ellipse else draw the ellipse on the output image.
+
+    Parameters
+    ----------
+    center_point : tuple
+        coordinates of the circle center.
+    a : int
+        major axis radius.
+    b : int
+        minor axis radius.
+    output : np.ndarray | None
+        default is None. if the output is given the ellipse will be drawn on the output
+    fill_value : int | float | None
+        The value of the ellipse in the output image.
+        if the output image is None ignor this parameter.
+        default the maximum value of the output dtype.
+
+    Returns
+    -------
+    points coordinates or the output image: numpy.ndarray
+
+
+    Raises
+    ------
+    TypeError
+        If the output is not type of numpy.ndarray.
+    ValueError
+        If the output ndim is smaller than 2.
+    ValueError
+        If the points or the points with the radius is out of range for the output shape
+    """
     if output is None:
         return pycv_minsc.draw('ellipse', center_point=center_point, a=a, b=b)
 

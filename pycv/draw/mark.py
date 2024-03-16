@@ -41,6 +41,26 @@ def mark_points(
         shape: Shapes | str | int = Shapes.CIRCLE,
         color: tuple | None = None
 ) -> np.ndarray:
+    """
+    Mark the points on the image with the given shape.
+
+    Parameters
+    ----------
+    image : np.ndarray (N, M, ch)
+        gray scale or color image to be marked.
+    points : np.ndarray | Iterable
+        the points to be marked.
+    shape : Shapes | str | int
+        the marked shape
+        default is CIRCLE
+    color : tuple | None
+        The color of the marker.
+        default is red.
+
+    Returns
+    -------
+    marked image: numpy.ndarray (N, M, RGB)
+    """
     output = np.asarray(image)
     if output.ndim not in (2, 3):
         raise ValueError('image need to be 2D or 3D array')

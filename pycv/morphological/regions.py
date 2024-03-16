@@ -26,17 +26,29 @@ def region_fill(
     """
     Fill a region of interest in the input image starting from a specified seed point.
 
-    This function fills a connected region in the input image starting from the seed point. It supports both binary and grayscale images. For binary images, the region is filled with True values. For grayscale images, the region is filled with the specified fill value or the value at the seed point.
+    This function fills a connected region in the input image starting from the seed point.
+    It supports both binary and grayscale images. For binary images, the region is filled with True values.
+    For grayscale images, the region is filled with the specified fill value or the value at the seed point.
 
     Parameters:
         image (numpy.ndarray): Input image to be filled.
-        seed_point (tuple): Seed point (coordinates) from which the filling starts. It should be a tuple of coordinates, with one value for each dimension of the image.
-        strel (numpy.ndarray or None, optional): Structuring element used for the region filling. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
-        offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
-        output (numpy.ndarray or None, optional): Output array to store the result of the operation. If None, a new array will be created. Defaults to None.
-        inplace (bool, optional): If True, the operation will be performed in place on the input image. Defaults to False.
-        value_tol (int or float, optional): Tolerance value for considering nearby pixels during region filling. Defaults to 0.
-        fill_value (int, float, or None, optional): Value used to fill the region in grayscale images. If None, the value at the seed point will be used. Defaults to None.
+        seed_point (tuple): Seed point (coordinates) from which the filling starts.
+                            It should be a tuple of coordinates, with one value for each dimension of the image.
+        strel (numpy.ndarray or None, optional): Structuring element used for the region filling.
+                                                 If None, a structuring element with a square shape (3x3) will be used.
+                                                 Defaults to None.
+        offset (tuple or None, optional): Offset for the structuring element.
+                                          Defaults to None.
+        output (numpy.ndarray or None, optional): Output array to store the result of the operation.
+                                                  If None, a new array will be created.
+                                                  Defaults to None.
+        inplace (bool, optional): If True, the operation will be performed in place on the input image.
+                                  Defaults to False.
+        value_tol (int or float, optional): Tolerance value for considering nearby pixels during region filling.
+                                            Defaults to 0.
+        fill_value (int, float, or None, optional): Value used to fill the region in grayscale images.
+                                                    If None, the value at the seed point will be used.
+                                                    Defaults to None.
 
     Returns:
         numpy.ndarray: Output image after applying the region filling operation.
@@ -78,21 +90,24 @@ def im_label(
         mod_value: int = 16
 ) -> tuple[int, np.ndarray]:
     """
-    Label connected components in the input binary image.
+    Label connected components in the input image.
 
-    This function assigns a unique label to each connected component in the input binary image. It supports both 4-connectivity and 8-connectivity.
+    This function assigns a unique label to each connected component in the input image.
 
     Parameters:
         image (numpy.ndarray): Input binary image to be labeled.
-        connectivity (int, optional): Connectivity of the connected components. It can be 1 for 4-connectivity or 2 for 8-connectivity. Defaults to 1.
-        rng_mapping_method (str, optional): Method used for generating label values. It can be 'sqr' for square root or 'log' for logarithmic. Defaults to 'sqr'.
-        mod_value (int, optional): Modulation value used in label generation. Defaults to 16.
+        connectivity (int, optional): Connectivity of the connected components.
+                                      Connectivity value must be in the range from 1 (no diagonal elements are neighbors)
+                                      to ndim (all elements are neighbors).
+                                      Defaults to 1.
+        rng_mapping_method (str, optional): Method used for not binary image define the colors range.
+                                            It can be 'sqr' for square root or 'log' for logarithmic.
+                                            Defaults to 'sqr'.
+        mod_value (int, optional): Modulation value used in rng_mapping_method.
+                                   Defaults to 16.
 
     Returns:
         tuple[int, numpy.ndarray]: A tuple containing the number of connected components and the labeled image where each pixel is assigned a unique label.
-
-    Raises:
-        ValueError: If an unsupported connectivity or rng_mapping_method is provided.
     """
     return pycv_morphology.labeling(image, connectivity, rng_mapping_method, mod_value)
 
@@ -110,7 +125,8 @@ def convex_hull(
     """
     Calculate the convex hull of objects in the input binary image.
 
-    This function computes the convex hull of objects in the input binary image. It can operate on the entire image or individual objects if 'objects' is set to True.
+    This function computes the convex hull of objects in the input binary image.
+    It can operate on the entire image or individual objects if 'objects' is set to True.
 
     Parameters:
         image (numpy.ndarray): Input binary image.
@@ -155,7 +171,7 @@ def convex_image(
     """
     Generate a binary image from the given convex hull points.
 
-    This function creates a binary image from the specified convex hull points. It can be used to visualize the convex hull.
+    This function creates a binary image from the specified convex hull points.
 
     Parameters:
         convex_hull_points (numpy.ndarray): Points defining the convex hull.
@@ -183,8 +199,6 @@ def find_object(
 ) -> list[tuple]:
     """
     Find the bounding boxes or slices of connected components in a labeled image.
-
-    This function identifies connected components in the labeled image and returns their bounding boxes or slices.
 
     Parameters:
         labels (numpy.ndarray): Labeled image where connected components are identified.

@@ -52,17 +52,17 @@ def _color_dispatcher(func, n_channels: int = 3, as_float: bool = True, same_typ
 @_color_dispatcher
 def rgb2gray(image: np.ndarray) -> np.ndarray:
     """
-    Convert RGB img to grayscale.
+    Convert RGB image to grayscale.
 
     Parameters
     ----------
     image : numpy.ndarray
-        RGB img with shape (..., RGB).
+        RGB image with shape (..., RGB).
 
     Returns
     -------
     gray_image : numpy.ndarray
-        Grayscale img with the same dtype as the input.
+        Grayscale image with the same dtype as the input.
 
     """
     h = np.array([0.2989, 0.5870, 0.1140], image.dtype)
@@ -72,11 +72,41 @@ def rgb2gray(image: np.ndarray) -> np.ndarray:
 
 @_color_dispatcher(n_channels=1, as_float=False)
 def gray2rgb(image: np.ndarray) -> np.ndarray:
+    """
+    Convert grayscale image to RGB.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        grayscale image.
+
+    Returns
+    -------
+    RGB image : numpy.ndarray
+        RGB image with shape (..., RGB).
+
+    """
     return np.stack([image] * 3, axis=-1)
 
 
 @_color_dispatcher(n_channels=1, as_float=False)
 def gray2rgba(image: np.ndarray, alpha: int | float | None = None) -> np.ndarray:
+    """
+    Convert grayscale image to RGBa.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        grayscale image.
+    alpha : int | float | None
+        default image dtype max value.
+
+    Returns
+    -------
+    RGBa image : numpy.ndarray
+        RGBa image with shape (..., RGBa).
+
+    """
     if alpha is None:
         alpha = get_dtype_info(image.dtype).max_val
     alpha_arr = np.full(image.shape, alpha, dtype=image.dtype)
@@ -88,17 +118,17 @@ def gray2rgba(image: np.ndarray, alpha: int | float | None = None) -> np.ndarray
 @_color_dispatcher()
 def rgb2yuv(image: np.ndarray) -> np.ndarray:
     """
-    Convert RGB img to YUV.
+    Convert RGB image to YUV.
 
     Parameters
     ----------
     image : numpy.ndarray
-        Input RGB img array. It should have size of 3 on the last dimension (shape[..., RGB]).
+        Input RGB image array. It should have size of 3 on the last dimension (shape[..., RGB]).
 
     Returns
     -------
     yuv_image : numpy.ndarray
-        YUV img array with the same dtype and shape as the input (shape[..., YUV]).
+        YUV image array with the same dtype and shape as the input (shape[..., YUV]).
 
     Raises
     ------
@@ -115,17 +145,17 @@ def rgb2yuv(image: np.ndarray) -> np.ndarray:
 @_color_dispatcher()
 def yuv2rgb(image: np.ndarray) -> np.ndarray:
     """
-    Convert YUV img to RGB.
+    Convert YUV image to RGB.
 
     Parameters
     ----------
     image : numpy.ndarray
-        Input YUV img array. It should have size of 3 on the last dimension (shape[..., YUV]).
+        Input YUV image array. It should have size of 3 on the last dimension (shape[..., YUV]).
 
     Returns
     -------
     RGB_image : numpy.ndarray
-        RGB img array with the same dtype and shape as the input (shape[..., RGB]).
+        RGB image array with the same dtype and shape as the input (shape[..., RGB]).
 
     Raises
     ------
@@ -140,17 +170,17 @@ def yuv2rgb(image: np.ndarray) -> np.ndarray:
 @_color_dispatcher(same_type=False)
 def rgb2hsv(image: np.ndarray) -> np.ndarray:
     """
-    Convert RGB img to HSV.
+    Convert RGB image to HSV.
 
     Parameters
     ----------
     image : numpy.ndarray
-        Input RGB img array. It should have size of 3 on the last dimension (shape[..., RGB]).
+        Input RGB image array. It should have size of 3 on the last dimension (shape[..., RGB]).
 
     Returns
     -------
     HSV_image : numpy.ndarray
-        HSV img array with the same dtype and shape as the input (shape[..., HSV]).
+        HSV image array with the same dtype and shape as the input (shape[..., HSV]).
 
     Raises
     ------
@@ -195,6 +225,28 @@ def rgb2hsv(image: np.ndarray) -> np.ndarray:
 
 @_color_dispatcher(same_type=False)
 def hsv2rgb(image: np.ndarray, dtype: np.dtype | None = None) -> np.ndarray:
+    """
+    Convert HSV image to RGB.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Input HSV image array. It should have size of 3 on the last dimension (shape[..., HSV]).
+    dtype : np.dtype | None
+        Dtype of the output image default is same as the input dtype
+
+    Returns
+    -------
+    RGB_image : numpy.ndarray
+        RGB image array with the same shape as the input (shape[..., RGB]).
+
+    Raises
+    ------
+    ValueError
+        If the input array doesn't have the expected number of channels.
+
+    [1] https://mattlockyer.github.io/iat455/documents/rgb-hsv.pdf
+    """
     h = image[..., 0]
     s = image[..., 1]
     v = image[..., 2]

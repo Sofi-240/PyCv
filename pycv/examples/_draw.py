@@ -6,15 +6,19 @@ def draw_mark_points():
     from pycv.io import show_collection
     from pycv.morphological import im_label, find_object, region_fill
 
-    img = np.zeros((101, 150), bool)
+    circles = np.zeros((101, 150), bool)
 
     for c1, c2, r in zip((51, 40, 55), (31, 80, 120), (30, 15, 20)):
-        draw_circle((c1, c2), r, img)
-        region_fill(img, (c1, c2), inplace=True)
+        draw_circle((c1, c2), r, circles)
+        region_fill(circles, (c1, c2), inplace=True)
 
-    n_labels, labels = im_label(img)
+    n_labels, labels = im_label(circles)
 
-    center = [Bbox(bbox).centroid_point for bbox in find_object(labels, as_slice=True)]
-    marked = mark_points(img, center, Shapes.CROSS, (255, 0, 0))
+    marked = mark_points(
+        circles,
+        [Bbox(bbox).centroid_point for bbox in find_object(labels, as_slice=True)],
+        Shapes.CROSS,
+        (255, 0, 0)
+    )
 
-    show_collection([img, marked])
+    show_collection([circles, marked])

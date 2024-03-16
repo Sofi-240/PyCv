@@ -131,7 +131,7 @@ def hough_circle_peak(
         min_y_distance: int = 7,
         min_x_distance: int = 7,
         threshold: float | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Find peaks in a Hough space for detecting circles.
 
@@ -144,8 +144,8 @@ def hough_circle_peak(
         threshold (float or None): The minimum value a peak must have to be considered.
 
     Returns:
-        tuple[np.ndarray, np.ndarray]: A tuple containing arrays representing the values of
-        Hough space, radius, and peaks for the detected circles.
+        tuple[np.ndarray, np.ndarray, np.ndarray]: A tuple containing arrays representing the values of
+        Hough space, radius, and peaks center for the detected circles.
 
     """
     h_space = np.asarray(h_space)
@@ -178,4 +178,4 @@ def hough_circle_peak(
                 if jj != ii:
                     mask[jj] = 0
 
-    return peaks_h[mask], peaks_radius[mask]
+    return peaks_h[mask], peaks_radius[mask], peaks_cc[mask]

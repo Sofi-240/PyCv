@@ -35,13 +35,16 @@ def binary_erosion(
 
     Parameters:
         image (numpy.ndarray): Input binary image to which the binary erosion operation will be applied.
-        strel (numpy.ndarray or None, optional): Structuring element used for erosion. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         iterations (int, optional): Number of iterations for the erosion operation. Defaults to 1.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for erosion. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the erosion operation. If None, a new array will be created. Defaults to None.
         border_val (int, optional): Value used for padding at the image border if extra_memory is True. Defaults to 0.
         extra_memory (bool, optional): If True, extra memory will be used for computation. Defaults to True.
+                                        used only for iterations > 1
 
     Returns:
         numpy.ndarray: Output binary image after applying the binary erosion operation.
@@ -74,6 +77,7 @@ def binary_dilation(
         output (numpy.ndarray or None, optional): Output array to store the result of the dilation operation. If None, a new array will be created. Defaults to None.
         border_val (int, optional): Value used for padding at the image border if extra_memory is True. Defaults to 0.
         extra_memory (bool, optional): If True, extra memory will be used for computation. Defaults to True.
+                                       used only for iterations > 1
 
     Returns:
         numpy.ndarray: Output binary image after applying the binary dilation operation.
@@ -99,7 +103,9 @@ def binary_opening(
 
     Parameters:
         image (numpy.ndarray): Input binary image to which the binary opening operation will be applied.
-        strel (numpy.ndarray or None, optional): Structuring element used for binary opening. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for binary opening. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the binary opening operation. If None, a new array will be created. Defaults to None.
@@ -128,7 +134,9 @@ def binary_closing(
 
     Parameters:
         image (numpy.ndarray): Input binary image to which the binary closing operation will be applied.
-        strel (numpy.ndarray or None, optional): Structuring element used for the closing operation. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for the closing operation. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the closing operation. If None, a new array will be created. Defaults to None.
@@ -159,7 +167,9 @@ def binary_edge(
     Parameters:
         image (numpy.ndarray): Input binary image in which edges will be detected.
         edge_mode (str, optional): Mode of edge detection. Possible values are 'inner', 'outer', or 'double'. Defaults to 'inner'.
-        strel (numpy.ndarray or None, optional): Structuring element used for edge detection. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for edge detection. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of edge detection. If None, a new array will be created. Defaults to None.
@@ -274,8 +284,12 @@ def binary_hit_or_miss(
 
     Parameters:
         image (numpy.ndarray): Input binary image to which the hit-or-miss transform will be applied.
-        strel1 (numpy.ndarray or None, optional): Structuring element for the "hit" part of the hit-or-miss transform. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
-        strel2 (numpy.ndarray or None, optional): Structuring element for the "miss" part of the hit-or-miss transform. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel1 (numpy.ndarray or None, optional): Structuring element for the "hit" part of the hit-or-miss transform.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
+        strel2 (numpy.ndarray or None, optional): Structuring element for the "miss" part of the hit-or-miss transform.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset1 (tuple or None, optional): Offset for the "hit" structuring element. Defaults to None.
         offset2 (tuple or None, optional): Offset for the "miss" structuring element. Defaults to None.
         mask (numpy.ndarray or None, optional): Mask array of the same shape as the input image. If provided, only the pixels where the mask value is non-zero will be considered for the hit-or-miss transform. Defaults to None.
@@ -305,7 +319,9 @@ def binary_fill_holes(
 
     Parameters:
         image (numpy.ndarray): Input binary image in which holes will be filled.
-        strel (numpy.ndarray or None, optional): Structuring element used for the filling operation. If None, a structuring element with a square shape (3x3) will be used. Defaults to None.
+        strel (numpy.ndarray or None, optional): Structuring element used for erosion.
+                                                 If None, a structuring element with a cross of shape (3x3) will be used.
+                                                 Defaults to None.
         offset (tuple or None, optional): Offset for the structuring element. Defaults to None.
         output (numpy.ndarray or None, optional): Output array to store the result of the filling operation. If None, a new array will be created. Defaults to None.
         extra_memory (bool, optional): If True, extra memory will be used for computation. Defaults to True.
