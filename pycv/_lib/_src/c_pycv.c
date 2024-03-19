@@ -7,10 +7,10 @@
 #include "c_pycv_canny.h"
 #include "c_pycv_maxtree.h"
 #include "c_pycv_draw.h"
-#include "c_pycv_convexhull.h"
 #include "c_pycv_features.h"
 #include "c_pycv_measure.h"
 #include "c_pycv_kd_tree.h"
+#include "c_pycv_convex_hull.h"
 
 // #####################################################################################################################
 
@@ -841,103 +841,6 @@ PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords)
 
 // #####################################################################################################################
 
-PyObject* convex_hull(PyObject* self, PyObject* args)
-{
-    PyArrayObject *input = NULL, *mask = NULL, *convex_hull = NULL, *output = NULL, *points_array = NULL;
-    int hull_mode;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "iO&O&O&O&",
-            &hull_mode,
-            InputOptionalToArray, &input,
-            InputOptionalToArray, &mask,
-            InputOptionalToArray, &points_array,
-            OutputOptionalToArray, &output)) {
-        goto exit;
-    }
-
-    if (input && !PYCV_valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (mask && !PYCV_valid_dtype(PyArray_TYPE(mask))) {
-        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
-        goto exit;
-    }
-    if (points_array && !PYCV_valid_dtype(PyArray_TYPE(points_array))) {
-        PyErr_SetString(PyExc_RuntimeError, "points array dtype not supported");
-        goto exit;
-    }
-    if (output && !PYCV_valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output array dtype not supported");
-        goto exit;
-    }
-
-    switch ((PYCV_HullMode)hull_mode) {
-        case PYCV_HULL2D_GRAM_SCAN:
-            convex_hull = PYCV_graham_scan_convex_hull(input, mask, points_array, output);
-            break;
-        case PYCV_HULL2D_GIFT_WRAPPING:
-            convex_hull = PYCV_jarvis_march_convex_hull(input, mask, points_array, output);
-            break;
-        default:
-            PyErr_SetString(PyExc_RuntimeError, "hull mode not supported");
-            goto exit;
-    }
-
-    if (output) {
-        PyArray_ResolveWritebackIfCopy(output);
-    }
-
-    exit:
-        Py_XDECREF(input);
-        if (mask) {
-            Py_XDECREF(mask);
-        }
-        if (output) {
-            Py_XDECREF(output);
-        }
-        if (points_array) {
-            Py_XDECREF(points_array);
-        }
-        return convex_hull ? (PyObject *)convex_hull : NULL;
-}
-
-PyObject* convex_hull_image(PyObject* self, PyObject* args)
-{
-    PyArrayObject *output = NULL, *convex_hull = NULL;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&",
-            OutputToArray, &output,
-            InputToArray, &convex_hull)) {
-        goto exit;
-    }
-
-    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (!PYCV_valid_dtype(PyArray_TYPE(convex_hull))) {
-        PyErr_SetString(PyExc_RuntimeError, "convex_hull dtype not supported");
-        goto exit;
-    }
-
-    PYCV_convex_hull_image(output, convex_hull);
-
-    PyArray_ResolveWritebackIfCopy(output);
-
-    exit:
-        Py_XDECREF(output);
-        Py_XDECREF(convex_hull);
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
-}
-
-// #####################################################################################################################
-
-
 PyObject* integral_image(PyObject* self, PyObject* args)
 {
     PyArrayObject *output = NULL;
@@ -1072,6 +975,36 @@ PyTypeObject CKDtree_Type = {
     .tp_methods = CKDtree_methods,
 };
 
+static PyMemberDef CConvexHull_members[] = {
+    {"ndim", T_INT, offsetof(CConvexHull, ndim), 0, NULL},
+    {"n_vertices", T_INT, offsetof(CConvexHull, n_vertices), 0, NULL},
+    {"points", T_OBJECT, offsetof(CConvexHull, points), 0, NULL},
+    {"vertices", T_OBJECT, offsetof(CConvexHull, vertices), 0, NULL},
+    {"convex_image", T_OBJECT, offsetof(CConvexHull, convex_image), 0, NULL},
+    {NULL}  /* Sentinel */
+};
+
+static PyMethodDef CConvexHull_methods[] = {
+    {"to_image", (PyCFunction)CConvexHullPy_convex_to_image, METH_VARARGS, NULL},
+    {"query_point", (PyCFunction)CConvexHullPy_query_point, METH_VARARGS, NULL},
+    {NULL, NULL, 0, NULL} // Sentinel
+};
+
+
+PyTypeObject CConvexHull_Type = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "c_pycv.CConvexHull",
+    .tp_doc = PyDoc_STR("CConvexHull objects"),
+    .tp_basicsize = sizeof(CConvexHull),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = CConvexHullPy_new,
+    .tp_init = (initproc)CConvexHullPy_init,
+    .tp_dealloc = (destructor)CConvexHullPy_dealloc,
+    .tp_members = CConvexHull_members,
+    .tp_methods = CConvexHull_methods,
+};
+
 // #####################################################################################################################
 
 
@@ -1173,18 +1106,6 @@ static PyMethodDef methods[] = {
         NULL
     },
     {
-        "convex_hull",
-        (PyCFunction)convex_hull,
-        METH_VARARGS,
-        NULL
-    },
-    {
-        "convex_hull_image",
-        (PyCFunction)convex_hull_image,
-        METH_VARARGS,
-        NULL
-    },
-    {
         "integral_image",
         (PyCFunction)integral_image,
         METH_VARARGS,
@@ -1214,7 +1135,7 @@ static struct PyModuleDef module = {
 PyMODINIT_FUNC
 PyInit_c_pycv(void) {
     PyObject *m;
-    if ((PyType_Ready(&CKDnode_Type) < 0) || (PyType_Ready(&CKDtree_Type) < 0)) {
+    if ((PyType_Ready(&CKDnode_Type) < 0) || (PyType_Ready(&CKDtree_Type) < 0) || (PyType_Ready(&CConvexHull_Type) < 0)) {
         return NULL;
     }
 
@@ -1223,7 +1144,8 @@ PyInit_c_pycv(void) {
         return NULL;
 
     if ((PyModule_AddObjectRef(m, "CKDnode", (PyObject *) &CKDnode_Type) < 0) ||
-        (PyModule_AddObjectRef(m, "CKDtree", (PyObject *) &CKDtree_Type) < 0)) {
+        (PyModule_AddObjectRef(m, "CKDtree", (PyObject *) &CKDtree_Type) < 0) ||
+        (PyModule_AddObjectRef(m, "CConvexHull", (PyObject *) &CConvexHull_Type) < 0)) {
         Py_DECREF(m);
         return NULL;
     }
@@ -1231,6 +1153,7 @@ PyInit_c_pycv(void) {
     return m;
 };
 
+// #####################################################################################################################
 
 
 

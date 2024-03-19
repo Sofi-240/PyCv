@@ -1,12 +1,14 @@
 import numpy as np
-from .._lib._src_py import pycv_morphology, pycv_convexhull
+from .._lib._src_py import pycv_morphology
+from .._lib._src_py.pycv_convexhull import ConvexHull
 from .._lib.array_api.regulator import np_compliance
+from .binary import binary_edge
 
 __all__ = [
     'region_fill',
     'im_label',
+    'ConvexHull',
     'convex_hull',
-    'convex_image',
     'find_object'
 ]
 
@@ -120,8 +122,7 @@ def convex_hull(
         mask: np.ndarray | None = None,
         objects: bool = False,
         labels: np.ndarray | None = None,
-        convex_img: bool = True
-) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+) -> ConvexHull:
     """
     Calculate the convex hull of objects in the input binary image.
 
@@ -133,60 +134,38 @@ def convex_hull(
         mask (numpy.ndarray or None, optional): Mask to limit the operation to a specific area. If None, the entire image will be processed. Defaults to None.
         objects (bool, optional): If True, the function operates on individual objects. Defaults to False.
         labels (numpy.ndarray or None, optional): Label image specifying objects if 'objects' is set to True. Defaults to None.
-        convex_img (bool, optional): If True, returns the convex hull image. If False, returns the vertices of the convex hull. Defaults to True.
 
     Returns:
-        numpy.ndarray or tuple[numpy.ndarray, numpy.ndarray]: If 'convex_img' is True, returns the convex hull image. If False, returns a tuple containing the vertices of the convex hull and the corresponding labels.
+        ConvexHull or list[ConvexHull]: ConvexHull objects.
 
     Raises:
         TypeError: If the labels image is of type float.
         ValueError: If the mask shape does not match the labels shape.
 
-    Notes:
-        - If 'objects' is True, 'labels' must be provided.
     """
-    if objects:
-        if labels is None:
-            _, labels = im_label(image)
-        if labels.dtype.kind == 'f':
-            raise TypeError('labels image cannot be type of float')
-        uni = np.unique(labels[labels != 0])
-        if mask is None:
-            mask = np.ones_like(labels, bool)
-        elif mask.shape != labels.shape:
-            raise ValueError('mask shape need to be same as labels shape')
-        inputs = np.stack([np.asarray((labels == u) & mask, dtype=np.uint8) for u in uni], axis=0)
-        mask = None
-    else:
-        inputs = image
+    if not objects:
+        return ConvexHull(image=image)
+    if labels is None:
+        _, labels = im_label(image)
+    if labels.dtype.kind == 'f':
+        raise TypeError('labels image cannot be type of float')
+    uni = np.unique(labels[labels != 0])
+    if mask is None:
+        mask = np.ones_like(labels, bool)
+    elif mask.shape != labels.shape:
+        raise ValueError('mask shape need to be same as labels shape')
 
-    return pycv_convexhull.convex_hull_2d(inputs, mask, convex_image=convex_img)
+    out = []
 
+    for u in uni:
+        label_image = (labels == u) & mask
+        edge = binary_edge(label_image)
+        points = np.stack(np.where(edge), axis=-1).astype(np.int64)
+        out.append(
+            ConvexHull(points=points, image_shape=labels.shape)
+        )
 
-def convex_image(
-        convex_hull_points: np.ndarray,
-        output_shape: tuple | None = None,
-        axis: tuple | None = None
-) -> np.ndarray:
-    """
-    Generate a binary image from the given convex hull points.
-
-    This function creates a binary image from the specified convex hull points.
-
-    Parameters:
-        convex_hull_points (numpy.ndarray): Points defining the convex hull.
-        output_shape (tuple or None, optional): Shape of the output image. If None, the shape is determined automatically. Defaults to None.
-        axis (tuple or None, optional): Axis along which the points represent coordinates. If None, all axes are considered. Defaults to None.
-
-    Returns:
-        numpy.ndarray: Binary image representing the convex hull.
-
-    Notes:
-        - The 'convex_hull_points' should be a 2D array where each row contains the coordinates of a point.
-        - If 'output_shape' is None, it is determined based on the maximum coordinates of the points.
-        - 'axis' specifies which axes of the input points correspond to spatial dimensions.
-    """
-    return pycv_convexhull.convex_hull_2d_image(convex_hull_points, output_shape, axis)
+    return out
 
 
 ########################################################################################################################
