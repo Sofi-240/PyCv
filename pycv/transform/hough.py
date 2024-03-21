@@ -1,7 +1,7 @@
 import numpy as np
 from .._lib._src_py import pycv_transform, pycv_measure
 from .._lib.array_api.shapes import atleast_nd
-from .._lib._src_py.pycv_kdtree import KDtree
+from ..dsa import KDtree
 
 __all__ = [
     'hough_line',

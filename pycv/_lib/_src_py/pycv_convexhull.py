@@ -2,6 +2,7 @@ import numpy as np
 from .utils import ctype_convex_hull_mode
 from ..array_api.regulator import np_compliance
 from ..array_api.dtypes import as_binary_array
+from .pycv_minsc import draw
 from pycv._lib._src.c_pycv import CConvexHull
 from typing import Iterable
 
@@ -64,6 +65,24 @@ class ConvexHull(CConvexHull):
             raise ValueError('points.shape[1] need to be equal to convex ndim')
         return np.array(super().query_point(points), dtype=bool)
 
+    def edge_image(self, image_shape: tuple | None = None) -> np.ndarray:
+        image_shape = image_shape or self._image_shape
+        if len(image_shape) != self.ndim:
+            raise ValueError('image shape size need to be equal to convex ndim')
+        if any(s < si for s, si in zip(image_shape, self._image_shape)):
+            raise ValueError('image shape is to small for convex vertices')
+        output = np.zeros(image_shape, bool)
+
+        for i in range(1, self.n_vertices):
+            point1 = tuple(int(p) for p in self.points[self.vertices[i - 1]])
+            point2 = tuple(int(p) for p in self.points[self.vertices[i]])
+            output[draw('line', point1=point1, point2=point2)] = 1
+
+        point1 = tuple(int(p) for p in self.points[self.vertices[-1]])
+        point2 = tuple(int(p) for p in self.points[self.vertices[0]])
+        output[draw('line', point1=point1, point2=point2)] = 1
+
+        return output
 
 ########################################################################################################################
 

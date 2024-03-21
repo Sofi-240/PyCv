@@ -5,7 +5,7 @@ from pycv.draw import mark_points, Shapes, draw_circle
 from pycv.measurements._measure import Bbox
 from pycv.io import ImageLoader, show_collection
 from pycv.segmentation import Thresholds, im_threshold
-from pycv.morphological import im_label, find_object, gray_closing, Strel, remove_small_objects, region_fill
+from pycv.morphological import im_label, find_object, gray_closing, Strel, remove_small_objects, region_fill, convex_hull
 
 ########################################################################################################################
 
@@ -23,6 +23,7 @@ n_labels, labels = im_label(coins_bin)
 
 boxes = [Bbox(bbox) for bbox in find_object(labels, as_slice=True)]
 
+chulls = convex_hull(coins_bin, objects=True, labels=labels)
 
 # center = [Bbox(bbox).centroid_point for bbox in find_object(labels, as_slice=True)]
 #

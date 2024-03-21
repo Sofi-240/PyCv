@@ -1,5 +1,5 @@
 import numpy as np
-from ..array_api.regulator import np_compliance
+from .._lib.array_api.regulator import np_compliance
 from pycv._lib._src.c_pycv import CKDtree
 
 __all__ = [
@@ -147,3 +147,6 @@ class KDtree(CKDtree):
         output = [np.array(o, np.int64) for o in output]
 
         return output
+
+
+########################################################################################################################

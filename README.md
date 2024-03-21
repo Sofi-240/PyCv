@@ -83,9 +83,10 @@ and image transformation.
 * **otsu_threshold:** Calculates the threshold value based on Otsu's method for binarization.
 * **thresholding:** Performs thresholding on images using various thresholding techniques.
 
-### 7. structures: Functions for handling spatial data structures.
+### 7. dsa: Functions for handling spatial data structures and data algorithms.
 
 * **kdtree:** Implementation of k-dimensional trees for spatial data structures.
+* **kmeans:** Implementation of kmeans algorithm.
 
 ### 8. transform: Functions for geometric transformations.
 

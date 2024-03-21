@@ -15,7 +15,7 @@ typedef enum {
 
 #define ch_con_dtype NPY_INT64
 
-#define ch_dtype_stride 8
+#define ch_dtype_stride (int)NPY_SIZEOF_LONGLONG
 
 // #####################################################################################################################
 

@@ -122,7 +122,7 @@ def convex_hull(
         mask: np.ndarray | None = None,
         objects: bool = False,
         labels: np.ndarray | None = None,
-) -> ConvexHull:
+) -> ConvexHull | list[ConvexHull]:
     """
     Calculate the convex hull of objects in the input binary image.
 

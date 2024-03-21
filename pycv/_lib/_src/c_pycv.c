@@ -11,6 +11,7 @@
 #include "c_pycv_measure.h"
 #include "c_pycv_kd_tree.h"
 #include "c_pycv_convex_hull.h"
+#include "c_pycv_cluster.h"
 
 // #####################################################################################################################
 
@@ -940,6 +941,8 @@ PyTypeObject CKDnode_Type = {
     .tp_members = CKDnode_members,
 };
 
+// *********************************************************************************************************************
+
 static PyMemberDef CKDtree_members[] = {
     {"m", T_INT, offsetof(CKDtree, m), 0, NULL},
     {"n", T_INT, offsetof(CKDtree, n), 0, NULL},
@@ -960,7 +963,6 @@ static PyMethodDef CKDtree_methods[] = {
     {NULL, NULL, 0, NULL} // Sentinel
 };
 
-
 PyTypeObject CKDtree_Type = {
     .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "c_pycv.CKDtree",
@@ -974,6 +976,8 @@ PyTypeObject CKDtree_Type = {
     .tp_members = CKDtree_members,
     .tp_methods = CKDtree_methods,
 };
+
+// *********************************************************************************************************************
 
 static PyMemberDef CConvexHull_members[] = {
     {"ndim", T_INT, offsetof(CConvexHull, ndim), 0, NULL},
@@ -990,7 +994,6 @@ static PyMethodDef CConvexHull_methods[] = {
     {NULL, NULL, 0, NULL} // Sentinel
 };
 
-
 PyTypeObject CConvexHull_Type = {
     .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "c_pycv.CConvexHull",
@@ -1003,6 +1006,40 @@ PyTypeObject CConvexHull_Type = {
     .tp_dealloc = (destructor)CConvexHullPy_dealloc,
     .tp_members = CConvexHull_members,
     .tp_methods = CConvexHull_methods,
+};
+
+// *********************************************************************************************************************
+
+static PyMemberDef CKMeans_members[] = {
+    {"k", T_INT, offsetof(CKMeans, k), 0, NULL},
+    {"iterations", T_INT, offsetof(CKMeans, iterations), 0, NULL},
+    {"tol", T_DOUBLE, offsetof(CKMeans, tol), 0, NULL},
+    {"n_samples", T_INT, offsetof(CKMeans, n_samples), 0, NULL},
+    {"ndim", T_INT, offsetof(CKMeans, ndim), 0, NULL},
+    {"init_method", T_INT, offsetof(CKMeans, init_method), 0, NULL},
+    {"centers", T_OBJECT, offsetof(CKMeans, centers), 0, NULL},
+    {"data", T_OBJECT, offsetof(CKMeans, data), 0, NULL},
+    {NULL}  /* Sentinel */
+};
+
+static PyMethodDef CKMeans_methods[] = {
+    {"fit", (PyCFunction)CKMeansPy_fit, METH_VARARGS|METH_KEYWORDS, NULL},
+    {"predict", (PyCFunction)CKMeansPy_predict, METH_VARARGS|METH_KEYWORDS, NULL},
+    {NULL, NULL, 0, NULL} // Sentinel
+};
+
+PyTypeObject CKMeans_Type = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "c_pycv.CKMeans",
+    .tp_doc = PyDoc_STR("CKMeans objects"),
+    .tp_basicsize = sizeof(CKMeans),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = CKMeansPy_new,
+    .tp_init = (initproc)CKMeansPy_init,
+    .tp_dealloc = (destructor)CKMeansPy_dealloc,
+    .tp_members = CKMeans_members,
+    .tp_methods = CKMeans_methods,
 };
 
 // #####################################################################################################################
@@ -1135,7 +1172,10 @@ static struct PyModuleDef module = {
 PyMODINIT_FUNC
 PyInit_c_pycv(void) {
     PyObject *m;
-    if ((PyType_Ready(&CKDnode_Type) < 0) || (PyType_Ready(&CKDtree_Type) < 0) || (PyType_Ready(&CConvexHull_Type) < 0)) {
+    if ((PyType_Ready(&CKDnode_Type) < 0) ||
+        (PyType_Ready(&CKDtree_Type) < 0) ||
+        (PyType_Ready(&CConvexHull_Type) < 0) ||
+        (PyType_Ready(&CKMeans_Type) < 0)) {
         return NULL;
     }
 
@@ -1145,7 +1185,8 @@ PyInit_c_pycv(void) {
 
     if ((PyModule_AddObjectRef(m, "CKDnode", (PyObject *) &CKDnode_Type) < 0) ||
         (PyModule_AddObjectRef(m, "CKDtree", (PyObject *) &CKDtree_Type) < 0) ||
-        (PyModule_AddObjectRef(m, "CConvexHull", (PyObject *) &CConvexHull_Type) < 0)) {
+        (PyModule_AddObjectRef(m, "CConvexHull", (PyObject *) &CConvexHull_Type) < 0) ||
+        (PyModule_AddObjectRef(m, "CKMeans", (PyObject *) &CKMeans_Type) < 0)) {
         Py_DECREF(m);
         return NULL;
     }

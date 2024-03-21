@@ -1,18 +1,29 @@
 import numpy as np
-import os.path as osp
 from pycv._lib._src import c_pycv
-from pycv.io import ImageLoader, show_collection
-from pycv.morphological import binary_edge, ConvexHull
+from pycv.dsa import KMeans
 
 ########################################################################################################################
 
-loader = ImageLoader(osp.join(osp.dirname(__file__), '_debug_utils', 'data'))
 
-horse = (255 - loader.load('horse')[..., 0]) > 0
-edge = binary_edge(horse)
+inputs = np.array(
+    [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+     [0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0],
+     [0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0],
+     [0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0],
+     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+     [0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+     [0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
+     [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+     [0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0],
+     [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]],
+    dtype=bool
+)
 
-chull = ConvexHull(image=edge)
+points = np.stack(np.where(inputs), axis=-1).astype(np.float64)
 
-im = chull.to_image(edge.shape)
+clust = KMeans(points, k=4)
+pred = clust.predict(points, pnorm=2)
 
-show_collection([edge, im])
+pred_im = np.zeros_like(inputs, dtype=np.int64)
+pred_im[inputs] = pred + 1
