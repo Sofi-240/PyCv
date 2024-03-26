@@ -1,6 +1,6 @@
 import numpy as np
 from .._lib._src_py import pycv_morphology
-from .._lib._src_py.pycv_convexhull import ConvexHull
+from ..dsa import ConvexHull
 from .._lib.array_api.regulator import np_compliance
 from .binary import binary_edge
 
@@ -78,7 +78,7 @@ def region_fill(
     elif not output:
         output = np.zeros_like(image)
 
-    output[inputs] = fill_value if fill_value is not None else seed_value
+    output[inputs] = fill_value if fill_value is not None else 1
 
     return output
 

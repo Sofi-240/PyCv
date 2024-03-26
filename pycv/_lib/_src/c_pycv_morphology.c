@@ -3,70 +3,67 @@
 
 // #####################################################################################################################
 
-#define PYCV_M_CASE_MASK_VALUE(_NTYPE, _dtype, _ma, _out)                                                              \
+#define CASE_MORPH_AS_BOOLEAN(_NTYPE, _dtype, _ptr, _out)                                                              \
 case NPY_##_NTYPE:                                                                                                     \
 {                                                                                                                      \
-    _out = *(_dtype *)_ma ? 1 : 0;                                                                                     \
+    _out = *(_dtype *)_ptr ? 1 : 0;                                                                                    \
 }                                                                                                                      \
 break
 
-#define PYCV_M_MASK_VALUE(_NTYPE, _ma, _out)                                                                           \
+#define MORPH_AS_BOOLEAN(_NTYPE, _ptr, _out)                                                                           \
 {                                                                                                                      \
     switch (_NTYPE) {                                                                                                  \
-        PYCV_M_CASE_MASK_VALUE(BOOL, npy_bool, _ma, _out);                                                             \
-        PYCV_M_CASE_MASK_VALUE(UBYTE, npy_ubyte, _ma, _out);                                                           \
-        PYCV_M_CASE_MASK_VALUE(USHORT, npy_ushort, _ma, _out);                                                         \
-        PYCV_M_CASE_MASK_VALUE(UINT, npy_uint, _ma, _out);                                                             \
-        PYCV_M_CASE_MASK_VALUE(ULONG, npy_ulong, _ma, _out);                                                           \
-        PYCV_M_CASE_MASK_VALUE(ULONGLONG, npy_ulonglong, _ma, _out);                                                   \
-        PYCV_M_CASE_MASK_VALUE(BYTE, npy_byte, _ma, _out);                                                             \
-        PYCV_M_CASE_MASK_VALUE(SHORT, npy_short, _ma, _out);                                                           \
-        PYCV_M_CASE_MASK_VALUE(INT, npy_int, _ma, _out);                                                               \
-        PYCV_M_CASE_MASK_VALUE(LONG, npy_long, _ma, _out);                                                             \
-        PYCV_M_CASE_MASK_VALUE(LONGLONG, npy_longlong, _ma, _out);                                                     \
-        PYCV_M_CASE_MASK_VALUE(FLOAT, npy_float, _ma, _out);                                                           \
-        PYCV_M_CASE_MASK_VALUE(DOUBLE, npy_double, _ma, _out);                                                         \
+        CASE_MORPH_AS_BOOLEAN(BOOL, npy_bool, _ptr, _out);                                                             \
+        CASE_MORPH_AS_BOOLEAN(UBYTE, npy_ubyte, _ptr, _out);                                                           \
+        CASE_MORPH_AS_BOOLEAN(USHORT, npy_ushort, _ptr, _out);                                                         \
+        CASE_MORPH_AS_BOOLEAN(UINT, npy_uint, _ptr, _out);                                                             \
+        CASE_MORPH_AS_BOOLEAN(ULONG, npy_ulong, _ptr, _out);                                                           \
+        CASE_MORPH_AS_BOOLEAN(ULONGLONG, npy_ulonglong, _ptr, _out);                                                   \
+        CASE_MORPH_AS_BOOLEAN(BYTE, npy_byte, _ptr, _out);                                                             \
+        CASE_MORPH_AS_BOOLEAN(SHORT, npy_short, _ptr, _out);                                                           \
+        CASE_MORPH_AS_BOOLEAN(INT, npy_int, _ptr, _out);                                                               \
+        CASE_MORPH_AS_BOOLEAN(LONG, npy_long, _ptr, _out);                                                             \
+        CASE_MORPH_AS_BOOLEAN(LONGLONG, npy_longlong, _ptr, _out);                                                     \
+        CASE_MORPH_AS_BOOLEAN(FLOAT, npy_float, _ptr, _out);                                                           \
+        CASE_MORPH_AS_BOOLEAN(DOUBLE, npy_double, _ptr, _out);                                                         \
     }                                                                                                                  \
 }
 
 // #####################################################################################################################
 
-#define PYCV_M_CASE_BINARY_EROSION(_NTYPE, _dtype, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val)     \
+
+#define CASE_MORPH_EROSION(_NTYPE, _dtype, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val)                      \
 case NPY_##_NTYPE:                                                                                                     \
 {                                                                                                                      \
-    npy_intp _ii;                                                                                                      \
-    _out = *(_dtype *)_x ? _t_val : _f_val;                                                                            \
-    if (_ma_val) {                                                                                                     \
-        for (_ii = 0; _ii < _n; _ii++) {                                                                               \
-            if (_offsets[_ii] == _flag) {                                                                              \
-                _out = _c_val ? _t_val : _f_val;                                                                       \
-            } else {                                                                                                   \
-                _out = *(_dtype *)(_x + _offsets[_ii]) ? _t_val : _f_val;                                              \
-            }                                                                                                          \
-            if (!_out) {                                                                                               \
-                break;                                                                                                 \
-            }                                                                                                          \
+    npy_intp _ii = 0;                                                                                                  \
+    _out = _n ? 1 : (*(_dtype *)_x ? _t_val : _f_val);                                                                 \
+    while (_out && _ii < _n) {                                                                                         \
+        if (*(_offsets + _ii) == _flag) {                                                                              \
+            _out = _c_val ? _t_val : _f_val;                                                                           \
+        } else {                                                                                                       \
+            _out = *(_dtype *)(_x + *(_offsets + _ii)) ? _t_val : _f_val;                                              \
         }                                                                                                              \
+        _ii++;                                                                                                         \
     }                                                                                                                  \
 }                                                                                                                      \
 break
 
-#define PYCV_M_BINARY_EROSION(_NTYPE, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val)                  \
+#define MORPH_EROSION(_NTYPE, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val)                                   \
 {                                                                                                                      \
     switch (_NTYPE) {                                                                                                  \
-        PYCV_M_CASE_BINARY_EROSION(BOOL, npy_bool, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);    \
-        PYCV_M_CASE_BINARY_EROSION(UBYTE, npy_ubyte, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);  \
-        PYCV_M_CASE_BINARY_EROSION(USHORT, npy_ushort, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);\
-        PYCV_M_CASE_BINARY_EROSION(UINT, npy_uint, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);    \
-        PYCV_M_CASE_BINARY_EROSION(ULONG, npy_ulong, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);  \
-        PYCV_M_CASE_BINARY_EROSION(ULONGLONG, npy_ulonglong, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);\
-        PYCV_M_CASE_BINARY_EROSION(BYTE, npy_byte, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);    \
-        PYCV_M_CASE_BINARY_EROSION(SHORT, npy_short, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);  \
-        PYCV_M_CASE_BINARY_EROSION(INT, npy_int, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);      \
-        PYCV_M_CASE_BINARY_EROSION(LONG, npy_long, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);    \
-        PYCV_M_CASE_BINARY_EROSION(LONGLONG, npy_longlong, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);\
-        PYCV_M_CASE_BINARY_EROSION(FLOAT, npy_float, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val);  \
-        PYCV_M_CASE_BINARY_EROSION(DOUBLE, npy_double, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val); \
+        CASE_MORPH_EROSION(BOOL, npy_bool, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                     \
+        CASE_MORPH_EROSION(UBYTE, npy_ubyte, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                   \
+        CASE_MORPH_EROSION(USHORT, npy_ushort, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                 \
+        CASE_MORPH_EROSION(UINT, npy_uint, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                     \
+        CASE_MORPH_EROSION(ULONG, npy_ulong, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                   \
+        CASE_MORPH_EROSION(ULONGLONG, npy_ulonglong, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);           \
+        CASE_MORPH_EROSION(BYTE, npy_byte, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                     \
+        CASE_MORPH_EROSION(SHORT, npy_short, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                   \
+        CASE_MORPH_EROSION(INT, npy_int, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                       \
+        CASE_MORPH_EROSION(LONG, npy_long, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                     \
+        CASE_MORPH_EROSION(LONGLONG, npy_longlong, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);             \
+        CASE_MORPH_EROSION(FLOAT, npy_float, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                   \
+        CASE_MORPH_EROSION(DOUBLE, npy_double, _x, _n, _offsets, _flag, _c_val, _out, _t_val, _f_val);                 \
     }                                                                                                                  \
 }
 
@@ -76,64 +73,263 @@ int PYCV_binary_erosion(PyArrayObject *input,
                         PyArrayObject *strel,
                         PyArrayObject *output,
                         npy_intp *center,
+                        int iterations,
                         PyArrayObject *mask,
-                        PYCV_MorphOP op,
+                        int invert,
                         int c_val)
 {
-    PYCV_ArrayIterator iter_o, iter_m;
+    PYCV_ArrayIterator iter_m, iter_o;
     NeighborhoodIterator iter_i;
-    char *po = NULL, *pi = NULL, *ma = NULL;
+    PyArrayObject *input_w;
     npy_bool *footprint;
-    int num_type_i, num_type_o, num_type_m, out_val, ma_val = 1, op_true = 1, op_false = 0;
-    npy_intp array_size, ii, flag, f_size, *offsets, *ff;
+    npy_intp se_size, i_size, flag, *offsets, *ff, ii, jj, nn, *px_stack, bb = 0;
+    npy_intp *stack = NULL, loc = 0, ns = 0, ns_nd, ndim;
+    char *ma_base = NULL, *ma = NULL, *po_base = NULL, *po = NULL, *pi_base = NULL, *pi = NULL;
+    int true_val = 1, false_val = 0, ma_val = 1, o_val, po_val, px_change = 1;
 
-    NPY_BEGIN_THREADS_DEF;
+    if (iterations == 0) {
+        return 1;
+    }
 
-    array_size = PyArray_SIZE(input);
+    if (iterations != 1) {
+        input_w = (PyArrayObject *)PyArray_NewLikeArray(output, NPY_KEEPORDER, NULL, 1);
+        if (PyArray_CopyInto(input_w, input)) {
+            PyErr_SetString(PyExc_RuntimeError, "Error: PyArray_CopyInto \n");
+            goto exit;
+        }
+    } else {
+        input_w = input;
+    }
 
-    if (!PYCV_AllocateToFootprint(strel, &footprint, &f_size, 1)) {
+    if (!PYCV_AllocateToFootprint(strel, &footprint, &se_size, 1)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_AllocateToFootprint \n");
         goto exit;
     }
 
-    PYCV_NeighborhoodIteratorInit(input, PyArray_DIMS(strel), center, f_size, &iter_i);
+    if (!PYCV_InitNeighborhoodOffsets(input_w, PyArray_DIMS(strel), center, footprint, &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InitNeighborhoodOffsets \n");
+        goto exit;
+    }
 
+    PYCV_NeighborhoodIteratorInit(input_w, PyArray_DIMS(strel), center, se_size, &iter_i);
+    PYCV_ArrayIteratorInit(output, &iter_o);
+
+    i_size = PyArray_SIZE(output);
+    ndim = iter_i.nd_m1 + 1;
+    if (iterations != 1) {
+        stack = malloc(i_size * ndim * sizeof(npy_intp));
+        if (!stack) {
+            PyErr_NoMemory();
+            goto exit;
+        }
+        loc = 1;
+    }
+
+    po_base = po = (void *)PyArray_DATA(output);
+    pi_base = pi = (void *)PyArray_DATA(input_w);
+    if (mask) {
+        PYCV_ArrayIteratorInit(mask, &iter_m);
+        ma_base = ma = (void *)PyArray_DATA(mask);
+    }
+
+    if (invert) {
+        true_val = 0;
+        false_val = 1;
+    }
+
+    ff = offsets;
+
+    for (ii = 0; ii < i_size; ii++) {
+        if (mask) {
+            MORPH_AS_BOOLEAN(iter_m.numtype, ma, ma_val);
+        }
+        if (ma_val) {
+            MORPH_EROSION(iter_i.numtype, pi, se_size, ff, flag, c_val, o_val, true_val, false_val);
+            if (iterations != 1 && o_val) {
+                ns_nd = ns * ndim;
+                for (jj = 0; jj < ndim; jj++) {
+                    *(stack + ns_nd + jj) = *(iter_i.coordinates + jj);
+                }
+                ns++;
+            }
+            if (!true_val) {
+                o_val = o_val ? 0 : 1;
+            }
+        } else {
+            MORPH_AS_BOOLEAN(iter_i.numtype, pi, o_val);
+        }
+        PYCV_SET_VALUE(iter_o.numtype, po, o_val);
+
+        if (mask) {
+            PYCV_NEIGHBORHOOD_ITERATOR_NEXT3(iter_i, pi, iter_o, po, iter_m, ma, ff);
+        } else {
+            PYCV_NEIGHBORHOOD_ITERATOR_NEXT2(iter_i, pi, iter_o, po, ff);
+        }
+    }
+
+    iterations--;
+
+    while (iterations && ns && px_change) {
+        if (PyArray_CopyInto(input_w, output)) {
+            PyErr_SetString(PyExc_RuntimeError, "Error: PyArray_CopyInto \n");
+            goto exit;
+        }
+        nn = ns;
+        ns = 0;
+        px_stack = stack;
+        px_change = 0;
+
+        for (ii = 0; ii < nn; ii++) {
+            if (mask) {
+                PYCV_NEIGHBORHOOD_ITERATOR_GOTO3(iter_i, pi_base, pi, iter_o, po_base, po, iter_m, ma_base, ma, offsets, ff, px_stack);
+                MORPH_AS_BOOLEAN(iter_m.numtype, ma, ma_val);
+            } else {
+                PYCV_NEIGHBORHOOD_ITERATOR_GOTO2(iter_i, pi_base, pi, iter_o, po_base, po, offsets, ff, px_stack);
+            }
+            if (ma_val) {
+                MORPH_EROSION(iter_i.numtype, pi, se_size, ff, flag, c_val, o_val, true_val, false_val);
+                if (iterations != 1 && o_val) {
+                    ns_nd = ns * ndim;
+                    for (jj = 0; jj < ndim; jj++) {
+                        *(stack + ns_nd + jj) = *(iter_i.coordinates + jj);
+                    }
+                    ns++;
+                }
+                if (!true_val) {
+                    o_val = o_val ? 0 : 1;
+                }
+                if (!px_change) {
+                    MORPH_AS_BOOLEAN(iter_i.numtype, pi, po_val);
+                    if (po_val != o_val) {
+                        px_change = 1;
+                    }
+                }
+            } else {
+                MORPH_AS_BOOLEAN(iter_i.numtype, pi, o_val);
+            }
+            px_stack += ndim;
+            PYCV_SET_VALUE(iter_o.numtype, po, o_val);
+        }
+        iterations--;
+    }
+
+    exit:
+        free(offsets);
+        free(footprint);
+        if (loc) {
+            free(stack);
+        }
+        return PyErr_Occurred() ? 0 : 1;
+}
+
+// #####################################################################################################################
+
+#define CASE_MORPH_GRAY_EROSION(_NTYPE, _dtype, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv)                       \
+case NPY_##_NTYPE:                                                                                                     \
+{                                                                                                                      \
+    npy_intp _ii;                                                                                                      \
+    npy_double _v;                                                                                                     \
+    _out = (npy_double)(*(_dtype *)_x);                                                                                \
+    for (_ii = 0; _ii < _n; _ii++) {                                                                                   \
+        if (*(_offsets + _ii) == _flag) {                                                                              \
+            _v = _c_val + *(_h + _ii);                                                                                 \
+        } else {                                                                                                       \
+            _v = (npy_double)(*(_dtype *)(_x + *(_offsets + _ii))) + *(_h + _ii);                                      \
+        }                                                                                                              \
+        if (!_ii || (!_inv && _v < _out) || (_inv && _v > _out)) {                                                     \
+            _out = _v;                                                                                                 \
+        }                                                                                                              \
+    }                                                                                                                  \
+}                                                                                                                      \
+break
+
+#define MORPH_GRAY_EROSION(_NTYPE, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv)                                    \
+{                                                                                                                      \
+    switch (_NTYPE) {                                                                                                  \
+        CASE_MORPH_GRAY_EROSION(BOOL, npy_bool, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                      \
+        CASE_MORPH_GRAY_EROSION(UBYTE, npy_ubyte, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                    \
+        CASE_MORPH_GRAY_EROSION(USHORT, npy_ushort, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                  \
+        CASE_MORPH_GRAY_EROSION(UINT, npy_uint, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                      \
+        CASE_MORPH_GRAY_EROSION(ULONG, npy_ulong, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                    \
+        CASE_MORPH_GRAY_EROSION(ULONGLONG, npy_ulonglong, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);            \
+        CASE_MORPH_GRAY_EROSION(BYTE, npy_byte, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                      \
+        CASE_MORPH_GRAY_EROSION(SHORT, npy_short, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                    \
+        CASE_MORPH_GRAY_EROSION(INT, npy_int, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                        \
+        CASE_MORPH_GRAY_EROSION(LONG, npy_long, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                      \
+        CASE_MORPH_GRAY_EROSION(LONGLONG, npy_longlong, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);              \
+        CASE_MORPH_GRAY_EROSION(FLOAT, npy_float, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                    \
+        CASE_MORPH_GRAY_EROSION(DOUBLE, npy_double, _x, _h, _n, _offsets, _flag, _c_val, _out, _inv);                  \
+    }                                                                                                                  \
+}
+
+// *********************************************************************************************************************
+
+
+int PYCV_gray_erosion(PyArrayObject *input,
+                      PyArrayObject *strel,
+                      PyArrayObject *output,
+                      npy_intp *center,
+                      PyArrayObject *mask,
+                      int invert,
+                      npy_double c_val)
+{
+    PYCV_ArrayIterator iter_o, iter_m;
+    NeighborhoodIterator iter_i;
+    npy_intp a_size, f_size, flag, ii, *offsets = NULL, *ff = NULL;
+    npy_bool *footprint = NULL;
+    npy_double *h = NULL, o_val;
+    char *po = NULL, *pi = NULL, *ma = NULL;
+    int ma_val = 1;
+
+    NPY_BEGIN_THREADS_DEF;
+
+    if (!PYCV_AllocateKernelFlip(strel, &footprint, &h)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_ToConvolveKernel \n");
+        goto exit;
+    }
+    PYCV_FOOTPRINT_NONZERO(footprint, PyArray_SIZE(strel), f_size);
+
+    if (PyArray_TYPE(strel) == NPY_BOOL) {
+        for (ii = 0; ii < f_size; ii++) {
+            *(h + ii) = 0;
+        }
+    } else if (!invert) {
+        for (ii = 0; ii < f_size; ii++) {
+            *(h + ii) = -*(h + ii);
+        }
+    }
     if (!PYCV_InitNeighborhoodOffsets(input, PyArray_DIMS(strel), center, footprint, &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InitNeighborhoodOffsets \n");
         goto exit;
     }
+
+    PYCV_NeighborhoodIteratorInit(input, PyArray_DIMS(strel), center, f_size, &iter_i);
     PYCV_ArrayIteratorInit(output, &iter_o);
-
-    num_type_i = PyArray_TYPE(input);
-    num_type_o = PyArray_TYPE(output);
-    if (mask) {
-        num_type_m = PyArray_TYPE(mask);
-        PYCV_ArrayIteratorInit(mask, &iter_m);
-    }
-
-    if (op == PYCV_MORPH_OP_DIL) {
-        op_true = 0;
-        op_false = 1;
-    }
-
-    NPY_BEGIN_THREADS;
 
     pi = (void *)PyArray_DATA(input);
     po = (void *)PyArray_DATA(output);
     if (mask) {
+        PYCV_ArrayIteratorInit(mask, &iter_m);
         ma = (void *)PyArray_DATA(mask);
     }
+
+    a_size = PyArray_SIZE(input);
+
     ff = offsets;
 
-    for (ii = 0; ii < array_size; ii++) {
+
+    NPY_BEGIN_THREADS;
+
+    for (ii = 0; ii < a_size; ii++) {
         if (mask) {
-            PYCV_M_MASK_VALUE(num_type_m, ma, ma_val);
+            MORPH_AS_BOOLEAN(iter_m.numtype, ma, ma_val);
         }
-        PYCV_M_BINARY_EROSION(num_type_i, ma_val, pi, f_size, flag, ff, out_val, c_val, op_true, op_false);
-        if (!op_true) {
-            out_val = out_val ? 0 : 1;
+        if (ma_val) {
+            MORPH_GRAY_EROSION(iter_i.numtype, pi, h, f_size, ff, flag, c_val, o_val, invert);
+        } else {
+            PYCV_GET_VALUE(iter_i.numtype, npy_double, pi, o_val);
         }
-        PYCV_SET_VALUE(num_type_o, po, out_val);
+        PYCV_SET_VALUE_F2A(iter_o.numtype, po, o_val);
         if (mask) {
             PYCV_NEIGHBORHOOD_ITERATOR_NEXT3(iter_i, pi, iter_o, po, iter_m, ma, ff);
         } else {
@@ -142,322 +338,7 @@ int PYCV_binary_erosion(PyArrayObject *input,
     }
 
     NPY_END_THREADS;
-    exit:
-        free(offsets);
-        free(footprint);
-        return PyErr_Occurred() ? 0 : 1;
-}
 
-// *********************************************************************************************************************
-
-#define PYCV_M_CASE_BINARY_EROSION_ITER(_NTYPE, _dtype,                                                                \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change)    \
-case NPY_##_NTYPE:                                                                                                     \
-{                                                                                                                      \
-    npy_intp _ii;                                                                                                      \
-    int prv_pxl;                                                                                                       \
-    _out = *(_dtype *)_x ? _t_val : _f_val;                                                                            \
-    prv_pxl = (int)_out;                                                                                               \
-    if (_ma_val) {                                                                                                     \
-        for (_ii = 0; _ii < _n; _ii++) {                                                                               \
-            if (_offsets[_ii] == _flag) {                                                                              \
-                _out = _c_val ? _t_val : _f_val;                                                                       \
-            } else {                                                                                                   \
-                _out = *(_dtype *)(_x + _offsets[_ii]) ? _t_val : _f_val;                                              \
-            }                                                                                                          \
-            if (!_out) {                                                                                               \
-                break;                                                                                                 \
-            }                                                                                                          \
-        }                                                                                                              \
-    }                                                                                                                  \
-    _px_change = (int)_out == prv_pxl ? 0 : 1;                                                                         \
-}                                                                                                                      \
-break
-
-#define PYCV_M_BINARY_EROSION_ITER(_NTYPE, _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change) \
-{                                                                                                                      \
-    switch (_NTYPE) {                                                                                                  \
-        PYCV_M_CASE_BINARY_EROSION_ITER(BOOL, npy_bool,                                                                \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(UBYTE, npy_ubyte,                                                              \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(USHORT, npy_ushort,                                                            \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(UINT, npy_uint,                                                                \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(ULONG, npy_ulong,                                                              \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(ULONGLONG, npy_ulonglong,                                                      \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(BYTE, npy_byte,                                                                \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(SHORT, npy_short,                                                              \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(INT, npy_int,                                                                  \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(LONG, npy_long,                                                                \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(LONGLONG, npy_longlong,                                                        \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(FLOAT, npy_float,                                                              \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-        PYCV_M_CASE_BINARY_EROSION_ITER(DOUBLE, npy_double,                                                            \
-                                        _ma_val, _x, _n, _flag, _offsets, _out, _c_val, _t_val, _f_val, _px_change);   \
-    }                                                                                                                  \
-}
-
-// *********************************************************************************************************************
-
-
-int PYCV_binary_erosion_iter(PyArrayObject *input,
-                             PyArrayObject *strel,
-                             PyArrayObject *output,
-                             npy_intp *center,
-                             npy_intp iterations,
-                             PyArrayObject *mask,
-                             PYCV_MorphOP op,
-                             int c_val)
-{
-    PYCV_ArrayIterator iter_m, iter_o;
-    NeighborhoodIterator iter_c;
-    PyArrayObject *array_change;
-    char *ma_base = NULL, *ma = NULL, *po_base = NULL, *po = NULL, *pc_base = NULL, *pc = NULL;
-    npy_bool *footprint;
-    int num_type_o, num_type_m, out_val, px_change = 1, ma_val = 1, op_true = 1, op_false = 0;
-    npy_intp array_size, ii, jj, flag, f_size, *offsets, *ff;
-    npy_intp *stack, stack_end = 0, stack_prev, stack_stride, *stack_run, *stack_fill;
-
-
-    array_change = (PyArrayObject *)PyArray_NewLikeArray(output, NPY_KEEPORDER, NULL, 1);
-    if (PyArray_CopyInto(array_change, input)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PyArray_CopyInto \n");
-        goto exit;
-    }
-
-    array_size = PyArray_SIZE(output);
-    stack_stride = PyArray_NDIM(output);
-
-    if (!PYCV_AllocateToFootprint(strel, &footprint, &f_size, 1)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_AllocateToFootprint \n");
-        goto exit;
-    }
-
-    PYCV_NeighborhoodIteratorInit(array_change, PyArray_DIMS(strel), center, f_size, &iter_c);
-    PYCV_ArrayIteratorInit(output, &iter_o);
-
-    if (!PYCV_InitNeighborhoodOffsets(array_change, PyArray_DIMS(strel), center, footprint, &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InitNeighborhoodOffsets \n");
-        goto exit;
-    }
-
-    num_type_o = PyArray_TYPE(output);
-    if (mask) {
-        num_type_m = PyArray_TYPE(mask);
-        PYCV_ArrayIteratorInit(mask, &iter_m);
-    }
-
-    if (op == PYCV_MORPH_OP_DIL) {
-        op_true = 0;
-        op_false = 1;
-    }
-
-    stack = malloc(array_size * stack_stride * sizeof(npy_intp));
-    if (!stack) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-    stack_fill = stack;
-
-    po_base = po = (void *)PyArray_DATA(output);
-    pc_base = pc = (void *)PyArray_DATA(array_change);
-
-    if (mask) {
-        ma_base = ma = (void *)PyArray_DATA(mask);
-    }
-    ff = offsets;
-
-    for (ii = 0; ii < array_size; ii++) {
-        if (mask) {
-            PYCV_M_MASK_VALUE(num_type_m, ma, ma_val);
-        }
-
-        PYCV_M_BINARY_EROSION(num_type_o, ma_val, pc, f_size, flag, ff, out_val, c_val, op_true, op_false);
-        if (out_val) {
-            for (jj = 0; jj < stack_stride; jj++) {
-                *stack_fill++ = iter_c.coordinates[jj];
-            }
-            stack_end++;
-        }
-        if (!op_true) {
-            out_val = out_val ? 0 : 1;
-        }
-        PYCV_SET_VALUE(num_type_o, po, out_val);
-
-        if (mask) {
-            PYCV_NEIGHBORHOOD_ITERATOR_NEXT3(iter_c, pc, iter_o, po, iter_m, ma, ff);
-        } else {
-            PYCV_NEIGHBORHOOD_ITERATOR_NEXT2(iter_c, pc, iter_o, po, ff);
-        }
-    }
-    iterations--;
-
-    if (PyArray_CopyInto(array_change, output)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PyArray_CopyInto \n");
-        goto exit;
-    }
-
-    while (iterations && px_change && stack_end) {
-        stack_run = stack_fill = stack;
-        stack_prev = stack_end;
-        stack_end = 0;
-        px_change = 0;
-
-        for (ii = 0; ii < stack_prev; ii++) {
-            if (mask) {
-                PYCV_NEIGHBORHOOD_ITERATOR_GOTO3(iter_c, pc_base, pc, iter_o, po_base, po, iter_m, ma_base, ma, offsets, ff, stack_run);
-                PYCV_M_MASK_VALUE(num_type_m, ma, ma_val);
-            } else {
-                PYCV_NEIGHBORHOOD_ITERATOR_GOTO2(iter_c, pc_base, pc, iter_o, po_base, po, offsets, ff, stack_run);
-            }
-
-            PYCV_M_BINARY_EROSION_ITER(num_type_o, ma_val, pc, f_size, flag, ff, out_val, c_val, op_true, op_false, px_change);
-            if (out_val) {
-                for (jj = 0; jj < stack_stride; jj++) {
-                    *stack_fill++ = iter_c.coordinates[jj];
-                }
-                stack_end++;
-            }
-            if (!op_true) {
-                out_val = out_val ? 0 : 1;
-            }
-            PYCV_SET_VALUE(num_type_o, po, out_val);
-            stack_run += stack_stride;
-        }
-        iterations--;
-        if (PyArray_CopyInto(array_change, output)) {
-            PyErr_SetString(PyExc_RuntimeError, "Error: PyArray_CopyInto \n");
-            goto exit;
-        }
-    }
-
-    exit:
-        free(offsets);
-        free(footprint);
-        free(stack);
-        return PyErr_Occurred() ? 0 : 1;
-}
-
-
-// #####################################################################################################################
-
-int PYCV_gray_erosion_dilation(PyArrayObject *input,
-                               PyArrayObject *flat_strel,
-                               PyArrayObject *non_flat_strel,
-                               PyArrayObject *output,
-                               npy_intp *center,
-                               PyArrayObject *mask,
-                               PYCV_MorphOP op,
-                               npy_double c_val)
-{
-    PYCV_ArrayIterator iter_o, iter_m, iter_s;
-    NeighborhoodIterator iter_i;
-    char *po = NULL, *pi = NULL, *ma = NULL, *ps = NULL;
-    npy_bool *footprint = NULL;
-    npy_double *h = NULL, out_val, val;
-    int num_type_i, num_type_o, num_type_m, num_type_s, ma_val = 1;
-    npy_intp array_size, ii, jj, flag, f_size, *offsets, *ff;
-
-    NPY_BEGIN_THREADS_DEF;
-
-    array_size = PyArray_SIZE(input);
-
-    if (!PYCV_AllocateKernelFlip(flat_strel, &footprint, NULL)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_ToConvolveKernel \n");
-        goto exit;
-    }
-
-    PYCV_FOOTPRINT_NONZERO(footprint, PyArray_SIZE(flat_strel), f_size);
-
-    h = malloc(f_size * sizeof(npy_double));
-    if (!h) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-    for (ii = 0; ii < f_size; ii++) {
-        h[ii] = 0;
-    }
-    if (non_flat_strel) {
-        PYCV_ArrayIteratorInit(non_flat_strel, &iter_s);
-        num_type_s = PyArray_TYPE(non_flat_strel);
-        ps = (void *)PyArray_DATA(non_flat_strel);
-
-        jj = f_size - 1;
-        for (ii = PyArray_SIZE(non_flat_strel) - 1; ii >= 0; ii--) {
-            if (footprint[ii]) {
-                PYCV_GET_VALUE(num_type_s, npy_double, ps, out_val);
-                out_val = op == PYCV_MORPH_OP_ERO ? -out_val : out_val;
-                h[jj] = out_val;
-                jj--;
-            }
-            PYCV_ARRAY_ITERATOR_NEXT(iter_s, ps);
-        }
-    }
-
-    PYCV_NeighborhoodIteratorInit(input, PyArray_DIMS(flat_strel), center, f_size, &iter_i);
-
-    if (!PYCV_InitNeighborhoodOffsets(input, PyArray_DIMS(flat_strel), center, footprint, &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InitNeighborhoodOffsets \n");
-        goto exit;
-    }
-
-    PYCV_ArrayIteratorInit(output, &iter_o);
-
-    num_type_i = PyArray_TYPE(input);
-    num_type_o = PyArray_TYPE(output);
-
-    if (mask) {
-        num_type_m = PyArray_TYPE(mask);
-        PYCV_ArrayIteratorInit(mask, &iter_m);
-    }
-
-    NPY_BEGIN_THREADS;
-
-    pi = (void *)PyArray_DATA(input);
-    po = (void *)PyArray_DATA(output);
-    if (mask) {
-        ma = (void *)PyArray_DATA(mask);
-    }
-    ff = offsets;
-
-    for (ii = 0; ii < array_size; ii++) {
-        if (mask) {
-            PYCV_M_MASK_VALUE(num_type_m, ma, ma_val);
-        }
-
-        if (ma_val && f_size) {
-            for (jj = 0; jj < f_size; jj++) {
-                if (ff[jj] == flag) {
-                    val = c_val + h[jj];
-                } else {
-                    PYCV_GET_VALUE(num_type_i, npy_double, (pi + ff[jj]), val);
-                    val += h[jj];
-                }
-                if (!jj || (op == PYCV_MORPH_OP_ERO && val < out_val) || (op == PYCV_MORPH_OP_DIL && val > out_val)) {
-                    out_val = val;
-                }
-            }
-        } else {
-            PYCV_GET_VALUE(num_type_i, npy_double, pi, out_val);
-        }
-        PYCV_SET_VALUE_F2A(num_type_o, po, out_val);
-
-        if (mask) {
-            PYCV_NEIGHBORHOOD_ITERATOR_NEXT3(iter_i, pi, iter_o, po, iter_m, ma, ff);
-        } else {
-            PYCV_NEIGHBORHOOD_ITERATOR_NEXT2(iter_i, pi, iter_o, po, ff);
-        }
-    }
-    NPY_END_THREADS;
     exit:
         free(offsets);
         free(h);
@@ -467,70 +348,46 @@ int PYCV_gray_erosion_dilation(PyArrayObject *input,
 
 // #####################################################################################################################
 
-#define PYCV_M_CASE_FILL_IF_ZERO(_NTYPE, _dtype, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn)                  \
+#define CASE_FILL_IF_ZERO(_NTYPE, _dtype, _pi, _pos, _of, _flag, _dfs, _n)                                             \
 case NPY_##_NTYPE:                                                                                                     \
 {                                                                                                                      \
-    npy_ushort _outside, _visited;                                                                                     \
-    npy_intp _ii, _jj, _ndim;                                                                                          \
-    _ndim = (_iterator).nd_m1 + 1;                                                                                     \
-    for (_ii = 0; _ii < _of_n; _ii++) {                                                                                \
-        if (_of_r[_ii] == 0) {                                                                                         \
-            continue;                                                                                                  \
-        }                                                                                                              \
-        _outside = 0;                                                                                                  \
-        for (_jj = 0; _jj < _ndim; _jj++) {                                                                            \
-            _pn[_jj] = _p0[_jj] + _of_ur[_ii * _ndim + _jj];                                                           \
-            if (_pn[_jj] < 0 || _pn[_jj] > (_iterator).dims_m1[_jj]) {                                                 \
-                _outside = 1;                                                                                          \
-                break;                                                                                                 \
-            }                                                                                                          \
-        }                                                                                                              \
-        if (!_outside) {                                                                                               \
-            _visited = *(_dtype *)(_pi + _of_r[_ii]) ? 1 : 0;                                                          \
-            if (!_visited) {                                                                                           \
-                *(_dtype *)(_pi + _of_r[_ii]) = 1;                                                                     \
-                _nn++;                                                                                                 \
-                _pn += _ndim;                                                                                          \
-            }                                                                                                          \
-        }                                                                                                              \
+    if (_of != _flag && !*(_dtype *)(_pi + _of)) {                                                                     \
+        *(_dtype *)(_pi + _of) = 1;                                                                                    \
+        *(_dfs + _n) = _pos + _of;                                                                                     \
+        _n++;                                                                                                          \
     }                                                                                                                  \
 }                                                                                                                      \
 break
 
-#define PYCV_M_FILL_IF_ZERO(_NTYPE, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn)                               \
+#define FILL_IF_ZERO(_NTYPE, _pi, _pos, _of, _flag, _dfs, _n)                                                          \
 {                                                                                                                      \
     switch (_NTYPE) {                                                                                                  \
-        PYCV_M_CASE_FILL_IF_ZERO(BOOL, npy_bool, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);                 \
-        PYCV_M_CASE_FILL_IF_ZERO(UBYTE, npy_ubyte, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);               \
-        PYCV_M_CASE_FILL_IF_ZERO(USHORT, npy_ushort, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);             \
-        PYCV_M_CASE_FILL_IF_ZERO(UINT, npy_uint, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);                 \
-        PYCV_M_CASE_FILL_IF_ZERO(ULONG, npy_ulong, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);               \
-        PYCV_M_CASE_FILL_IF_ZERO(ULONGLONG, npy_ulonglong, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);       \
-        PYCV_M_CASE_FILL_IF_ZERO(BYTE, npy_byte, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);                 \
-        PYCV_M_CASE_FILL_IF_ZERO(SHORT, npy_short, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);               \
-        PYCV_M_CASE_FILL_IF_ZERO(INT, npy_int, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);                   \
-        PYCV_M_CASE_FILL_IF_ZERO(LONG, npy_long, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);                 \
-        PYCV_M_CASE_FILL_IF_ZERO(LONGLONG, npy_longlong, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);         \
-        PYCV_M_CASE_FILL_IF_ZERO(FLOAT, npy_float, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);               \
-        PYCV_M_CASE_FILL_IF_ZERO(DOUBLE, npy_double, _iterator, _pi, _of_n, _of_r, _of_ur, _nn, _p0, _pn);             \
+        CASE_FILL_IF_ZERO(BOOL, npy_bool, _pi, _pos, _of, _flag, _dfs, _n);                                            \
+        CASE_FILL_IF_ZERO(UBYTE, npy_ubyte, _pi, _pos, _of, _flag, _dfs, _n);                                          \
+        CASE_FILL_IF_ZERO(USHORT, npy_ushort, _pi, _pos, _of, _flag, _dfs, _n);                                        \
+        CASE_FILL_IF_ZERO(UINT, npy_uint, _pi, _pos, _of, _flag, _dfs, _n);                                            \
+        CASE_FILL_IF_ZERO(ULONG, npy_ulong, _pi, _pos, _of, _flag, _dfs, _n);                                          \
+        CASE_FILL_IF_ZERO(ULONGLONG, npy_ulonglong, _pi, _pos, _of, _flag, _dfs, _n);                                  \
+        CASE_FILL_IF_ZERO(BYTE, npy_byte, _pi, _pos, _of, _flag, _dfs, _n);                                            \
+        CASE_FILL_IF_ZERO(SHORT, npy_short, _pi, _pos, _of, _flag, _dfs, _n);                                          \
+        CASE_FILL_IF_ZERO(INT, npy_int, _pi, _pos, _of, _flag, _dfs, _n);                                              \
+        CASE_FILL_IF_ZERO(LONG, npy_long, _pi, _pos, _of, _flag, _dfs, _n);                                            \
+        CASE_FILL_IF_ZERO(LONGLONG, npy_longlong, _pi, _pos, _of, _flag, _dfs, _n);                                    \
+        CASE_FILL_IF_ZERO(FLOAT, npy_float, _pi, _pos, _of, _flag, _dfs, _n);                                          \
+        CASE_FILL_IF_ZERO(DOUBLE, npy_double, _pi, _pos, _of, _flag, _dfs, _n);                                        \
     }                                                                                                                  \
 }
-
-// *********************************************************************************************************************
 
 int PYCV_binary_region_fill(PyArrayObject *output,
                             npy_intp *seed_point,
                             PyArrayObject *strel,
                             npy_intp *center)
 {
-    PYCV_ArrayIterator iter_o;
+    NeighborhoodIterator iter_o;
     char *po = NULL, *po_base = NULL;
     npy_bool *footprint;
-    int num_type_o;
-    npy_intp ndim, array_size, ii, f_size, *offsets_r, *offsets_ur;
-    npy_intp n0 = 0, nn = 0, *p, *p0, *pn;
-
-    NPY_BEGIN_THREADS_DEF;
+    npy_intp array_size, f_size, *offsets, *ff, flag;
+    npy_intp *dfs = NULL, n = 1, ni = 0, ii;
 
     array_size = PyArray_SIZE(output);
 
@@ -539,76 +396,78 @@ int PYCV_binary_region_fill(PyArrayObject *output,
         goto exit;
     }
 
-    PYCV_ArrayIteratorInit(output, &iter_o);
-
-    if (!PYCV_InitOffsets(output, PyArray_DIMS(strel), center, footprint, &offsets_r, &offsets_ur)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InitOffsets \n");
+    if (!PYCV_InitNeighborhoodOffsets(output, PyArray_DIMS(strel), center, footprint,
+                                      &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InitNeighborhoodOffsets \n");
         goto exit;
     }
+    PYCV_NeighborhoodIteratorInit(output, PyArray_DIMS(strel), center, f_size, &iter_o);
 
-    ndim = iter_o.nd_m1 + 1;
+    dfs = malloc(array_size * sizeof(npy_intp));
 
-    p = malloc((array_size + 1) * ndim * sizeof(npy_intp));
-    if (!p) {
+    if (!dfs) {
         PyErr_NoMemory();
         goto exit;
     }
-    pn = p0 = p;
-    num_type_o = PyArray_TYPE(output);
 
-    NPY_BEGIN_THREADS;
+    PYCV_RAVEL_COORDINATE(seed_point, iter_o.nd_m1 + 1, iter_o.strides, *dfs);
 
     po_base = po = (void *)PyArray_DATA(output);
 
-    for (ii = 0; ii < ndim; ii++) {
-        *pn++ = seed_point[ii];
-    }
-    nn++;
+    while (ni < n) {
+        PYCV_NEIGHBORHOOD_ITERATOR_GOTO_RAVEL(iter_o, po_base, po, offsets, ff, *(dfs + ni));
 
-    PYCV_ARRAY_ITERATOR_GOTO(iter_o, po_base, po, p0);
-    PYCV_SET_VALUE(num_type_o, po, 1);
-
-    while (n0 < nn) {
-        PYCV_ARRAY_ITERATOR_GOTO(iter_o, po_base, po, p0);
-        PYCV_M_FILL_IF_ZERO(num_type_o, iter_o, po, f_size, offsets_r, offsets_ur, nn, p0, pn);
-        n0++;
-        p0 += ndim;
+        for (ii = 0; ii < f_size; ii++) {
+            FILL_IF_ZERO(iter_o.numtype, po, *(dfs + ni), *(ff + ii), flag, dfs, n);
+        }
+        ni++;
     }
-    NPY_END_THREADS;
 
     exit:
-        free(p);
-        free(offsets_r);
-        free(offsets_ur);
+        free(dfs);
+        free(offsets);
         free(footprint);
         return PyErr_Occurred() ? 0 : 1;
 }
 
 // #####################################################################################################################
 
-int PYCV_labeling(PyArrayObject *input,
-                  npy_intp connectivity,
-                  PyArrayObject *output)
+#define LABELING_VALID_LONGLONG(_array) PyArray_TYPE(_array) == NPY_INT64
+
+int PYCV_labeling(PyArrayObject *input, npy_intp connectivity, PyArrayObject *output)
 {
-    PYCV_ArrayIterator iter_i;
-    NeighborhoodIterator iter_o;
+    PYCV_ArrayIterator iter_o;
+    NeighborhoodIterator iter_i;
+    PyArrayObject *c_output, *c_input;
     char *po_base = NULL, *po = NULL, *pi = NULL;
-    int num_type_o, num_type_i;
-    npy_intp itemsize_o;
     npy_bool *footprint;
-    npy_intp ndim, array_size, f_size, f_shape[NPY_MAXDIMS], f_center[NPY_MAXDIMS], *offsets, *ff, flag;
-    npy_intp *buffer, *fix, *labels, ii, jj, b_size, ln, lp, lc, n_labels = 1, vo;
-    npy_bool vi;
+    npy_intp ndim, array_size, f_size, *f_shape = NULL, *f_center = NULL, *offsets = NULL, *ff = NULL, flag;
+    npy_intp ii, jj, loc = 0;
+    int vi, ne, pc, ppi, ce, n_labels = 1, itemsize = (int)NPY_SIZEOF_LONGLONG, *djs = NULL, *edges = NULL;
+
+    if (!LABELING_VALID_LONGLONG(input) || !LABELING_VALID_LONGLONG(output)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: LABELING_VALID_LONGLONG \n");
+        return 0;
+    }
 
     NPY_BEGIN_THREADS_DEF;
 
-    array_size = PyArray_SIZE(input);
-    ndim = (npy_intp)PyArray_NDIM(input);
-    itemsize_o = (npy_intp)PyArray_ITEMSIZE(output);
+    c_output = (PyArrayObject *)PyArray_GETCONTIGUOUS(output);
+    c_input = (PyArrayObject *)PyArray_GETCONTIGUOUS(input);
+
+    array_size = PyArray_SIZE(c_input);
+    ndim = (npy_intp)PyArray_NDIM(c_input);
+
+    f_shape = malloc(ndim * 2 * sizeof(npy_intp));
+    if (!f_shape) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    f_center = f_shape + ndim;
 
     for (ii = 0; ii < ndim; ii++) {
-        f_shape[ii] = 3;
-        f_center[ii] = 1;
+        *(f_shape + ii) = 3;
+        *(f_center + ii) = 1;
     }
 
     if (!PYCV_DefaultFootprint(ndim, connectivity, &footprint, &f_size, 1)) {
@@ -616,115 +475,89 @@ int PYCV_labeling(PyArrayObject *input,
         goto exit;
     }
 
-    PYCV_NeighborhoodIteratorInit(output, f_shape, f_center, f_size, &iter_o);
+    djs = malloc((array_size + f_size) * sizeof(int));
+    if (!djs) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    edges = djs + array_size;
 
-    if (!PYCV_InitNeighborhoodOffsets(output, f_shape, f_center, footprint, &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
+
+    if (!PYCV_InitNeighborhoodOffsets(c_input, f_shape, f_center, footprint, &offsets, NULL, &flag, PYCV_EXTEND_CONSTANT)) {
         PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InitNeighborhoodOffsets \n");
         goto exit;
     }
 
-
-    buffer = malloc(f_size * sizeof(npy_intp));
-    if (!buffer) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-
-    fix = calloc(array_size, sizeof(npy_intp));
-    if (!fix) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-
-    labels = calloc(array_size, sizeof(npy_intp));
-    if (!labels) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-
-    PYCV_ArrayIteratorInit(input, &iter_i);
-
-    num_type_i = PyArray_TYPE(input);
-    num_type_o = PyArray_TYPE(output);
+    PYCV_NeighborhoodIteratorInit(c_input, f_shape, f_center, f_size, &iter_i);
+    PYCV_ArrayIteratorInit(c_output, &iter_o);
 
     NPY_BEGIN_THREADS;
 
-    pi = (void *)PyArray_DATA(input);
+    pi = (void *)PyArray_DATA(c_input);
     po_base = po = (void *)PyArray_DATA(output);
     ff = offsets;
 
     for (ii = 0; ii < array_size; ii++) {
-        fix[ii] = 0;
-        labels[ii] = 0;
-        PYCV_GET_VALUE(num_type_i, npy_bool, pi, vi);
-
+        vi = (int)(*(npy_longlong *)pi);
         if (vi) {
-            b_size = 0;
-            vo = n_labels;
+            *(djs + ii) = (int)ii;
+            ne = 0;
             for (jj = 0; jj < f_size; jj++) {
-                if (ff[jj] == flag) {
+                if (*(ff + jj) == flag || vi != (int)(*(npy_longlong *)(pi + *(ff + jj)))) {
                     continue;
                 }
-                PYCV_GET_VALUE(num_type_o, npy_intp, (po + ff[jj]), lc);
-                if (!lc) {
-                    continue;
+                pc = (int)ii + (int)(*(ff + jj)) / itemsize;
+                *(djs + ii) = *(djs + ii) > *(djs + pc) ? *(djs + pc) : *(djs + ii);
+                *(edges + ne) = pc;
+                ne++;
+            }
+            if (ne) {
+                ppi = *(djs + ii);
+                while (*(djs + ppi) != ppi) {
+                    ppi = *(djs + ppi);
                 }
-                vo = vo > lc ? lc : vo;
-                buffer[b_size] = lc;
-                b_size++;
-            }
-            if (!b_size) {
-                n_labels++;
-            }
-            PYCV_SET_VALUE(num_type_o, po, vo);
-
-            lp = vo;
-            while (fix[lp] != 0) {
-                lp = fix[lp];
-            }
-            for (jj = 0; jj < b_size; jj++) {
-                ln = buffer[jj];
-                if (ln != vo) {
-                    while (fix[ln] != 0) {
-                        ln = fix[ln];
+                for (jj = 0; jj < ne; jj++) {
+                    ce = *(edges + jj);
+                    while (*(djs + ce) != ce) {
+                        ce = *(djs + ce);
                     }
-                    if (lp != ln) {
-                        fix[ln] = lp;
+                    if (ce != ppi) {
+                        *(djs + ce) = ppi;
                     }
                 }
             }
+        } else {
+            *(djs + ii) = -1;
         }
-        PYCV_NEIGHBORHOOD_ITERATOR_NEXT2(iter_o, po, iter_i, pi, ff);
+        PYCV_NEIGHBORHOOD_ITERATOR_NEXT(iter_i, pi, ff);
     }
 
-    PYCV_NEIGHBORHOOD_ITERATOR_RESET(iter_o);
-    po = po_base;
-    n_labels = 1;
-
     for (ii = 0; ii < array_size; ii++) {
-        PYCV_GET_VALUE(num_type_o, npy_intp, po, lc);
-        if (lc) {
-            while (fix[lc] != 0) {
-                lc = fix[lc];
+        if (*(djs + ii) != -1) {
+            if (*(djs + ii) != *(djs + *(djs + ii))) {
+                *(djs + ii) = *(djs + *(djs + ii));
             }
-            if (!labels[lc]) {
-                labels[lc] = n_labels;
+
+            if (!*(npy_longlong *)(po_base + (*(djs + ii) * itemsize))) {
+                *(npy_longlong *)(po_base + (*(djs + ii) * itemsize)) = (npy_longlong)n_labels;
                 n_labels++;
             }
-            PYCV_SET_VALUE(num_type_o, po, labels[lc]);
+
+            *(npy_longlong *)po = *(npy_longlong *)(po_base + (*(djs + ii) * itemsize));
+
         } else {
-            PYCV_SET_VALUE(num_type_o, po, 0);
+            *(npy_longlong *)po = 0;
         }
         PYCV_ARRAY_ITERATOR_NEXT(iter_o, po);
     }
 
     NPY_END_THREADS;
     exit:
+        Py_XDECREF(c_output);
+        Py_XDECREF(c_input);
         free(footprint);
         free(offsets);
-        free(buffer);
-        free(fix);
-        free(labels);
+        free(djs);
         return PyErr_Occurred() ? 0 : 1;
 }
 

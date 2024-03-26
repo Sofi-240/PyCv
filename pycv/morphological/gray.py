@@ -40,7 +40,7 @@ def gray_erosion(
     Returns:
         numpy.ndarray: Output grayscale image after applying the erosion operation.
     """
-    ret = pycv_morphology.gray_ero_or_dil(0, image, strel, offset, mask, output, border_val)
+    ret = pycv_morphology.gray_erosion(image, strel, offset=offset, mask=mask, border_val=border_val, output=output)
     return output if ret is None else ret
 
 
@@ -70,7 +70,7 @@ def gray_dilation(
     Returns:
         numpy.ndarray: Output grayscale image after applying the dilation operation.
     """
-    ret = pycv_morphology.gray_ero_or_dil(1, image, strel, offset, mask, output, border_val)
+    ret = pycv_morphology.gray_erosion(image, strel, offset=offset, mask=mask, border_val=border_val, output=output, invert=True)
     return output if ret is None else ret
 
 
@@ -100,8 +100,8 @@ def gray_opening(
     Returns:
         numpy.ndarray: Output grayscale image after applying the opening operation.
     """
-    ero = pycv_morphology.gray_ero_or_dil(0, image, strel, offset, mask, None, border_val)
-    ret = pycv_morphology.gray_ero_or_dil(1, ero, strel, offset, mask, output, border_val)
+    ero = pycv_morphology.gray_erosion(image, strel, offset=offset, mask=mask, border_val=border_val)
+    ret = pycv_morphology.gray_erosion(ero, strel, offset=offset, mask=mask, border_val=border_val, output=output, invert=True)
     return output if ret is None else ret
 
 
@@ -131,8 +131,8 @@ def gray_closing(
     Returns:
         numpy.ndarray: Output grayscale image after applying the closing operation.
     """
-    dil = pycv_morphology.gray_ero_or_dil(1, image, strel, offset, mask, None, border_val)
-    ret = pycv_morphology.gray_ero_or_dil(0, dil, strel, offset, mask, output, border_val)
+    dil = pycv_morphology.gray_erosion(image, strel, offset=offset, mask=mask, border_val=border_val, invert=True)
+    ret = pycv_morphology.gray_erosion(dil, strel, offset=offset, mask=mask, output=output, border_val=border_val)
     return output if ret is None else ret
 
 

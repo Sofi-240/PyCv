@@ -373,7 +373,6 @@ void CConvexHullPy_dealloc(CConvexHull *self)
 {
     Py_XDECREF(self->points);
     Py_XDECREF(self->vertices);
-    Py_XDECREF(self->convex_image);
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
@@ -387,7 +386,6 @@ PyObject *CConvexHullPy_new(PyTypeObject *type, PyObject *args, PyObject *kw)
         self->n_vertices = 0;
         self->points = NULL;
         self->vertices = NULL;
-        self->convex_image = NULL;
     }
 
     return (PyObject *)self;
@@ -484,23 +482,6 @@ PyObject *CConvexHullPy_convex_to_image(CConvexHull *self, PyObject *args)
         goto exit;
     }
 
-    if (self->convex_image != NULL) {
-        int ii, same = 1;
-        for (ii = 0; ii < self->ndim; ii++) {
-            if ((int)PyArray_DIM(self->convex_image, ii) != (int)shape.ptr[ii]) {
-                same = 0;
-                break;
-            }
-        }
-        if (!same) {
-            PyDimMem_FREE(self->convex_image);
-            self->convex_image = NULL;
-        } else {
-            output = self->convex_image;
-            goto exit;
-        }
-    }
-
     output = (PyArrayObject *)PyArray_EMPTY(self->ndim, shape.ptr, NPY_BOOL, 0);
 
     if (!output) {
@@ -512,7 +493,8 @@ PyObject *CConvexHullPy_convex_to_image(CConvexHull *self, PyObject *args)
         PyErr_SetString(PyExc_RuntimeError, "Error: chull_to_bw_image \n");
         goto exit;
     }
-    self->convex_image = output;
+
+    PyArray_ResolveWritebackIfCopy(output);
 
     exit:
         PyDimMem_FREE(shape.ptr);

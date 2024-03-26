@@ -267,7 +267,7 @@ def color_mapping_range(
     elif method == 'log':
         ranges = [0] + list(int(math.log2(i)) for i in range(1, 256))
     elif method == 'linear':
-        ranges = list(int(i // mod_value) for i in range(256))
+        ranges = [0] + list(1 + int(i // mod_value) for i in range(1, 256))
     else:
         raise ValueError(f'method need to be "sqr", "log" or "linear"')
 

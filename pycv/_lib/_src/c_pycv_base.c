@@ -37,6 +37,7 @@ void PYCV_ArrayIteratorInit(PyArrayObject *array, PYCV_ArrayIterator *iterator)
         iterator->strides_back[ii] = iterator->strides[ii] * iterator->dims_m1[ii];
         iterator->coordinates[ii] = 0;
     }
+    iterator->numtype = (int)PyArray_TYPE(array);
 }
 
 void PYCV_CoordinatesIteratorInit(npy_intp ndim, npy_intp *dims, PYCV_CoordinatesIterator *iterator)
@@ -232,6 +233,8 @@ void PYCV_NeighborhoodIteratorInit(PyArrayObject *array,
         iterator->boundary_low[ii] = k_center[ii];
         iterator->boundary_high[ii] = array_dims[ii] - shape[ii] + k_center[ii];
     }
+
+    iterator->numtype = (int)PyArray_TYPE(array);
 }
 
 
@@ -439,10 +442,10 @@ int PYCV_AllocateKernelFlip(PyArrayObject *kernel, npy_bool **footprint, npy_dou
         for (ii = k_size - 1; ii >= 0; ii--) {
             PYCV_GET_VALUE(num_type, npy_double, pk, tmp);
             if (fabs(tmp) > DBL_EPSILON) {
-                *ff++ = 1;
+                ff[ii] = 1;
                 f_size += 1;
             } else {
-                *ff++ = 0;
+                ff[ii] = 0;
             }
             PYCV_ARRAY_ITERATOR_NEXT(iter, pk);
         }
@@ -565,6 +568,42 @@ int PYCV_CoordinatesListFree(PYCV_CoordinatesList *object)
     }
     free(object->coordinates);
     object->coordinates_size = 0;
+    return 1;
+}
+
+// #####################################################################################################################
+
+int PYCV_CopyArrayTo(PyArrayObject *to, PyArrayObject *from)
+{
+    PYCV_ArrayIterator iter_to, iter_from;
+    char *ptr_to = NULL, *ptr_from = NULL;
+    npy_intp ii, size;
+    double f;
+
+    PYCV_ArrayIteratorInit(to, &iter_to);
+    PYCV_ArrayIteratorInit(from, &iter_from);
+
+    if (iter_to.nd_m1 != iter_from.nd_m1) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: arrays have different ndims \n");
+        return 0;
+    }
+
+    for (ii = 0; ii <= iter_to.nd_m1; ii++) {
+        if (iter_to.dims_m1[ii] != iter_from.dims_m1[ii]) {
+            PyErr_SetString(PyExc_RuntimeError, "Error: arrays have different dims size \n");
+            return 0;
+        }
+    }
+
+    size = PyArray_SIZE(to);
+    ptr_to = (void *)PyArray_DATA(to);
+    ptr_from = (void *)PyArray_DATA(from);
+
+    for (ii = 0; ii < size; ii++) {
+        PYCV_GET_VALUE(iter_from.numtype, double, ptr_from, f);
+        PYCV_SET_VALUE(iter_to.numtype, ptr_to, f);
+        PYCV_ARRAY_ITERATOR_NEXT2(iter_from, ptr_from, iter_to, ptr_to);
+    }
     return 1;
 }
 

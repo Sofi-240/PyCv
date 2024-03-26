@@ -1,8 +1,8 @@
 import numpy as np
-from .utils import ctype_convex_hull_mode
-from ..array_api.regulator import np_compliance
-from ..array_api.dtypes import as_binary_array
-from .pycv_minsc import draw
+from .._lib._src_py.utils import ctype_convex_hull_mode
+from .._lib.array_api.regulator import np_compliance
+from .._lib.array_api.dtypes import as_binary_array
+from .._lib._src_py.pycv_minsc import draw
 from pycv._lib._src.c_pycv import CConvexHull
 from typing import Iterable
 

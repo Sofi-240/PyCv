@@ -4,12 +4,13 @@ from pycv._lib._src import c_pycv
 from ..filters_support.kernel_utils import default_binary_strel, color_mapping_range
 from ..array_api.dtypes import as_binary_array, get_dtype_info
 from ..array_api.regulator import np_compliance
+from ..array_api.array_pad import pad
 
 __all__ = [
     'default_strel',
     'binary_erosion',
     'binary_region_fill',
-    'gray_ero_or_dil',
+    'gray_erosion',
     'labeling',
     'skeletonize',
     'area_open_close',
@@ -51,18 +52,10 @@ def binary_erosion(
         extra_memory: bool = True
 ) -> np.ndarray | None:
     image = np.asarray(image)
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np_compliance(image, 'image', _check_finite=True, _check_atleast_nd=1)
     nd = image.ndim
 
-    if image.dtype != bool:
-        image = as_binary_array(image, 'Image')
-
     strel, offset = default_strel(strel, nd, offset=offset)
-
-    if strel.dtype != bool:
-        strel = as_binary_array(strel, 'strel')
-
-    valid_kernel_shape_with_ref(strel.shape, image.shape)
 
     input_output = output is not None
 
@@ -84,22 +77,18 @@ def binary_erosion(
         if mask.shape != image.shape:
             raise ValueError(f'image and mask shape does not match {image.shape} != {mask.shape}')
 
-    if np.all(image == 0) and border_val == 0:
+    if (np.all(image == 0) and border_val == 0) or iterations == 0:
         output[...] = 0
-    elif iterations == 1:
-        c_pycv.binary_erosion(image, strel, output, offset, mask, int(invert), border_val)
+    elif iterations != 1 and (strel[offset] == 0 or not extra_memory):
+        inp = image.copy()
+        change = True
+        while iterations != 0 and change:
+            c_pycv.binary_erosion(inp, strel, output, offset, 1, mask, int(invert), border_val)
+            change = np.any(inp != output)
+            inp[...] = output
+            iterations -= 1
     else:
-        center_zero = strel[offset] == 0
-        if center_zero or not extra_memory:
-            inp = image.copy()
-            change = True
-            while iterations != 0 and change:
-                c_pycv.binary_erosion(inp, strel, output, offset, mask, int(invert), border_val)
-                change = np.any(inp != output)
-                inp[...] = output
-                iterations -= 1
-        else:
-            c_pycv.binary_erosion_iter(image, strel, output, offset, iterations, mask, int(invert), border_val)
+        c_pycv.binary_erosion(image, strel, output, offset, iterations, mask, int(invert), border_val)
 
     if share_memory:
         hold_output[...] = output
@@ -119,15 +108,11 @@ def binary_region_fill(
         inplace: bool = False
 ) -> np.ndarray:
     image = np.asarray(image)
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np_compliance(image, 'image', _check_finite=True, _check_atleast_nd=1)
 
     nd = image.ndim
 
-    if image.dtype != bool:
-        image = as_binary_array(image, 'Image')
-
     strel, offset = default_strel(strel, nd, offset=offset, hole=True)
-    valid_kernel_shape_with_ref(strel.shape, image.shape)
 
     if inplace:
         output = image
@@ -136,7 +121,7 @@ def binary_region_fill(
         output[...] = image
 
     if np.all(image == 0):
-        output[...] = 0
+        output[...] = 1
     else:
         c_pycv.binary_region_fill(output, seed_point, strel, offset)
 
@@ -145,29 +130,22 @@ def binary_region_fill(
 
 ########################################################################################################################
 
-def gray_ero_or_dil(
-        op: int,
+def gray_erosion(
         image: np.ndarray,
         strel: np.ndarray | None = None,
         offset: tuple | None = None,
         mask: np.ndarray | None = None,
         output: np.ndarray | None = None,
-        border_val: float = 0
+        border_val: float = 0,
+        invert: bool = False
 ) -> np.ndarray | None:
     image = np.asarray(image)
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np_compliance(image, 'image', _check_finite=True, _check_atleast_nd=1)
     nd = image.ndim
 
     strel, offset = default_strel(strel, nd, offset=offset)
 
-    if strel.dtype == bool:
-        non_flat_strel = None
-    else:
-        non_flat_strel = strel
-        strel = np.ones_like(strel, bool)
-
-    valid_kernel_shape_with_ref(strel.shape, image.shape)
-
+    non_flat_strel = strel.dtype != bool
     input_output = output is not None
 
     output, share_memory = get_output(output, image, image.shape)
@@ -188,10 +166,10 @@ def gray_ero_or_dil(
             raise ValueError(f'image and mask shape does not match {image.shape} != {mask.shape}')
 
     if np.all(image == 0) and border_val == 0:
-        output[...] = np.min(image - (np.min(non_flat_strel) if non_flat_strel is not None else 0)) if op == 0 else \
-            np.max(image + (np.max(non_flat_strel) if non_flat_strel is not None else 0))
+        output[...] = np.min(image - (np.min(strel) if non_flat_strel else 0)) if not invert else \
+            np.max(image + (np.max(strel) if non_flat_strel else 0))
     else:
-        c_pycv.gray_erosion_dilation(image, strel, non_flat_strel, output, offset, mask, op, border_val)
+        c_pycv.gray_erosion(image, strel, output, offset, mask, int(invert), border_val)
 
     if share_memory:
         hold_output[...] = output
@@ -210,7 +188,7 @@ def labeling(
         mod_value: int = 16,
 ) -> tuple[int, np.ndarray]:
     image = np.asarray(image)
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np_compliance(image, 'image', _check_finite=True, _check_atleast_nd=1)
 
     if connectivity < 1 or connectivity > image.ndim:
         raise ValueError(
@@ -234,7 +212,7 @@ def labeling(
 
     output = np.zeros(inputs.shape, np.int64)
 
-    c_pycv.labeling(inputs, connectivity, output)
+    c_pycv.labeling(inputs.astype(np.int64, copy=False), connectivity, output)
 
     return np.max(output), output
 
@@ -245,12 +223,11 @@ def skeletonize(
         image: np.ndarray
 ) -> np.ndarray:
     image = np.asarray(image)
-    image = np_compliance(image, 'image', _check_finite=True)
-
-    if image.dtype != bool:
-        image = as_binary_array(image, 'Image')
-
-    output = c_pycv.skeletonize(image)
+    image = np_compliance(image, 'image', _check_finite=True, _check_atleast_nd=2)
+    pw = ((1, 1), ) * image.ndim
+    inputs = pad(image, pw, mode='constant', constant_values=0)
+    output = c_pycv.skeletonize(inputs)
+    output = output[tuple(slice(1, -1) for _ in range(inputs.ndim))]
     return output
 
 

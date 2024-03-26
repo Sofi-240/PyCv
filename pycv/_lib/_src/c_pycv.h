@@ -18,9 +18,7 @@ PyObject* rank_filter(PyObject* self, PyObject* args);
 
 PyObject* binary_erosion(PyObject* self, PyObject* args);
 
-PyObject* binary_erosion_iter(PyObject* self, PyObject* args);
-
-PyObject* gray_erosion_dilation(PyObject* self, PyObject* args);
+PyObject* gray_erosion(PyObject* self, PyObject* args);
 
 PyObject* binary_region_fill(PyObject* self, PyObject* args);
 
@@ -68,6 +66,8 @@ PyTypeObject CKDnode_Type;
 PyTypeObject CKDtree_Type;
 
 PyTypeObject CConvexHull_Type;
+
+PyTypeObject CKMeans_Type;
 
 // #####################################################################################################################
 

@@ -2,7 +2,7 @@ import numpy as np
 import os.path as osp
 from pycv._lib._src import c_pycv
 from pycv.draw import mark_points, Shapes, draw_circle
-from pycv.measurements._measure import Bbox
+from pycv.measurements._label_properties import Bbox, RegionProperties
 from pycv.io import ImageLoader, show_collection
 from pycv.segmentation import Thresholds, im_threshold
 from pycv.morphological import im_label, find_object, gray_closing, Strel, remove_small_objects, region_fill, convex_hull
@@ -23,7 +23,7 @@ n_labels, labels = im_label(coins_bin)
 
 boxes = [Bbox(bbox) for bbox in find_object(labels, as_slice=True)]
 
-chulls = convex_hull(coins_bin, objects=True, labels=labels)
+props = RegionProperties(boxes[0](labels), offset=boxes[0])
 
 # center = [Bbox(bbox).centroid_point for bbox in find_object(labels, as_slice=True)]
 #

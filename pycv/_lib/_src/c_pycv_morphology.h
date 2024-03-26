@@ -3,40 +3,24 @@
 
 // #####################################################################################################################
 
-typedef enum {
-    PYCV_MORPH_OP_ERO = 0,
-    PYCV_MORPH_OP_DIL = 1,
-} PYCV_MorphOP;
-
-// #####################################################################################################################
-
 int PYCV_binary_erosion(PyArrayObject *input,
                         PyArrayObject *strel,
                         PyArrayObject *output,
                         npy_intp *center,
+                        int iterations,
                         PyArrayObject *mask,
-                        PYCV_MorphOP op,
+                        int invert,
                         int c_val);
-
-int PYCV_binary_erosion_iter(PyArrayObject *input,
-                             PyArrayObject *strel,
-                             PyArrayObject *output,
-                             npy_intp *center,
-                             npy_intp iterations,
-                             PyArrayObject *mask,
-                             PYCV_MorphOP op,
-                             int c_val);
 
 // #####################################################################################################################
 
-int PYCV_gray_erosion_dilation(PyArrayObject *input,
-                               PyArrayObject *flat_strel,
-                               PyArrayObject *non_flat_strel,
-                               PyArrayObject *output,
-                               npy_intp *center,
-                               PyArrayObject *mask,
-                               PYCV_MorphOP op,
-                               npy_double c_val);
+int PYCV_gray_erosion(PyArrayObject *input,
+                      PyArrayObject *strel,
+                      PyArrayObject *output,
+                      npy_intp *center,
+                      PyArrayObject *mask,
+                      int invert,
+                      npy_double c_val);
 
 // #####################################################################################################################
 

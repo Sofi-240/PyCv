@@ -25,7 +25,6 @@ typedef struct {
     int n_vertices;
     PyArrayObject *points;
     PyArrayObject *vertices;
-    PyArrayObject *convex_image;
 } CConvexHull;
 
 void CConvexHullPy_dealloc(CConvexHull *self);

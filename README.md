@@ -55,7 +55,6 @@ and image transformation.
 * **binary_opening:** Performs binary opening operation on binary images.
 * **black_top:** Applies black top-hat transform on grayscale images.
 * **convex_hull:** Finds the convex hull of objects in binary images.
-* **convex_image:** Generates an image from convex hull vertices.
 * **find_object:** Finds objects in labeled images.
 * **gray:** Converts binary images to grayscale.
 * **gray_closing:** Performs grayscale closing operation on grayscale images.
@@ -87,6 +86,7 @@ and image transformation.
 
 * **kdtree:** Implementation of k-dimensional trees for spatial data structures.
 * **kmeans:** Implementation of kmeans algorithm.
+* **convex hull:** Implementation of convex hull algorithms.
 
 ### 8. transform: Functions for geometric transformations.
 

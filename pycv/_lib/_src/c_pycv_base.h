@@ -129,6 +129,7 @@ typedef struct {
     npy_intp coordinates[NPY_MAXDIMS];
     npy_intp strides[NPY_MAXDIMS];
     npy_intp strides_back[NPY_MAXDIMS];
+    int numtype;
 } PYCV_ArrayIterator;
 
 
@@ -332,6 +333,7 @@ typedef struct {
     npy_intp nn_strides_back[NPY_MAXDIMS];
     npy_intp boundary_low[NPY_MAXDIMS];
     npy_intp boundary_high[NPY_MAXDIMS];
+    int numtype;
 } NeighborhoodIterator;
 
 
@@ -602,5 +604,10 @@ int PYCV_CoordinatesListFree(PYCV_CoordinatesList *object);
 
 
 // #####################################################################################################################
+
+int PYCV_CopyArrayTo(PyArrayObject *to, PyArrayObject *from);
+
+// #####################################################################################################################
+
 
 #endif

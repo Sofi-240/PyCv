@@ -1,5 +1,4 @@
 import numpy as np
-import typing
 
 __all__ = [
     'np_compliance',
@@ -16,6 +15,7 @@ def np_compliance(
         inputs: np.ndarray,
         arg_name: str = 'array',
         _check_finite: bool = False,
+        _check_atleast_nd: int = 0
 ) -> np.ndarray:
     msg_bad_np = arg_name + " of type s% are not supported."
     msg_bad_dtype = arg_name + " has dtype %s only boolean and numerical dtypes are supported."
@@ -32,12 +32,15 @@ def np_compliance(
         try:
             inputs = np.asanyarray(inputs)
         except TypeError:
-            raise TypeError("Inputs array not coercible by numpy")
+            raise TypeError(f"Inputs {arg_name} not coercible by numpy")
         dtype = inputs.dtype
         if not (np.issubdtype(dtype, np.number) or np.issubdtype(dtype, np.bool_)):
             raise TypeError(msg_bad_dtype % str(dtype))
     if _check_finite:
         check_finite(inputs, True, arg_name)
+    if _check_atleast_nd:
+        if inputs.ndim < _check_atleast_nd:
+            raise TypeError(f'Input {arg_name} need to be with atleast {_check_atleast_nd} dimensions got {inputs.ndim}')
     return inputs
 
 

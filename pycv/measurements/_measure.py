@@ -1,65 +1,64 @@
 import numpy as np
-from pycv.morphological import find_object
+from .._lib._src_py import pycv_filters
+from ..morphological import binary_edge, Strel
+from .._lib.array_api.regulator import np_compliance
 
 __all__ = [
-    'Bbox',
+    'perimeter',
+    'moments'
 ]
 
 
 ########################################################################################################################
 
-class Bbox(object):
-    def __init__(self, bbox: tuple):
-        if all(isinstance(b, slice) for b in bbox):
-            self.bbox = [
-                np.array(tuple(b.start for b in bbox), dtype=np.int64),
-                np.array(tuple(b.stop - 1 for b in bbox), dtype=np.int64)
-            ]
-        else:
-            if len(bbox) != 2:
-                raise ValueError('bbox must be tuple with size of 2 (top left, bottom right)')
-            self.bbox = list(np.array(b, dtype=np.int64) for b in bbox)
+def perimeter(label_image: np.ndarray) -> float:
+    """
+    https://studylib.net/doc/5847818/design-and-fpga-implementation-of-a-perimeter-estimator
+    """
+    edge = binary_edge(
+        label_image != 0,
+        edge_mode='inner',
+        strel=Strel.DEFAULT_STREL(label_image.ndim, connectivity=1)
+    )
+    kernel = np.array([[10, 2, 10], [2, 1, 2], [10, 2, 10]], np.float64)
+    accumulate = pycv_filters.convolve(
+        edge.astype(np.float64), kernel, padding_mode='constant', constant_value=0.
+    )
+    accumulate = accumulate.astype(np.int64)
+    hist = np.bincount(accumulate.ravel(), minlength=50)
 
-    def __repr__(self):
-        return f'{self.__class__.__name__}: ' \
-               f'{np.array2string(self.top_left, separator=", ")}, {np.array2string(self.bottom_right, separator=", ")}'
+    weights = np.zeros(50, dtype=np.float64)
+    weights[[5, 7, 15, 17, 25, 27]] = 1
+    weights[[21, 33]] = np.sqrt(2)
+    weights[[13, 23]] = (1 + np.sqrt(2)) / 2
 
-    def __call__(self, image: np.ndarray):
-        if image.ndim not in (self.ndim, self.ndim + 1):
-            raise ValueError(f'invalid image dimensions expected to be '
-                             f'{self.ndim} or {self.ndim + 1} for color image')
-        if any(b >= s for b, s in zip(self.bottom_right, image.shape)):
-            raise ValueError(f'image dimensions length is to small')
-        return image[self.slice]
+    return hist @ weights
 
-    @property
-    def ndim(self):
-        return self.top_left.shape[0]
 
-    @property
-    def top_left(self) -> np.ndarray:
-        return self.bbox[0]
+def moments(image: np.ndarray, center: np.ndarray | None = None, order: int = 3) -> np.ndarray:
+    image = np_compliance(image, 'label_image', _check_finite=True).astype(np.float64)
+    ndim = image.ndim
 
-    @property
-    def bottom_right(self) -> np.ndarray:
-        return self.bbox[1]
+    if center is None:
+        center = np.zeros((ndim, ) + (1, ) * ndim, dtype=np.float64)
+    else:
+        center = np.array(center, dtype=np.float64)
+        center = center.reshape(center.shape + (1, ) * ndim)
+        if center.ndim != ndim + 1:
+            raise ValueError('center need to be with size equal to ndim')
 
-    @property
-    def centroid(self) -> np.ndarray:
-        return sum(self.bbox) / 2
+    pq = np.indices(image.shape, dtype=np.float64) - center
+    pq = pq[..., np.newaxis] ** np.arange(order + 1, dtype=np.float64)
+    pq = pq.reshape(pq.shape + (1,) * (ndim - 1))
 
-    @property
-    def centroid_point(self) -> np.ndarray:
-        return (self.centroid + 0.5).astype(np.int64)
+    output = image.reshape(image.shape + (1, ) * ndim)
 
-    @property
-    def area(self) -> int:
-        return np.prod(self.bottom_right - self.top_left + 1)
+    for i in range(ndim):
+        axis = pq[i]
+        axis = np.moveaxis(axis, ndim, ndim + i)
+        output = output * axis
 
-    @property
-    def slice(self) -> tuple[slice]:
-        return tuple(slice(s, e + 1) for s, e in zip(*self.bbox))
+    output = np.sum(output, tuple(range(ndim)))
+    return output
 
 ########################################################################################################################
-
-

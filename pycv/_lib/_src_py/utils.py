@@ -225,6 +225,8 @@ def get_kernel(
         offset_scalar, offset = offset[0], tuple()
         for i in range(array_nd):
             offset += (0,) if i != axis else (offset_scalar,)
+    elif array_nd < filter_dim:
+        raise ValueError(f'kernel dimensions cannot be higher than the array dimensions {filter_dim} > {array_nd}')
     elif array_nd != filter_dim:
         kernel = atleast_nd(kernel, array_nd, raise_err=False, expand_pos=0)
         offset = (0,) * (array_nd - filter_dim) + offset

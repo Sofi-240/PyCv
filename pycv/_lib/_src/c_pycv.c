@@ -149,61 +149,7 @@ PyObject* binary_erosion(PyObject* self, PyObject* args)
 {
     PyArrayObject *input = NULL, *strel = NULL, *output = NULL, *mask = NULL;
     PyArray_Dims center = {NULL, 0};
-    int op, c_val;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&O&O&O&ii",
-            InputToArray, &input,
-            InputToArray, &strel,
-            OutputToArray, &output,
-            PyArray_IntpConverter, &center,
-            InputOptionalToArray, &mask,
-            &op, &c_val)) {
-        goto exit;
-    }
-
-    if (!PYCV_valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-
-    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-
-    if (!PYCV_valid_dtype(PyArray_TYPE(strel))) {
-        PyErr_SetString(PyExc_RuntimeError, "strel dtype not supported");
-        goto exit;
-    }
-
-    if (mask && !PYCV_valid_dtype(PyArray_TYPE(mask))) {
-        PyErr_SetString(PyExc_RuntimeError, "mask dtype not supported");
-        goto exit;
-    }
-
-
-    PYCV_binary_erosion(input, strel, output, center.ptr, mask, (PYCV_MorphOP)op, c_val);
-
-    PyArray_ResolveWritebackIfCopy(output);
-
-    exit:
-        Py_XDECREF(input);
-        Py_XDECREF(strel);
-        Py_XDECREF(output);
-        PyDimMem_FREE(center.ptr);
-        if (mask) {
-            Py_XDECREF(mask);
-        }
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
-}
-
-PyObject* binary_erosion_iter(PyObject* self, PyObject* args)
-{
-    PyArrayObject *input = NULL, *strel = NULL, *output = NULL, *mask = NULL;
-    PyArray_Dims center = {NULL, 0};
-    int iterations, op, c_val;
+    int invert, c_val, iterations;
 
     if (!PyArg_ParseTuple(
             args,
@@ -214,7 +160,7 @@ PyObject* binary_erosion_iter(PyObject* self, PyObject* args)
             PyArray_IntpConverter, &center,
             &iterations,
             InputOptionalToArray, &mask,
-            &op, &c_val)) {
+            &invert, &c_val)) {
         goto exit;
     }
 
@@ -239,7 +185,7 @@ PyObject* binary_erosion_iter(PyObject* self, PyObject* args)
     }
 
 
-    PYCV_binary_erosion_iter(input, strel, output, center.ptr, (npy_intp)iterations, mask, (PYCV_MorphOP)op, c_val);
+    PYCV_binary_erosion(input, strel, output, center.ptr, iterations, mask, invert, c_val);
 
     PyArray_ResolveWritebackIfCopy(output);
 
@@ -254,23 +200,22 @@ PyObject* binary_erosion_iter(PyObject* self, PyObject* args)
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
-PyObject* gray_erosion_dilation(PyObject* self, PyObject* args)
+PyObject* gray_erosion(PyObject* self, PyObject* args)
 {
-    PyArrayObject *input = NULL, *flat_strel = NULL, *non_flat_strel = NULL, *output = NULL, *mask = NULL;
+    PyArrayObject *input = NULL, *strel = NULL, *output = NULL, *mask = NULL;
     PyArray_Dims center = {NULL, 0};
-    int op;
+    int invert;
     double c_val;
 
     if (!PyArg_ParseTuple(
             args,
-            "O&O&O&O&O&O&id",
+            "O&O&O&O&O&id",
             InputToArray, &input,
-            InputToArray, &flat_strel,
-            InputOptionalToArray, &non_flat_strel,
+            InputToArray, &strel,
             OutputToArray, &output,
             PyArray_IntpConverter, &center,
             InputOptionalToArray, &mask,
-            &op, &c_val)) {
+            &invert, &c_val)) {
         goto exit;
     }
 
@@ -284,13 +229,8 @@ PyObject* gray_erosion_dilation(PyObject* self, PyObject* args)
         goto exit;
     }
 
-    if (!PYCV_valid_dtype(PyArray_TYPE(flat_strel))) {
-        PyErr_SetString(PyExc_RuntimeError, "flat_strel dtype not supported");
-        goto exit;
-    }
-
-    if (non_flat_strel && !PYCV_valid_dtype(PyArray_TYPE(non_flat_strel))) {
-        PyErr_SetString(PyExc_RuntimeError, "non_flat_strel dtype not supported");
+    if (!PYCV_valid_dtype(PyArray_TYPE(strel))) {
+        PyErr_SetString(PyExc_RuntimeError, "strel dtype not supported");
         goto exit;
     }
 
@@ -300,16 +240,13 @@ PyObject* gray_erosion_dilation(PyObject* self, PyObject* args)
     }
 
 
-    PYCV_gray_erosion_dilation(input, flat_strel, non_flat_strel, output, center.ptr, mask, (PYCV_MorphOP)op, (npy_double)c_val);
+    PYCV_gray_erosion(input, strel, output, center.ptr, mask, invert, (npy_double)c_val);
 
     PyArray_ResolveWritebackIfCopy(output);
 
     exit:
         Py_XDECREF(input);
-        Py_XDECREF(flat_strel);
-        if (non_flat_strel) {
-            Py_XDECREF(non_flat_strel);
-        }
+        Py_XDECREF(strel);
         Py_XDECREF(output);
         PyDimMem_FREE(center.ptr);
         if (mask) {
@@ -984,7 +921,6 @@ static PyMemberDef CConvexHull_members[] = {
     {"n_vertices", T_INT, offsetof(CConvexHull, n_vertices), 0, NULL},
     {"points", T_OBJECT, offsetof(CConvexHull, points), 0, NULL},
     {"vertices", T_OBJECT, offsetof(CConvexHull, vertices), 0, NULL},
-    {"convex_image", T_OBJECT, offsetof(CConvexHull, convex_image), 0, NULL},
     {NULL}  /* Sentinel */
 };
 
@@ -1065,14 +1001,8 @@ static PyMethodDef methods[] = {
         NULL
     },
     {
-        "binary_erosion_iter",
-        (PyCFunction)binary_erosion_iter,
-        METH_VARARGS,
-        NULL
-    },
-    {
-        "gray_erosion_dilation",
-        (PyCFunction)gray_erosion_dilation,
+        "gray_erosion",
+        (PyCFunction)gray_erosion,
         METH_VARARGS,
         NULL
     },

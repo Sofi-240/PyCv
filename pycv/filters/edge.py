@@ -53,7 +53,7 @@ def edge_filter(
     if padding_mode == 'constant':
         kernel_shape = tuple(len(kernel._edge) if a in axis else 1 for a in range(image.ndim))
         mask = border_mask(image.shape, kernel_shape)
-        output = pycv_morphology.gray_ero_or_dil(0, image, np.ones(kernel_shape), mask=mask)
+        output = pycv_morphology.gray_erosion(image, np.ones(kernel_shape), mask=mask)
 
     if preserve_dtype:
         output = cast(output, dtype)
