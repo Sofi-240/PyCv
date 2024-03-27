@@ -333,6 +333,21 @@ class TestLabeling:
         n, output = morph.im_label(inputs, 2)
         assert_array_almost_equal(output, expected)
 
+    def test_case13(self):
+        inputs = np.zeros((7, 15, 15), bool)
+        expected = np.zeros((7, 15, 15), np.int64)
+
+        sp = morph.Strel.SPHERE(2)
+
+        inputs[1:-1, 3 - 2: 3 + 3, 3 - 2: 3 + 3] = sp
+        inputs[1:-1, 10 - 2: 10 + 3, 10 - 2: 10 + 3] = sp
+
+        expected[1:-1, 3 - 2: 3 + 3, 3 - 2: 3 + 3][sp] = 1
+        expected[1:-1, 10 - 2: 10 + 3, 10 - 2: 10 + 3][sp] = 2
+
+        n, output = morph.im_label(inputs, 2)
+        assert_array_almost_equal(output, expected)
+
 
 class TestFillRegion:
     def test_case1(self):
@@ -367,3 +382,10 @@ class TestFillRegion:
         inputs = np.zeros((7, 7, 7), bool)
         output = morph.region_fill(inputs, seed_point=(0, 0, 0))
         assert_array_almost_equal(output, np.ones_like(inputs))
+
+    def test_case6(self):
+        expected = np.zeros((13, ) * 3, bool)
+        expected[1:-1, 1:-1, 1:-1] = morph.Strel.OCTAHEDRON(5)
+        inputs = morph.binary_edge(expected)
+        output = morph.region_fill(inputs, seed_point=(6, 6, 6))
+        assert_array_almost_equal(output, expected)

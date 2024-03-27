@@ -206,7 +206,7 @@ def get_kernel(
         offset: int | tuple | None = None,
         axis: int | None = None
 ) -> tuple[np.ndarray, tuple]:
-    kernel = np_compliance(kernel, arg_name='Kernel', _check_finite=True)
+    kernel = np_compliance(kernel, arg_name='Kernel', _check_finite=True, _check_atleast_nd=1)
 
     filter_dim = kernel.ndim
     if dilation is not None:

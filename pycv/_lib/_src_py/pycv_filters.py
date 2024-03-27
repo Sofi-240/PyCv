@@ -1,4 +1,5 @@
 import numpy as np
+from ..array_api.regulator import np_compliance
 from .utils import ctype_border_mode, get_output, get_kernel, valid_kernel_shape_with_ref
 from pycv._lib._src import c_pycv
 
@@ -18,17 +19,15 @@ def convolve(
         stride: int | tuple | None = None,
         dilation: int | tuple | None = None,
         offset: int | tuple | None = None,
-        padding_mode: str = 'valid',
+        padding_mode: str = 'constant',
         constant_value: float | int | None = 0,
 ) -> np.ndarray:
-    inputs = np.asarray(inputs)
+    inputs = np_compliance(inputs, 'inputs', _check_finite=True, _check_atleast_nd=1)
 
     kernel, offset = get_kernel(kernel, inputs.ndim, dilation=dilation, offset=offset, axis=axis)
 
     input_shape = inputs.shape
     kernel_shape = kernel.shape
-
-    valid_kernel_shape_with_ref(kernel_shape, inputs.shape)
 
     if stride is not None:
         raise RuntimeError('stride option is currently not supported')
@@ -68,17 +67,14 @@ def rank_filter(
         axis: int = None,
         stride: int | tuple | list | None = None,
         offset: tuple | None = None,
-        padding_mode: str = 'valid',
+        padding_mode: str = 'constant',
         constant_value: float | int | None = 0,
 ) -> np.ndarray:
-    inputs = np.asarray(inputs)
-
+    inputs = np_compliance(inputs, 'inputs', _check_finite=True, _check_atleast_nd=1)
     footprint, offset = get_kernel(footprint, inputs.ndim, offset=offset, axis=axis)
 
     input_shape = inputs.shape
     footprint_shape = footprint.shape
-
-    valid_kernel_shape_with_ref(footprint_shape, inputs.shape)
 
     if footprint.dtype != bool:
         footprint = footprint.astype(bool)

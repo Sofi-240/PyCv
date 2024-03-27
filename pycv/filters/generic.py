@@ -1,6 +1,5 @@
 import numpy as np
 from .._lib.array_api.dtypes import cast, as_binary_array
-from .._lib.array_api.regulator import np_compliance
 from .._lib.array_api.array_pad import pad, get_padding_width
 from .._lib._src_py.utils import valid_axis, fix_kernel_shape
 from .._lib._src_py import pycv_filters
@@ -81,7 +80,7 @@ def gaussian_filter(
     Returns:
         numpy.ndarray: Output image after applying the Gaussian filter.
     """
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np.asarray(image)
     dtype = image.dtype
     image = cast(image, np.float64)
 
@@ -150,7 +149,7 @@ def mean_filter(
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np.asarray(image)
     dtype = image.dtype
     image = cast(image, np.float64)
 
@@ -193,8 +192,8 @@ def image_filter(
         numpy.ndarray: Output image after applying the custom image filter.
 
     """
-    image = np_compliance(image, 'image', _check_finite=True)
-    kernel = np_compliance(kernel, 'kernel', _check_finite=True)
+    image = np.asarray(image)
+    kernel = np.asarray(kernel)
 
     if image.ndim != kernel.ndim and axis is not None:
         axis = valid_axis(image.ndim, axis, kernel.ndim)
@@ -245,7 +244,7 @@ def median_filter(
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np.asarray(image)
 
     footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
 
@@ -291,7 +290,7 @@ def rank_filter(
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np.asarray(image)
 
     footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
 
@@ -340,7 +339,7 @@ def local_min_filter(
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np.asarray(image)
     footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
 
     if padding_mode not in ['constant', 'valid']:
@@ -389,7 +388,7 @@ def local_max_filter(
     if kernel_size is None and footprint is None:
         raise ValueError('one of the attribute kernel_size or footprint need to be given')
 
-    image = np_compliance(image, 'image', _check_finite=True)
+    image = np.asarray(image)
     footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
 
     if padding_mode not in ['constant', 'valid']:

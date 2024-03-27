@@ -330,6 +330,30 @@ class TestBinaryErosion:
             expected
         )
 
+    def test_case21(self):
+        inputs = np.array(
+            [[0, 0, 1, 0, 0],
+             [0, 1, 1, 1, 0],
+             [1, 1, 1, 1, 1],
+             [0, 1, 1, 1, 0],
+             [0, 0, 1, 0, 0]],
+            dtype=bool
+        )
+        strel = morph.Strel.DEFAULT_STREL(2, 1)
+
+        expected = np.array(
+            [[0, 0, 0, 0, 0],
+             [0, 0, 1, 0, 0],
+             [0, 1, 1, 1, 0],
+             [0, 0, 1, 0, 0],
+             [0, 0, 0, 0, 0]],
+            dtype=bool
+        )
+        output = inputs
+        output = morph.binary_erosion(inputs, strel=strel, output=output)
+        assert_array_almost_equal(output, expected)
+        assert_array_almost_equal(inputs, expected)
+
 
 class TestBinaryDilation:
 
@@ -651,6 +675,30 @@ class TestBinaryDilation:
             expected
         )
 
+    def test_case21(self):
+        inputs = np.array(
+            [[0, 0, 1, 0, 0],
+             [0, 1, 1, 1, 0],
+             [1, 1, 1, 1, 1],
+             [0, 1, 1, 1, 0],
+             [0, 0, 1, 0, 0]],
+            dtype=bool
+        )
+        strel = morph.Strel.DEFAULT_STREL(2, 1)
+
+        expected = np.array(
+            [[0, 1, 1, 1, 0],
+             [1, 1, 1, 1, 1],
+             [1, 1, 1, 1, 1],
+             [1, 1, 1, 1, 1],
+             [0, 1, 1, 1, 0]],
+            dtype=bool
+        )
+        output = inputs
+        output = morph.binary_dilation(inputs, strel=strel, output=output)
+        assert_array_almost_equal(output, expected)
+        assert_array_almost_equal(inputs, expected)
+
 
 class TestSkeletonize:
 
@@ -686,6 +734,5 @@ class TestSkeletonize:
             morph.skeletonize(inputs),
             inputs
         )
-
 
 ########################################################################################################################
