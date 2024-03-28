@@ -5,13 +5,13 @@
 #include "c_pycv_morphology.h"
 #include "c_pycv_transform.h"
 #include "c_pycv_canny.h"
-#include "c_pycv_maxtree.h"
 #include "c_pycv_draw.h"
 #include "c_pycv_features.h"
 #include "c_pycv_measure.h"
 #include "c_pycv_kd_tree.h"
 #include "c_pycv_convex_hull.h"
 #include "c_pycv_cluster.h"
+#include "c_pycv_minmax_tree.h"
 
 // #####################################################################################################################
 
@@ -357,7 +357,6 @@ PyObject* skeletonize(PyObject* self, PyObject* args)
 
 // #####################################################################################################################
 
-
 PyObject* resize(PyObject* self, PyObject* args)
 {
     PyArrayObject *input = NULL, *output = NULL;
@@ -562,156 +561,6 @@ PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args)
             Py_XDECREF(mask);
         }
         Py_XDECREF(output);
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
-}
-
-// #####################################################################################################################
-
-PyObject* build_max_tree(PyObject* self, PyObject* args)
-{
-    PyArrayObject *input = NULL, *traverser = NULL, *parent = NULL;
-    int connectivity;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&O&i",
-            InputToArray, &input,
-            OutputToArray, &traverser,
-            OutputToArray, &parent,
-            &connectivity)) {
-        goto exit;
-    }
-
-    if (!PYCV_valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!PYCV_valid_dtype(PyArray_TYPE(traverser))) {
-        PyErr_SetString(PyExc_RuntimeError, "traverser dtype not supported");
-        goto exit;
-    }
-    if (!PYCV_valid_dtype(PyArray_TYPE(parent))) {
-        PyErr_SetString(PyExc_RuntimeError, "parent dtype not supported");
-        goto exit;
-    }
-
-    PYCV_build_max_tree(input, traverser, parent, (npy_intp)connectivity);
-
-    PyArray_ResolveWritebackIfCopy(traverser);
-    PyArray_ResolveWritebackIfCopy(parent);
-
-    exit:
-        Py_XDECREF(input);
-        Py_XDECREF(traverser);
-        Py_XDECREF(parent);
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
-}
-
-PyObject* max_tree_compute_area(PyObject* self, PyObject* args)
-{
-    PyArrayObject *input = NULL, *traverser = NULL, *parent = NULL, *output = NULL;
-    int connectivity;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&O&iO&O&",
-            InputOptionalToArray, &input,
-            OutputToArray, &output,
-            &connectivity,
-            InputOptionalToArray, &traverser,
-            InputOptionalToArray, &parent)) {
-        goto exit;
-    }
-
-    if (input && !PYCV_valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (traverser && !PYCV_valid_dtype(PyArray_TYPE(traverser))) {
-        PyErr_SetString(PyExc_RuntimeError, "traverser dtype not supported");
-        goto exit;
-    }
-    if (parent && !PYCV_valid_dtype(PyArray_TYPE(parent))) {
-        PyErr_SetString(PyExc_RuntimeError, "parent dtype not supported");
-        goto exit;
-    }
-
-    PYCV_max_tree_compute_area(input, output, connectivity, traverser, parent);
-
-    PyArray_ResolveWritebackIfCopy(output);
-
-    exit:
-        if (input) {
-            Py_XDECREF(input);
-        }
-        Py_XDECREF(output);
-        if (traverser) {
-            Py_XDECREF(traverser);
-        }
-        if (parent) {
-            Py_XDECREF(parent);
-        }
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
-}
-
-PyObject* max_tree_filter(PyObject* self, PyObject* args)
-{
-    PyArrayObject *input = NULL, *traverser = NULL, *parent = NULL, *output = NULL, *values_map = NULL;
-    int connectivity;
-    double threshold;
-
-    if (!PyArg_ParseTuple(
-            args,
-            "O&dO&O&iO&O&",
-            InputToArray, &input,
-            &threshold,
-            InputToArray, &values_map,
-            OutputToArray, &output,
-            &connectivity,
-            InputOptionalToArray, &traverser,
-            InputOptionalToArray, &parent)) {
-        goto exit;
-    }
-
-    if (!PYCV_valid_dtype(PyArray_TYPE(input))) {
-        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
-        goto exit;
-    }
-    if (!PYCV_valid_dtype(PyArray_TYPE(values_map))) {
-        PyErr_SetString(PyExc_RuntimeError, "values_map dtype not supported");
-        goto exit;
-    }
-    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-    if (traverser && !PYCV_valid_dtype(PyArray_TYPE(traverser))) {
-        PyErr_SetString(PyExc_RuntimeError, "traverser dtype not supported");
-        goto exit;
-    }
-    if (parent && !PYCV_valid_dtype(PyArray_TYPE(parent))) {
-        PyErr_SetString(PyExc_RuntimeError, "parent dtype not supported");
-        goto exit;
-    }
-
-    PYCV_max_tree_filter(input, (npy_double)threshold, values_map, output, connectivity, traverser, parent);
-
-    PyArray_ResolveWritebackIfCopy(output);
-
-    exit:
-        Py_XDECREF(input);
-        Py_XDECREF(values_map);
-        Py_XDECREF(output);
-        if (traverser) {
-            Py_XDECREF(traverser);
-        }
-        if (parent) {
-            Py_XDECREF(parent);
-        }
         return PyErr_Occurred() ? NULL : Py_BuildValue("");
 }
 
@@ -978,6 +827,42 @@ PyTypeObject CKMeans_Type = {
     .tp_methods = CKMeans_methods,
 };
 
+// *********************************************************************************************************************
+
+static PyMemberDef CMinMaxTree_members[] = {
+    {"connectivity", T_INT, offsetof(CMinMaxTree, connectivity), 0, NULL},
+    {"ndim", T_INT, offsetof(CMinMaxTree, ndim), 0, NULL},
+    {"size", T_INT, offsetof(CMinMaxTree, size), 0, NULL},
+    {"_is_max", T_INT, offsetof(CMinMaxTree, _is_max), 0, NULL},
+    {"dims", T_OBJECT, offsetof(CMinMaxTree, dims), 0, NULL},
+    {"data", T_OBJECT, offsetof(CMinMaxTree, data), 0, NULL},
+    {"traverser", T_OBJECT, offsetof(CMinMaxTree, traverser), 0, NULL},
+    {"nodes", T_OBJECT, offsetof(CMinMaxTree, nodes), 0, NULL},
+    {NULL}  /* Sentinel */
+};
+
+static PyMethodDef CMinMaxTree_methods[] = {
+    {"compute_area", (PyCFunction)CMinMaxTreePy_compute_area, METH_NOARGS, NULL},
+    {"tree_filter", (PyCFunction)CMinMaxTreePy_tree_filter, METH_VARARGS|METH_KEYWORDS, NULL},
+    {"label_image", (PyCFunction)CMinMaxTreePy_label_image, METH_NOARGS, NULL},
+    {NULL, NULL, 0, NULL} // Sentinel
+};
+
+PyTypeObject CMinMaxTree_Type = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "c_pycv.CMinMaxTree",
+    .tp_doc = PyDoc_STR("CMinMaxTree objects"),
+    .tp_basicsize = sizeof(CMinMaxTree),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = CMinMaxTreePy_new,
+    .tp_init = (initproc)CMinMaxTreePy_init,
+    .tp_dealloc = (destructor)CMinMaxTreePy_dealloc,
+    .tp_members = CMinMaxTree_members,
+    .tp_methods = CMinMaxTree_methods,
+};
+
+
 // #####################################################################################################################
 
 
@@ -1049,24 +934,6 @@ static PyMethodDef methods[] = {
         NULL
     },
     {
-        "build_max_tree",
-        (PyCFunction)build_max_tree,
-        METH_VARARGS,
-        NULL
-    },
-    {
-        "max_tree_compute_area",
-        (PyCFunction)max_tree_compute_area,
-        METH_VARARGS,
-        NULL
-    },
-    {
-        "max_tree_filter",
-        (PyCFunction)max_tree_filter,
-        METH_VARARGS,
-        NULL
-    },
-    {
         "draw",
         (PyCFunction)draw,
         METH_VARARGS|METH_KEYWORDS,
@@ -1105,7 +972,8 @@ PyInit_c_pycv(void) {
     if ((PyType_Ready(&CKDnode_Type) < 0) ||
         (PyType_Ready(&CKDtree_Type) < 0) ||
         (PyType_Ready(&CConvexHull_Type) < 0) ||
-        (PyType_Ready(&CKMeans_Type) < 0)) {
+        (PyType_Ready(&CKMeans_Type) < 0) ||
+        (PyType_Ready(&CMinMaxTree_Type) < 0)) {
         return NULL;
     }
 
@@ -1116,7 +984,8 @@ PyInit_c_pycv(void) {
     if ((PyModule_AddObjectRef(m, "CKDnode", (PyObject *) &CKDnode_Type) < 0) ||
         (PyModule_AddObjectRef(m, "CKDtree", (PyObject *) &CKDtree_Type) < 0) ||
         (PyModule_AddObjectRef(m, "CConvexHull", (PyObject *) &CConvexHull_Type) < 0) ||
-        (PyModule_AddObjectRef(m, "CKMeans", (PyObject *) &CKMeans_Type) < 0)) {
+        (PyModule_AddObjectRef(m, "CKMeans", (PyObject *) &CKMeans_Type) < 0) ||
+        (PyModule_AddObjectRef(m, "CMinMaxTree", (PyObject *) &CMinMaxTree_Type) < 0)) {
         Py_DECREF(m);
         return NULL;
     }

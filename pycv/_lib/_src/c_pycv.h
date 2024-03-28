@@ -40,14 +40,6 @@ PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args);
 
 // #####################################################################################################################
 
-PyObject* build_max_tree(PyObject* self, PyObject* args);
-
-PyObject* max_tree_compute_area(PyObject* self, PyObject* args);
-
-PyObject* max_tree_filter(PyObject* self, PyObject* args);
-
-// #####################################################################################################################
-
 PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords);
 
 // #####################################################################################################################
@@ -68,6 +60,8 @@ PyTypeObject CKDtree_Type;
 PyTypeObject CConvexHull_Type;
 
 PyTypeObject CKMeans_Type;
+
+PyTypeObject CMinMaxTree_Type;
 
 // #####################################################################################################################
 

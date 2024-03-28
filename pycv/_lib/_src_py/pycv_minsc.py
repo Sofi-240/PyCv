@@ -1,13 +1,9 @@
 import numpy as np
-import collections
-from ..array_api.regulator import np_compliance
 from .utils import get_output, valid_same_shape
 from pycv._lib._src import c_pycv
 
 __all__ = [
     'canny_nonmaximum_suppression',
-    'MAXTREE',
-    'build_max_tree',
     'draw',
 ]
 
@@ -28,32 +24,6 @@ def canny_nonmaximum_suppression(
     output, _ = get_output(None, magnitude)
     c_pycv.canny_nonmaximum_suppression(magnitude, grad_y, grad_x, low_threshold, mask, output)
     return output
-
-
-########################################################################################################################
-
-MAXTREE = collections.namedtuple('max_tree', 'traverser, parent')
-
-
-def build_max_tree(
-        image: np.ndarray,
-        connectivity: int = 1
-) -> MAXTREE:
-    image = np.asarray(image, order='C')
-    image = np_compliance(image, 'image', _check_finite=True)
-
-    if connectivity < 1 or connectivity > image.ndim:
-        raise ValueError(
-            f'Connectivity value must be in the range from 1 (no diagonal elements are neighbors) '
-            f'to ndim (all elements are neighbors)'
-        )
-
-    traverser = np.zeros((image.size,), np.int64)
-    parent = np.zeros(image.shape, np.int64)
-
-    c_pycv.build_max_tree(image, traverser, parent, connectivity)
-
-    return MAXTREE(traverser, parent)
 
 
 ########################################################################################################################

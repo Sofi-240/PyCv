@@ -129,7 +129,6 @@ static void chull_heapsort_heapify(char *p0, char *points, int *indices, int pos
     }
 }
 
-
 static void chull_heapsort(char *p0, char *points, int *indices, int size, int ndim, int *v1, int *v2)
 {
     int ii;

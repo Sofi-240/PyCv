@@ -469,7 +469,7 @@ PyObject *CKMeansPy_fit(CKMeans *self, PyObject *args, PyObject *kw)
 PyObject *CKMeansPy_predict(CKMeans *self, PyObject *args, PyObject *kw)
 {
     static char *kwlist[] = {"", "pnorm", NULL};
-    int is_inf, ii, jj;
+    int is_inf;
     PyArrayObject *y, *x;
     npy_intp dims_y[1] = {0};
     char *py = NULL, *px = NULL;

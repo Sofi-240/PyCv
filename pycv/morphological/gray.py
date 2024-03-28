@@ -1,5 +1,6 @@
 import numpy as np
 from .._lib._src_py import pycv_morphology
+from ..dsa import MaxTree, MinTree
 
 __all__ = [
     'gray_erosion',
@@ -11,6 +12,7 @@ __all__ = [
     'area_open',
     'area_close'
 ]
+
 
 ########################################################################################################################
 
@@ -70,7 +72,8 @@ def gray_dilation(
     Returns:
         numpy.ndarray: Output grayscale image after applying the dilation operation.
     """
-    ret = pycv_morphology.gray_erosion(image, strel, offset=offset, mask=mask, border_val=border_val, output=output, invert=True)
+    ret = pycv_morphology.gray_erosion(image, strel, offset=offset, mask=mask, border_val=border_val, output=output,
+                                       invert=True)
     return output if ret is None else ret
 
 
@@ -101,7 +104,8 @@ def gray_opening(
         numpy.ndarray: Output grayscale image after applying the opening operation.
     """
     ero = pycv_morphology.gray_erosion(image, strel, offset=offset, mask=mask, border_val=border_val)
-    ret = pycv_morphology.gray_erosion(ero, strel, offset=offset, mask=mask, border_val=border_val, output=output, invert=True)
+    ret = pycv_morphology.gray_erosion(ero, strel, offset=offset, mask=mask, border_val=border_val, output=output,
+                                       invert=True)
     return output if ret is None else ret
 
 
@@ -222,7 +226,19 @@ def area_open(
     Returns:
         numpy.ndarray: Output grayscale image after applying the area opening operation.
     """
-    return pycv_morphology.area_open_close('open', image, threshold=threshold, connectivity=connectivity)
+
+    image = np.asarray(image)
+
+    if connectivity < 1 or connectivity > image.ndim:
+        raise ValueError(
+            f'Connectivity value must be in the range from 1 (no diagonal elements are neighbors) '
+            f'to ndim (all elements are neighbors)'
+        )
+
+    max_tree = MaxTree(image, connectivity)
+    area = max_tree.compute_area()
+
+    return max_tree.tree_filter(area, threshold)
 
 
 def area_close(
@@ -245,6 +261,17 @@ def area_close(
     Returns:
         numpy.ndarray: Output grayscale image after applying the area closing operation.
     """
-    return pycv_morphology.area_open_close('close', image, threshold=threshold, connectivity=connectivity)
+    image = np.asarray(image)
+
+    if connectivity < 1 or connectivity > image.ndim:
+        raise ValueError(
+            f'Connectivity value must be in the range from 1 (no diagonal elements are neighbors) '
+            f'to ndim (all elements are neighbors)'
+        )
+
+    min_tree = MinTree(image, connectivity)
+    area = min_tree.compute_area()
+
+    return min_tree.tree_filter(area, threshold)
 
 ########################################################################################################################

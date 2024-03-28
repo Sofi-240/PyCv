@@ -13,7 +13,6 @@ __all__ = [
     'gray_erosion',
     'labeling',
     'skeletonize',
-    'area_open_close',
     'remove_small_objects',
     'binary_hit_or_miss',
 ]
@@ -228,43 +227,6 @@ def skeletonize(
     inputs = pad(image, pw, mode='constant', constant_values=0)
     output = c_pycv.skeletonize(inputs)
     output = output[tuple(slice(1, -1) for _ in range(inputs.ndim))]
-    return output
-
-
-########################################################################################################################
-
-def area_open_close(
-        op: str,
-        image: np.ndarray,
-        threshold: int = 32,
-        connectivity: int = 1,
-) -> np.ndarray:
-    image = np.asarray(image)
-    image = np_compliance(image, 'image', _check_finite=True)
-
-    if connectivity < 1 or connectivity > image.ndim:
-        raise ValueError(
-            f'Connectivity value must be in the range from 1 (no diagonal elements are neighbors) '
-            f'to ndim (all elements are neighbors)'
-        )
-
-    if op == 'close':
-        image_op = invert_values(image)
-    else:
-        image_op = image.copy()
-
-    traverser = np.zeros((image_op.size,), np.int64)
-    parent = np.zeros(image_op.shape, np.int64)
-    c_pycv.build_max_tree(image_op, traverser, parent, connectivity)
-
-    area = np.zeros(parent.shape, np.int64)
-    c_pycv.max_tree_compute_area(None, area, connectivity, traverser, parent)
-
-    output = np.zeros_like(image_op)
-    c_pycv.max_tree_filter(image_op, threshold, area, output, connectivity, traverser, parent)
-
-    if op == 'close':
-        output = invert_values(output)
     return output
 
 

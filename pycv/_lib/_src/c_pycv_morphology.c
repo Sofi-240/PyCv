@@ -378,6 +378,8 @@ break
     }                                                                                                                  \
 }
 
+// *********************************************************************************************************************
+
 int PYCV_binary_region_fill(PyArrayObject *output,
                             npy_intp *seed_point,
                             PyArrayObject *strel,
