@@ -123,7 +123,7 @@ static void QS_swap(npy_double *i1, npy_double *i2)
 
 static npy_double QuickSelect(npy_double *buffer, npy_intp low, npy_intp high, npy_intp rank)
 {
-    npy_int ii, jj;
+    npy_intp ii, jj;
     npy_double v;
     while (low <= high) {
         ii = low;

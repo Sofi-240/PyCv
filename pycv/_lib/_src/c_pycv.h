@@ -50,6 +50,11 @@ PyObject* integral_image(PyObject* self, PyObject* args);
 
 PyObject* find_object_peaks(PyObject* self, PyObject* args);
 
+// #####################################################################################################################
+
+PyObject* haar_like_feature_coordinates(PyObject* self, PyObject* args, PyObject* keywords);
+
+PyObject* haar_like_feature(PyObject* self, PyObject* args, PyObject* keywords);
 
 // #####################################################################################################################
 

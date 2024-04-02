@@ -63,4 +63,8 @@ PyArrayObject *PYCV_hough_probabilistic_line(PyArrayObject *input,
 
 // #####################################################################################################################
 
+int PYCV_integral_image(PyArrayObject *inputs, PyArrayObject **output);
+
+// #####################################################################################################################
+
 #endif

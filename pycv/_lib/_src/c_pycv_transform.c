@@ -1002,6 +1002,167 @@ PyArrayObject *PYCV_hough_probabilistic_line(PyArrayObject *input,
 
 // #####################################################################################################################
 
+static int integral_image_output_dtype(int inputs_numtype)
+{
+    int out = -1;
+    switch (inputs_numtype) {
+        case NPY_BOOL:
+        case NPY_UBYTE:
+        case NPY_USHORT:
+        case NPY_UINT:
+        case NPY_ULONG:
+        case NPY_ULONGLONG:
+            out = (int)NPY_ULONGLONG;
+            break;
+        case NPY_BYTE:
+        case NPY_SHORT:
+        case NPY_INT:
+        case NPY_LONG:
+        case NPY_LONGLONG:
+            out = (int)NPY_LONGLONG;
+            break;
+        case NPY_FLOAT:
+        case NPY_DOUBLE:
+            out = (int)NPY_DOUBLE;
+            break;
+    }
+    return out;
+}
+
+#define CASE_INTEGRAL_IMAGE_COPY_TO(_NTYPE, _dtype, _numtype, _from, _to)                                              \
+case NPY_##_NTYPE:                                                                                                     \
+{                                                                                                                      \
+    switch (_numtype) {                                                                                                \
+        case NPY_ULONGLONG:                                                                                            \
+            *(npy_ulonglong *)_to = (npy_ulonglong)(*(_dtype *)_from);                                                 \
+            break;                                                                                                     \
+        case NPY_LONGLONG:                                                                                             \
+            *(npy_longlong *)_to = (npy_longlong)(*(_dtype *)_from);                                                   \
+            break;                                                                                                     \
+        case NPY_DOUBLE:                                                                                               \
+            *(npy_double *)_to = (npy_double)(*(_dtype *)_from);                                                       \
+            break;                                                                                                     \
+    }                                                                                                                  \
+}                                                                                                                      \
+break;
+
+#define INTEGRAL_IMAGE_COPY_T(_NTYPE, _numtype, _from, _to)                                                            \
+{                                                                                                                      \
+    switch (_NTYPE) {                                                                                                  \
+        CASE_INTEGRAL_IMAGE_COPY_TO(BOOL, npy_bool, _numtype, _from, _to);                                             \
+        CASE_INTEGRAL_IMAGE_COPY_TO(UBYTE, npy_ubyte, _numtype, _from, _to);                                           \
+        CASE_INTEGRAL_IMAGE_COPY_TO(USHORT, npy_ushort, _numtype, _from, _to);                                         \
+        CASE_INTEGRAL_IMAGE_COPY_TO(UINT, npy_uint, _numtype, _from, _to);                                             \
+        CASE_INTEGRAL_IMAGE_COPY_TO(ULONG, npy_ulong, _numtype, _from, _to);                                           \
+        CASE_INTEGRAL_IMAGE_COPY_TO(ULONGLONG, npy_ulonglong, _numtype, _from, _to);                                   \
+        CASE_INTEGRAL_IMAGE_COPY_TO(BYTE, npy_byte, _numtype, _from, _to);                                             \
+        CASE_INTEGRAL_IMAGE_COPY_TO(SHORT, npy_short, _numtype, _from, _to);                                           \
+        CASE_INTEGRAL_IMAGE_COPY_TO(INT, npy_int, _numtype, _from, _to);                                               \
+        CASE_INTEGRAL_IMAGE_COPY_TO(LONG, npy_long, _numtype, _from, _to);                                             \
+        CASE_INTEGRAL_IMAGE_COPY_TO(LONGLONG, npy_longlong, _numtype, _from, _to);                                     \
+        CASE_INTEGRAL_IMAGE_COPY_TO(FLOAT, npy_float, _numtype, _from, _to);                                           \
+        CASE_INTEGRAL_IMAGE_COPY_TO(DOUBLE, npy_double, _numtype, _from, _to);                                         \
+    }                                                                                                                  \
+}
+
+int PYCV_integral_image(PyArrayObject *inputs, PyArrayObject **output)
+{
+    int size, ndim, numtype, *dims_m1 = NULL, *strides = NULL, *strides_back = NULL, *coordinates = NULL;
+    char *ptr_i = NULL, *ptr_o = NULL, *ptr = NULL;
+    int jj, cc, finish_axis = 0;
+    PYCV_ArrayIterator iterator;
+
+    size = (int)PyArray_SIZE(inputs);
+    ndim = (int)PyArray_NDIM(inputs);
+    numtype = integral_image_output_dtype((int)PyArray_TYPE(inputs));
+
+    if (numtype == -1) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: invalid dtype");
+        return 0;
+    }
+
+    dims_m1 = malloc(4 * ndim * sizeof(int));
+    if (!dims_m1) {
+        PyErr_NoMemory();
+        return 0;
+    }
+    strides = dims_m1 + ndim;
+    strides_back = strides + ndim;
+    coordinates = strides_back + ndim;
+
+    *output = (PyArrayObject *)PyArray_EMPTY(ndim, PyArray_DIMS(inputs), numtype, 0);
+
+    if (!*output) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: creating array");
+        goto exit;
+    }
+
+    for (jj = 0; jj < ndim; jj++) {
+        *(dims_m1 + jj) = (int)PyArray_DIM(*output, jj) - 1;
+        *(strides + jj) = (int)PyArray_STRIDE(*output, jj);
+        *(strides_back + jj) = *(strides + jj) * *(dims_m1 + jj);
+        *(coordinates + jj) = 0;
+    }
+
+    ptr_i = (void *)PyArray_DATA(inputs);
+    ptr_o = ptr = (void *)PyArray_DATA(*output);
+
+    PYCV_ArrayIteratorInit(inputs, &iterator);
+
+    for (jj = 0; jj < size; jj++) {
+        INTEGRAL_IMAGE_COPY_T(iterator.numtype, numtype, ptr_i, ptr);
+        ptr += *(strides + ndim - 1);
+        PYCV_ARRAY_ITERATOR_NEXT(iterator, ptr_i);
+    }
+
+    for (jj = 0; jj < ndim; jj++) {
+        ptr = ptr_o;
+        for (cc = 0; cc < ndim; cc++) {
+            *(coordinates + cc) = 0;
+        }
+
+        *(coordinates + jj) = 1;
+        ptr += *(strides + jj);
+        finish_axis = 0;
+
+        while (!finish_axis) {
+            switch (numtype) {
+                case NPY_ULONGLONG:
+                    *(npy_ulonglong *)ptr += *(npy_ulonglong *)(ptr - *(strides + jj));
+                    break;
+                case NPY_LONGLONG:
+                    *(npy_longlong *)ptr += *(npy_longlong *)(ptr - *(strides + jj));
+                    break;
+                case NPY_DOUBLE:
+                    *(npy_double *)ptr += *(npy_double *)(ptr - *(strides + jj));
+                    break;
+            }
+
+            for (cc = ndim - 1; cc >= 0; cc--) {
+                if (*(coordinates + cc) < *(dims_m1 + cc)) {
+                    *(coordinates + cc) += 1;
+                    ptr += *(strides + cc);
+                    break;
+                } else {
+                    *(coordinates + cc) = 0;
+                    ptr -= *(strides_back + cc);
+                    if (cc == 0) {
+                        finish_axis = 1;
+                    } else if (cc == jj) {
+                        ptr += *(strides + jj);
+                        *(coordinates + cc) = 1;
+                    }
+                }
+            }
+        }
+    }
+
+    exit:
+        free(dims_m1);
+        return PyErr_Occurred() ? 0 : 1;
+}
+
+// #####################################################################################################################
 
 
 

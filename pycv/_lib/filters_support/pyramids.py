@@ -516,3 +516,6 @@ class DOGPyramid(GaussianScaleSpace):
     def __next__(self):
         output = super().__next__()
         return np.diff(output, axis=0)
+
+
+########################################################################################################################

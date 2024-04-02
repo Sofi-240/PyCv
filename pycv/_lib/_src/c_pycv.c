@@ -6,11 +6,11 @@
 #include "c_pycv_transform.h"
 #include "c_pycv_canny.h"
 #include "c_pycv_draw.h"
-#include "c_pycv_features.h"
 #include "c_pycv_measure.h"
 #include "c_pycv_kd_tree.h"
 #include "c_pycv_convex_hull.h"
 #include "c_pycv_cluster.h"
+#include "c_pycv_haar_like.h"
 #include "c_pycv_minmax_tree.h"
 
 // #####################################################################################################################
@@ -630,26 +630,17 @@ PyObject* draw(PyObject* self, PyObject* args, PyObject* keywords)
 
 PyObject* integral_image(PyObject* self, PyObject* args)
 {
-    PyArrayObject *output = NULL;
+    PyArrayObject *output = NULL, *inputs = NULL;
 
-    if (!PyArg_ParseTuple(
-            args,
-            "O&",
-            OutputToArray, &output)) {
+    if (!PyArg_ParseTuple(args, "O&", InputToArray, &inputs)) {
         goto exit;
     }
 
-    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
-
-    PYCV_integral_image(output);
-    PyArray_ResolveWritebackIfCopy(output);
+    PYCV_integral_image(inputs, &output);
 
     exit:
-        Py_XDECREF(output);
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+        Py_XDECREF(inputs);
+        return PyErr_Occurred() ? Py_BuildValue("") : (PyObject *)output;
 }
 
 // #####################################################################################################################
@@ -862,6 +853,39 @@ PyTypeObject CMinMaxTree_Type = {
     .tp_methods = CMinMaxTree_methods,
 };
 
+// *********************************************************************************************************************
+
+static PyMemberDef CHaarFeatures_members[] = {
+    {"htype", T_OBJECT, offsetof(CHaarFeatures, htype), 0, NULL},
+    {"ndim", T_INT, offsetof(CHaarFeatures, ndim), 0, NULL},
+    {"n_features", T_INT, offsetof(CHaarFeatures, n_features), 0, NULL},
+    {"n_rect", T_INT, offsetof(CHaarFeatures, n_rect), 0, NULL},
+    {"axis", T_OBJECT, offsetof(CHaarFeatures, axis), 0, NULL},
+    {"feature_dims", T_OBJECT, offsetof(CHaarFeatures, feature_dims), 0, NULL},
+    {"_htype", T_INT, offsetof(CHaarFeatures, _htype), 0, NULL},
+    {NULL}  /* Sentinel */
+};
+
+static PyMethodDef CHaarFeatures_methods[] = {
+    {"coordinates", (PyCFunction)CHaarFeaturesPy_coordinates, METH_VARARGS|METH_KEYWORDS, NULL},
+    {"haar_like_feature", (PyCFunction)CHaarFeaturesPy_like_features, METH_VARARGS|METH_KEYWORDS, NULL},
+    {NULL, NULL, 0, NULL} // Sentinel
+};
+
+PyTypeObject CHaarFeatures_Type = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "c_pycv.CHaarFeatures",
+    .tp_doc = PyDoc_STR("CHaarFeatures objects"),
+    .tp_basicsize = sizeof(CHaarFeatures),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = CHaarFeaturesPy_new,
+    .tp_init = (initproc)CHaarFeaturesPy_init,
+    .tp_dealloc = (destructor)CHaarFeaturesPy_dealloc,
+    .tp_members = CHaarFeatures_members,
+    .tp_methods = CHaarFeatures_methods,
+};
+
 
 // #####################################################################################################################
 
@@ -973,7 +997,8 @@ PyInit_c_pycv(void) {
         (PyType_Ready(&CKDtree_Type) < 0) ||
         (PyType_Ready(&CConvexHull_Type) < 0) ||
         (PyType_Ready(&CKMeans_Type) < 0) ||
-        (PyType_Ready(&CMinMaxTree_Type) < 0)) {
+        (PyType_Ready(&CMinMaxTree_Type) < 0) ||
+        (PyType_Ready(&CHaarFeatures_Type) < 0)) {
         return NULL;
     }
 
@@ -985,7 +1010,8 @@ PyInit_c_pycv(void) {
         (PyModule_AddObjectRef(m, "CKDtree", (PyObject *) &CKDtree_Type) < 0) ||
         (PyModule_AddObjectRef(m, "CConvexHull", (PyObject *) &CConvexHull_Type) < 0) ||
         (PyModule_AddObjectRef(m, "CKMeans", (PyObject *) &CKMeans_Type) < 0) ||
-        (PyModule_AddObjectRef(m, "CMinMaxTree", (PyObject *) &CMinMaxTree_Type) < 0)) {
+        (PyModule_AddObjectRef(m, "CMinMaxTree", (PyObject *) &CMinMaxTree_Type) < 0) ||
+        (PyModule_AddObjectRef(m, "CHaarFeatures", (PyObject *) &CHaarFeatures_Type) < 0)) {
         Py_DECREF(m);
         return NULL;
     }
