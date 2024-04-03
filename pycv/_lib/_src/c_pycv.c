@@ -12,6 +12,7 @@
 #include "c_pycv_cluster.h"
 #include "c_pycv_haar_like.h"
 #include "c_pycv_minmax_tree.h"
+#include "c_pycv_features.h"
 
 // #####################################################################################################################
 
@@ -691,6 +692,42 @@ PyObject* find_object_peaks(PyObject* self, PyObject* args)
 
 // #####################################################################################################################
 
+PyObject* gray_co_occurrence_matrix(PyObject* self, PyObject* args)
+{
+    PyArrayObject *gray = NULL, *distances = NULL, *angle = NULL, *glcm;
+    int levels;
+
+    if (!PyArg_ParseTuple(args, "O&O&O&i",
+                          InputToArray, &gray, InputToArray, &distances, InputToArray, &angle, &levels)) {
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(gray))) {
+        PyErr_SetString(PyExc_RuntimeError, "gray dtype not supported");
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(distances))) {
+        PyErr_SetString(PyExc_RuntimeError, "distances dtype not supported");
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(angle))) {
+        PyErr_SetString(PyExc_RuntimeError, "angle dtype not supported");
+        goto exit;
+    }
+
+    int valid = PYCV_glcm(gray, distances, angle, levels, &glcm);
+
+    exit:
+        Py_XDECREF(gray);
+        Py_XDECREF(distances);
+        Py_XDECREF(angle);
+        return valid ? (PyObject *)glcm : Py_BuildValue("");
+}
+
+// #####################################################################################################################
+
 static PyMemberDef CKDnode_members[] = {
     {"start_index", T_INT, offsetof(CKDnode, start_index), 0, NULL},
     {"end_index", T_INT, offsetof(CKDnode, end_index), 0, NULL},
@@ -972,6 +1009,12 @@ static PyMethodDef methods[] = {
     {
         "find_object_peaks",
         (PyCFunction)find_object_peaks,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "gray_co_occurrence_matrix",
+        (PyCFunction)gray_co_occurrence_matrix,
         METH_VARARGS,
         NULL
     },

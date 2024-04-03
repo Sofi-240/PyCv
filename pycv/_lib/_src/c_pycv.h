@@ -52,9 +52,7 @@ PyObject* find_object_peaks(PyObject* self, PyObject* args);
 
 // #####################################################################################################################
 
-PyObject* haar_like_feature_coordinates(PyObject* self, PyObject* args, PyObject* keywords);
-
-PyObject* haar_like_feature(PyObject* self, PyObject* args, PyObject* keywords);
+PyObject* gray_co_occurrence_matrix(PyObject* self, PyObject* args);
 
 // #####################################################################################################################
 
@@ -67,6 +65,8 @@ PyTypeObject CConvexHull_Type;
 PyTypeObject CKMeans_Type;
 
 PyTypeObject CMinMaxTree_Type;
+
+PyTypeObject CHaarFeatures_Type;
 
 // #####################################################################################################################
 

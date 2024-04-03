@@ -1,9 +1,19 @@
 import numpy as np
 from pycv._lib._src import c_pycv
-from pycv.features import HaarFeatures, HaarType
+from pycv.features import glcm, glcm_props
 
+########################################################################################################################
 
-feature = HaarFeatures(HaarType.HAAR_LINE, axis=0, feature_dims=(5, 5))
-coord = feature.coordinates()
-ff = feature.haar_like_feature(np.ones((11, 11), np.uint8), integrate=True)
+image = np.array([[0, 0, 1, 1],
+                  [0, 0, 1, 1],
+                  [0, 2, 2, 2],
+                  [2, 2, 3, 3]],
+                 dtype=np.uint8)
 
+distances = np.array([1, 2, 3], np.float64)
+angle = np.array([0, np.pi/4, np.pi/2, 3*np.pi/4], np.float64)
+levels = 4
+
+p = glcm(image, distances, angle, levels, normalize=True)
+
+g_props = glcm_props(p)
