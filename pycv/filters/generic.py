@@ -9,6 +9,7 @@ from .._lib._src_py import pycv_morphology
 __all__ = [
     'gaussian_filter',
     'mean_filter',
+    'variance_filter',
     'image_filter',
     'median_filter',
     'rank_filter',
@@ -38,7 +39,7 @@ def _valid_footprint(
         if kernel_shape is None:
             raise ValueError('one of kernel_shape or footprint must be given')
         elif np.isscalar(kernel_shape):
-            kernel_shape = (kernel_shape, )
+            kernel_shape = (kernel_shape,)
         axis = valid_axis(ndim, axis, len(kernel_shape))
         kernel_shape = fix_kernel_shape(kernel_shape, axis, ndim)
         footprint = np.ones(kernel_shape, bool)
@@ -159,6 +160,38 @@ def mean_filter(
     kernel /= np.sum(kernel)
 
     output = pycv_filters.convolve(image, kernel, padding_mode=padding_mode, constant_value=constant_value)
+
+    if preserve_dtype:
+        output = cast(output, dtype)
+
+    return output
+
+
+def variance_filter(
+        image: np.ndarray,
+        kernel_size: int | tuple | None = None,
+        footprint: np.ndarray | None = None,
+        axis: int | tuple | None = None,
+        preserve_dtype: bool = True,
+        padding_mode: str = 'reflect',
+        constant_value: float | int | None = 0
+) -> np.ndarray:
+    if kernel_size is None and footprint is None:
+        raise ValueError('one of the attribute kernel_size or footprint need to be given')
+
+    image = np.asarray(image)
+    dtype = image.dtype
+    image = cast(image, np.float64)
+
+    footprint = _valid_footprint(image.ndim, kernel_size, footprint, axis)
+
+    kernel = footprint.astype(np.float64)
+    kernel /= np.sum(kernel)
+
+    mean_of_sqrts = pycv_filters.convolve(image ** 2, kernel, padding_mode=padding_mode, constant_value=constant_value)
+    sqrt_of_means = pycv_filters.convolve(image, kernel, padding_mode=padding_mode, constant_value=constant_value)
+
+    output = mean_of_sqrts - sqrt_of_means ** 2
 
     if preserve_dtype:
         output = cast(output, dtype)

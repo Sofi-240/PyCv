@@ -27,11 +27,11 @@ and image transformation.
 * **canny:** Applies Canny edge detection to an image.
 * **edge:** Detects edges in an image using various algorithms.
 * **gaussian_filter:** Applies Gaussian smoothing to an image.
-* **generic:** Applies a custom filter to an image.
 * **image_filter:** Applies a filter to an image.
 * **local_max_filter:** Applies a local maximum filter to an image.
 * **local_min_filter:** Applies a local minimum filter to an image.
 * **mean_filter:** Applies a mean filter to an image.
+* **variance_filter:** Applies a variance filter to an image.
 * **median_filter:** Applies a median filter to an image.
 * **prewitt:** Applies Prewitt edge detection to an image.
 * **rank_filter:** Applies a rank filter to an image.

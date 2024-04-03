@@ -394,6 +394,7 @@ static int haar_feature_like(CHaarFeatures *self, PyArrayObject *integral, int *
         *(inp_dims + ii) = (int)PyArray_DIM(integral, ii);
         *(strides + ii) = (int)PyArray_STRIDE(integral, ii);
         *(integral_v + ii) = 0;
+        *(rects->tl) = top_left ? *(top_left) : 0;
     }
 
     n_features = haar_feature_n_features(ndim, h_axis, f_dims, inp_dims, top_left);
