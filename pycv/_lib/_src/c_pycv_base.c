@@ -237,7 +237,6 @@ void PYCV_NeighborhoodIteratorInit(PyArrayObject *array,
     iterator->numtype = (int)PyArray_TYPE(array);
 }
 
-
 // #####################################################################################################################
 
 int PYCV_InitNeighborhoodOffsets(PyArrayObject *array,
