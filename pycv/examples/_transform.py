@@ -15,7 +15,7 @@ def transform_hough_circle_peak():
     radius = np.arange(10, 35, 5)
     h_space = hough_circle(circles_edge, radius)
 
-    peaks_h, peaks_radius, peaks_center = hough_circle_peak(h_space, radius)
+    peaks_h, peaks_radius, peaks_center = hough_circle_peak(h_space, radius, n_peaks=3)
 
     detected_circles = np.zeros_like(circles)
 

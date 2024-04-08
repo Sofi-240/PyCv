@@ -1,6 +1,7 @@
 import numpy as np
-from .._lib._src_py import pycv_transform, pycv_measure
+from .._lib._src_py import pycv_transform
 from .._lib.array_api.shapes import atleast_nd
+from ..features import peaks_nonmaximum_suppression
 from ..dsa import KDtree
 
 __all__ = [
@@ -112,14 +113,10 @@ def hough_line_peak(
         raise ValueError('h_space has invalid shape')
 
     min_distance = (min_distance_delta, min_theta_delta)
-    peaks_mask = pycv_measure.find_object_peaks(
-        h_space, min_distance=min_distance, threshold=threshold, padding_mode='constant',
+    peaks_mask = peaks_nonmaximum_suppression(
+        h_space, min_distance=min_distance, threshold=threshold, padding_mode='constant', num_peaks=n_peaks
     )
     peaks = np.where(peaks_mask)
-
-    if 0 <= n_peaks < peaks[0].shape[0]:
-        sorted_ = np.argsort(h_space[peaks])[::-1]
-        peaks = tuple(p[sorted_] for p in peaks)
 
     return h_space[peaks], theta[peaks[1]], distances[peaks[0]]
 
@@ -154,28 +151,9 @@ def hough_circle_peak(
     if h_space.shape[-3] != radius.shape[0]:
         raise ValueError('h_space has invalid shape')
 
-    min_distance = (min_y_distance, min_x_distance)
-    peaks_mask = pycv_measure.find_object_peaks(
-        h_space, min_distance=min_distance, threshold=threshold, padding_mode='constant',
+    min_distance = (0, min_y_distance, min_x_distance)
+    peaks_mask = peaks_nonmaximum_suppression(
+        h_space, min_distance=min_distance, threshold=threshold, padding_mode='constant', num_peaks=n_peaks
     )
     peaks = np.where(peaks_mask)
-    if 0 <= n_peaks < peaks[0].shape[0]:
-        sorted_ = np.argsort(h_space[peaks])[::-1]
-        peaks = tuple(p[sorted_] for p in peaks)
-
-    peaks_radius = radius[peaks[0]]
-    peaks_cc = np.stack(peaks[1:], axis=1)
-    peaks_h = h_space[peaks]
-
-    tree = KDtree(peaks_cc, 1)
-    query_nn = tree.ball_point_query(peaks_cc, np.hypot(min_y_distance, min_x_distance))
-
-    mask = np.ones_like(peaks_radius, bool)
-
-    for ii, nn in enumerate(query_nn):
-        if mask[ii]:
-            for jj in nn:
-                if jj != ii:
-                    mask[jj] = 0
-
-    return peaks_h[mask], peaks_radius[mask], peaks_cc[mask]
+    return h_space[peaks], radius[peaks[0]], np.stack(peaks[1:], axis=1)

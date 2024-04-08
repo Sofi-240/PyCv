@@ -48,7 +48,7 @@ PyObject* integral_image(PyObject* self, PyObject* args);
 
 // #####################################################################################################################
 
-PyObject* find_object_peaks(PyObject* self, PyObject* args);
+PyObject* peak_nonmaximum_suppression(PyObject* self, PyObject* args);
 
 // #####################################################################################################################
 

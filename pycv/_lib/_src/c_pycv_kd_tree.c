@@ -62,15 +62,15 @@ static void ckd_copy_data_point(char *data, int m, double *point)
 
 static void ckd_swap(char *i1, char *i2)
 {
-    char tmp = *i1;
-    *i1 = *i2;
-    *i2 = tmp;
+    npy_longlong tmp = *(npy_longlong *)i1;
+    *(npy_longlong *)i1 = *(npy_longlong *)i2;
+    *(npy_longlong *)i2 = tmp;
 }
 
 static void ckd_nth_element(char *indices, char *data, int l, int h, int nth, int m)
 {
     int ii, jj;
-    char *ptr_jj, *ptr_ii;
+    char *ptr_jj = NULL, *ptr_ii = NULL, *ptr_v = NULL;
     double v, v_ii, v_jj;
 
     while (l <= h) {
@@ -80,7 +80,8 @@ static void ckd_nth_element(char *indices, char *data, int l, int h, int nth, in
         jj = h - 1;
         ptr_jj = CKD_PTR_GOTO(indices, jj);
 
-        v = CKD_GET_DOUBLE_BY_INDEX(data, (CKD_PTR_NEXT(ptr_jj)), m);
+        ptr_v = CKD_PTR_GOTO(indices, h);
+        v = CKD_GET_DOUBLE_BY_INDEX(data, ptr_v, m);
 
         while (ii <= jj) {
             v_ii = CKD_GET_DOUBLE_BY_INDEX(data, ptr_ii, m);
@@ -88,6 +89,9 @@ static void ckd_nth_element(char *indices, char *data, int l, int h, int nth, in
 
             if (v_ii > v && v_jj < v) {
                 ckd_swap(ptr_ii, ptr_jj);
+                double tmp = v_ii;
+                v_ii = v_jj;
+                v_jj = tmp;
             }
             if (v_ii <= v) {
                 ii++;
@@ -1114,6 +1118,7 @@ static int ckdtree_init(CKDtree *self)
         PyErr_SetString(PyExc_RuntimeError, "Error: ckd_build_tree");
         return 0;
     }
+
     free(build_dims);
     return 1;
 }

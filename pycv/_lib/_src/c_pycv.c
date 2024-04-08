@@ -6,13 +6,13 @@
 #include "c_pycv_transform.h"
 #include "c_pycv_canny.h"
 #include "c_pycv_draw.h"
-#include "c_pycv_measure.h"
 #include "c_pycv_kd_tree.h"
 #include "c_pycv_convex_hull.h"
 #include "c_pycv_cluster.h"
 #include "c_pycv_haar_like.h"
 #include "c_pycv_minmax_tree.h"
 #include "c_pycv_features.h"
+#include "c_pycv_peaks.h"
 
 // #####################################################################################################################
 
@@ -646,20 +646,15 @@ PyObject* integral_image(PyObject* self, PyObject* args)
 
 // #####################################################################################################################
 
-PyObject* find_object_peaks(PyObject* self, PyObject* args)
+PyObject* peak_nonmaximum_suppression(PyObject* self, PyObject* args)
 {
-    PyArrayObject *input = NULL, *output = NULL;
+    PyArrayObject *input = NULL, *output;
     PyArray_Dims min_distance = {NULL, 0};
     int mode;
     double threshold, c_val;
 
     if (!PyArg_ParseTuple(
-            args,
-            "O&O&didO&",
-            InputToArray, &input,
-            PyArray_IntpConverter, &min_distance,
-            &threshold, &mode, &c_val,
-            OutputToArray, &output)) {
+            args, "O&O&did", InputToArray, &input, PyArray_IntpConverter, &min_distance, &threshold, &mode, &c_val)) {
         goto exit;
     }
 
@@ -668,26 +663,14 @@ PyObject* find_object_peaks(PyObject* self, PyObject* args)
         goto exit;
     }
 
-    if (!PYCV_valid_dtype(PyArray_TYPE(output))) {
-        PyErr_SetString(PyExc_RuntimeError, "output dtype not supported");
-        goto exit;
-    }
 
+    int valid = PYCV_peaks_nonmaximum_suppression(input, min_distance.ptr, threshold, mode, c_val, &output);
 
-    PYCV_find_object_peaks(input,
-                           min_distance.ptr,
-                           (npy_double)threshold,
-                           (PYCV_ExtendBorder)mode,
-                           (npy_double)c_val,
-                           output);
-
-    PyArray_ResolveWritebackIfCopy(output);
 
     exit:
         Py_XDECREF(input);
-        Py_XDECREF(output);
         PyDimMem_FREE(min_distance.ptr);
-        return PyErr_Occurred() ? NULL : Py_BuildValue("");
+        return valid ? (PyObject *)output : Py_BuildValue("");
 }
 
 // #####################################################################################################################
@@ -926,7 +909,6 @@ PyTypeObject CHaarFeatures_Type = {
 
 // #####################################################################################################################
 
-
 static PyMethodDef methods[] = {
     {
         "convolve",
@@ -1007,8 +989,8 @@ static PyMethodDef methods[] = {
         NULL
     },
     {
-        "find_object_peaks",
-        (PyCFunction)find_object_peaks,
+        "peak_nonmaximum_suppression",
+        (PyCFunction)peak_nonmaximum_suppression,
         METH_VARARGS,
         NULL
     },

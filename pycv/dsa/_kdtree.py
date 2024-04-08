@@ -50,7 +50,7 @@ class KDtree(CKDtree):
             points (numpy.ndarray): The query points.
             k (int or numpy.ndarray): The number of nearest neighbors to search for each query point.
             pnorm (int, optional): The norm to be used. Defaults to 2.
-            distance_max (float, optional): The maximum distance to consider when searching for neighbors. Defaults to infinity.
+            distance_max (float, optional): The maximum distance to consider when searching for neighbors. Defaults to 2.
             epsilon (float, optional): Approximation parameter. Defaults to 0.
 
         Returns:
