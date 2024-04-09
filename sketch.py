@@ -29,14 +29,10 @@ n_labels, labels = im_label(coins_bin)
 props = NRegionProperties()
 props(labels, use_cache=True)
 
+center = [(cent + 0.5).astype(np.int64) for cent in props.centroid[:]]
 
+marked = mark_points(coins_bin, center, Shapes.CIRCLE, (255, 0, 0))
 
-from skimage.measure import regionprops_table
-
-# center = [(cent + 0.5).astype(np.int64) for cent in props.centroid[:]]
-#
-# marked = mark_points(coins_bin, center, Shapes.CIRCLE, (255, 0, 0))
-#
-# show_collection([coins, coins_bin, marked])
+show_collection([coins, coins_bin, marked])
 
 ########################################################################################################################
