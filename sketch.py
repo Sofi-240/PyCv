@@ -3,7 +3,7 @@ import os.path as osp
 from types import DynamicClassAttribute
 from pycv._lib._src import c_pycv
 from pycv.draw import mark_points, Shapes, draw_circle
-from pycv.measurements import Bbox, RegionProperties
+from pycv.measurements import Bbox, NBbox, RegionProperties, NRegionProperties
 from pycv.io import ImageLoader, show_collection
 from pycv.segmentation import Thresholds, im_threshold
 from pycv.morphological import im_label, find_object, gray_closing, Strel, remove_small_objects, region_fill, \
@@ -23,12 +23,17 @@ n_labels, labels = im_label(coins_bin)
 
 ########################################################################################################################
 
-boxes = [Bbox(bbox) for bbox in find_object(labels, as_slice=True)]
-#
-# props = [RegionProperties(bbox(labels), bbox(coins), offset=bbox, label=int(lbl)) for bbox, lbl in
-#          zip(boxes, np.unique(labels[labels > 0]))]
+# n_boxes = NBbox()
+# n_boxes.extend(Bbox(bbox) for bbox in find_object(labels, as_slice=True))
 
-# center = [(prop.centroid + 0.5).astype(np.int64) for prop in props]
+props = NRegionProperties()
+props(labels, use_cache=True)
+
+
+
+from skimage.measure import regionprops_table
+
+# center = [(cent + 0.5).astype(np.int64) for cent in props.centroid[:]]
 #
 # marked = mark_points(coins_bin, center, Shapes.CIRCLE, (255, 0, 0))
 #
