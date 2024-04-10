@@ -67,4 +67,8 @@ int PYCV_integral_image(PyArrayObject *inputs, PyArrayObject **output);
 
 // #####################################################################################################################
 
+int PYCV_linear_interp1D(PyArrayObject *xn, PyArrayObject *xp, PyArrayObject *fp, double l, double h, PyArrayObject **fn);
+
+// #####################################################################################################################
+
 #endif

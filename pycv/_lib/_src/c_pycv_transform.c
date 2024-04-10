@@ -1164,6 +1164,171 @@ int PYCV_integral_image(PyArrayObject *inputs, PyArrayObject **output)
 
 // #####################################################################################################################
 
+static int heap_cmp_lt(int numtype, char *p1, char *p2)
+{
+    switch (numtype) {
+        case NPY_BOOL:
+            return *(npy_bool *)p1 < *(npy_bool *)p2 ? 1 : 0;
+        case NPY_UBYTE:
+            return *(npy_ubyte *)p1 < *(npy_ubyte *)p2 ? 1 : 0;
+        case NPY_USHORT:
+            return *(npy_ushort *)p1 < *(npy_ushort *)p2 ? 1 : 0;
+        case NPY_UINT:
+            return *(npy_uint *)p1 < *(npy_uint *)p2 ? 1 : 0;
+        case NPY_ULONG:
+            return *(npy_ulong *)p1 < *(npy_ulong *)p2 ? 1 : 0;
+        case NPY_ULONGLONG:
+            return *(npy_ulonglong *)p1 < *(npy_ulonglong *)p2 ? 1 : 0;
+        case NPY_BYTE:
+            return *(npy_byte *)p1 < *(npy_byte *)p2 ? 1 : 0;
+        case NPY_SHORT:
+            return *(npy_short *)p1 < *(npy_short *)p2 ? 1 : 0;
+        case NPY_INT:
+            return *(npy_int *)p1 < *(npy_int *)p2 ? 1 : 0;
+        case NPY_LONG:
+            return *(npy_long *)p1 < *(npy_long *)p2 ? 1 : 0;
+        case NPY_LONGLONG:
+            return *(npy_longlong *)p1 < *(npy_longlong *)p2 ? 1 : 0;
+        case NPY_FLOAT:
+            return *(npy_float *)p1 < *(npy_float *)p2 ? 1 : 0;
+        case NPY_DOUBLE:
+            return *(npy_double *)p1 < *(npy_double *)p2 ? 1 : 0;
+        default:
+            return 0;
+    }
+}
+
+static void heap_swap(int *p1, int *p2)
+{
+    int tmp = *p1;
+    *p1 = *p2;
+    *p2 = tmp;
+}
+
+static void heap_heapify(int *heap, int pos, int h, char *priority, int numtype, int itemsize)
+{
+    char *p = priority + (*(heap + pos) * itemsize), *c = NULL, *c_p1 = NULL;
+    int child_pos = (pos << 1) + 1;
+
+    while (child_pos < h) {
+        c = priority + (*(heap + child_pos) * itemsize);
+
+        if (child_pos + 1 < h) {
+            c_p1 = priority + (*(heap + child_pos + 1) * itemsize);
+
+            if (heap_cmp_lt(numtype, c, c_p1)) {
+                child_pos += 1;
+                c = priority + (*(heap + child_pos) * itemsize);
+            }
+        }
+
+        if (heap_cmp_lt(numtype, p, c)) {
+            heap_swap(heap + pos, heap + child_pos);
+            pos = child_pos;
+            p = priority + (*(heap + pos) * itemsize);
+            child_pos = (pos << 1) + 1;
+            continue;
+        }
+        break;
+    }
+}
+
+static void heap_sort(int *heap, int n, char *priority, int numtype, int itemsize)
+{
+    int ii;
+    for (ii = n / 2; ii >= 0; ii--) {
+        heap_heapify(heap, ii, n, priority, numtype, itemsize);
+    }
+    for (ii = n - 1; ii >= 0; ii--) {
+        heap_swap(heap, heap + ii);
+        heap_heapify(heap, 0, ii, priority, numtype, itemsize);
+    }
+}
+
+int PYCV_linear_interp1D(PyArrayObject *xn, PyArrayObject *xp, PyArrayObject *fp, double l, double h, PyArrayObject **fn)
+{
+    PYCV_ArrayIterator xp_iter, fp_iter;
+    char *ptr_xn_base = NULL, *ptr_xn = NULL, *ptr_fn_base = NULL, *ptr_fn = NULL, *ptr_xp = NULL, *ptr_fp = NULL;
+    int xn_itemsize, fn_itemsize = (int)NPY_SIZEOF_DOUBLE, xn_numtype, fn_numtype = NPY_DOUBLE;
+    int n_xp, n;
+    int *heap = NULL, ii;
+    int xpi;
+    double vn, xpi0, xpi1, fpi0 = l, fpi1, delta, fni;
+
+    n = (int)PyArray_SIZE(xn);
+    n_xp = (int)PyArray_SIZE(xp);
+
+    PYCV_ArrayIteratorInit(xp, &xp_iter);
+    PYCV_ArrayIteratorInit(fp, &fp_iter);
+
+    xn_itemsize = (int)PyArray_ITEMSIZE(xn);
+    xn_numtype = (int)PyArray_TYPE(xn);
+
+    ptr_xn_base = ptr_xn = (void *)PyArray_DATA(xn);
+    ptr_xp = (void *)PyArray_DATA(xp);
+    ptr_fp = (void *)PyArray_DATA(fp);
+
+    heap = malloc(n * sizeof(int));
+    if (!heap) {
+        PyErr_NoMemory();
+        return 0;
+    }
+
+    *fn = (PyArrayObject *)PyArray_EMPTY(PyArray_NDIM(xn), PyArray_DIMS(xn), fn_numtype, 0);
+    if (!*fn) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: creating array");
+        goto exit;
+    }
+    ptr_fn_base = ptr_fn = (void *)PyArray_DATA(*fn);
+
+    for (ii = 0; ii < n; ii++) {
+        *(heap + ii) = ii;
+    }
+
+    heap_sort(heap, n, ptr_xn, xn_numtype, xn_itemsize);
+
+    xpi = -1;
+
+    PYCV_GET_VALUE(xp_iter.numtype, double, ptr_xp, xpi1);
+    PYCV_GET_VALUE(fp_iter.numtype, double, ptr_fp, fpi1);
+    xpi0 = xpi1;
+
+    for (ii = 0; ii < n; ii++) {
+        ptr_xn = ptr_xn_base + (*(heap + ii) * xn_itemsize);
+        ptr_fn = ptr_fn_base + (*(heap + ii) * fn_itemsize);
+
+        PYCV_GET_VALUE(xn_numtype, double, ptr_xn, vn);
+
+        while (xpi + 1 < n_xp && xpi1 < vn) {
+             xpi0 = xpi1;
+             fpi0 = fpi1;
+             xpi++;
+             if (xpi + 1 < n_xp) {
+                PYCV_ARRAY_ITERATOR_NEXT2(xp_iter, ptr_xp, fp_iter, ptr_fp);
+                PYCV_GET_VALUE(xp_iter.numtype, double, ptr_xp, xpi1);
+                PYCV_GET_VALUE(fp_iter.numtype, double, ptr_fp, fpi1);
+             } else {
+                fpi1 = h;
+             }
+        }
+
+        fni = (fpi0 * (xpi1 - vn)) + (fpi1 * (vn - xpi0));
+        delta = xpi1 - xpi0;
+        if (delta == 0) {
+            fni = fpi0;
+        } else {
+            fni /= delta;
+        }
+
+        PYCV_SET_VALUE(fn_numtype, ptr_fn, fni);
+    }
+
+    exit:
+        free(heap);
+        return PyErr_Occurred() ? 0 : 1;
+}
+
+// #####################################################################################################################
 
 
 

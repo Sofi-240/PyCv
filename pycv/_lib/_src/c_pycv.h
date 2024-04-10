@@ -34,6 +34,8 @@ PyObject* geometric_transform(PyObject* self, PyObject* args);
 
 PyObject* hough_transform(PyObject* self, PyObject* args, PyObject* keywords);
 
+PyObject* linear_interp1D(PyObject* self, PyObject* args);
+
 // #####################################################################################################################
 
 PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args);

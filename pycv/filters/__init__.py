@@ -1,5 +1,6 @@
-from ..filters.edge import *
-from ..filters.generic import *
+from .edge import *
+from .generic import *
+from .histogram_base import *
 
 __all__ = [s for s in dir() if not s.startswith('_')]
 

@@ -13,7 +13,8 @@ __all__ = [
     'resize',
     'rotate',
     'geometric_transform',
-    'hough_transform'
+    'hough_transform',
+    'linear_interp1D',
 ]
 
 
@@ -234,5 +235,35 @@ def hough_transform(
         return output, params, dist
 
     return output
+
+
+########################################################################################################################
+
+def linear_interp1D(
+        xn: np.ndarray,
+        xp: np.ndarray,
+        fp: np.ndarray,
+        l: float | None = None,
+        r: float | None = None
+) -> np.ndarray:
+    xn = np_compliance(xn, 'xn', _check_finite=True)
+    xp = np_compliance(xp, 'xp', _check_finite=True)
+    fp = np_compliance(fp, 'fp', _check_finite=True)
+
+    if any(x.ndim != 1 for x in (xn, xp, fp)):
+        raise ValueError('all of the inputs (xn, xp, fp) must be 1d')
+    if xp.shape != fp.shape:
+        raise ValueError('xp and fp must have the same size')
+
+    ind = np.argsort(xp, kind='mergesort')
+    xp = xp[ind]
+    fp = fp[ind]
+
+    if l is None:
+        l = float(fp[0])
+    if r is None:
+        r = float(fp[-1])
+
+    return c_pycv.linear_interp1D(xn, xp, fp, l, r)
 
 ########################################################################################################################

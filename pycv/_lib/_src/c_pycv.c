@@ -510,6 +510,37 @@ PyObject* hough_transform(PyObject* self, PyObject* args, PyObject* keywords)
         return PyErr_Occurred() ? NULL : (PyObject *)output;
 }
 
+PyObject* linear_interp1D(PyObject* self, PyObject* args)
+{
+    PyArrayObject *xn = NULL, *xp = NULL, *fp = NULL, *fn;
+    double l, h;
+
+    if (!PyArg_ParseTuple(args, "O&O&O&dd", InputToArray, &xn, InputToArray, &xp, InputToArray, &fp, &l, &h)) {
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(xn))) {
+        PyErr_SetString(PyExc_RuntimeError, "xn dtype not supported");
+        goto exit;
+    }
+    if (!PYCV_valid_dtype(PyArray_TYPE(xp))) {
+        PyErr_SetString(PyExc_RuntimeError, "xp dtype not supported");
+        goto exit;
+    }
+    if (!PYCV_valid_dtype(PyArray_TYPE(fp))) {
+        PyErr_SetString(PyExc_RuntimeError, "fp dtype not supported");
+        goto exit;
+    }
+
+    int valid = PYCV_linear_interp1D(xn, xp, fp, l, h, &fn);
+
+    exit:
+        Py_XDECREF(xn);
+        Py_XDECREF(xp);
+        Py_XDECREF(fp);
+        return valid ? (PyObject *)fn : Py_BuildValue("");
+}
+
 // #####################################################################################################################
 
 PyObject* canny_nonmaximum_suppression(PyObject* self, PyObject* args)
@@ -968,6 +999,12 @@ static PyMethodDef methods[] = {
         "hough_transform",
         (PyCFunction)hough_transform,
         METH_VARARGS|METH_KEYWORDS,
+        NULL
+    },
+    {
+        "linear_interp1D",
+        (PyCFunction)linear_interp1D,
+        METH_VARARGS,
         NULL
     },
     {
