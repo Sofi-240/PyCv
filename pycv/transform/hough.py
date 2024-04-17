@@ -1,7 +1,8 @@
 import numpy as np
 from .._lib._src_py import pycv_transform
 from .._lib.array_api.shapes import atleast_nd
-from ..features import peaks_nonmaximum_suppression
+from ..features.peaks import _peaks_nonmaximum_suppression
+from ..dsa import KDtree
 
 __all__ = [
     'hough_line',
@@ -112,7 +113,7 @@ def hough_line_peak(
         raise ValueError('h_space has invalid shape')
 
     min_distance = (min_distance_delta, min_theta_delta)
-    peaks_mask = peaks_nonmaximum_suppression(
+    peaks_mask = _peaks_nonmaximum_suppression(
         h_space, min_distance=min_distance, threshold=threshold, padding_mode='constant', num_peaks=n_peaks
     )
     peaks = np.where(peaks_mask)
@@ -150,9 +151,14 @@ def hough_circle_peak(
     if h_space.shape[-3] != radius.shape[0]:
         raise ValueError('h_space has invalid shape')
 
-    min_distance = (0, min_y_distance, min_x_distance)
-    peaks_mask = peaks_nonmaximum_suppression(
-        h_space, min_distance=min_distance, threshold=threshold, padding_mode='constant', num_peaks=n_peaks
+    if h_space.shape[0] == 1:
+        min_distance = (0, min_y_distance, min_x_distance)
+    else:
+        min_distance = (1, min_y_distance, min_x_distance)
+    peaks_mask = _peaks_nonmaximum_suppression(
+        h_space, min_distance=min_distance, threshold=threshold, padding_mode='constant'
     )
     peaks = np.where(peaks_mask)
-    return h_space[peaks], radius[peaks[0]], np.stack(peaks[1:], axis=1)
+    if n_peaks == -1 or n_peaks > peaks[0].size:
+        n_peaks = None
+    return h_space[peaks][:n_peaks], radius[peaks[0]][:n_peaks], np.stack(peaks[1:], axis=1)[:n_peaks]

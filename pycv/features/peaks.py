@@ -6,14 +6,13 @@ from .._lib.array_api import iterators
 from ..dsa import KDtree
 
 __all__ = [
-    'peaks_nonmaximum_suppression',
     'find_peaks'
 ]
 
 
 ########################################################################################################################
 
-def peaks_nonmaximum_suppression(
+def _peaks_nonmaximum_suppression(
         inputs: np.ndarray,
         min_distance: tuple | int = 1,
         threshold: float | None = None,

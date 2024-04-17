@@ -61,13 +61,10 @@ def peak_nonmaximum_suppression(
     else:
         output, _ = get_output(np.int64, inputs)
         _iter = iterators.ArrayIteratorSlice(inputs.shape, ndim_peak)
-        prev_max = 0
         for slc in _iter:
             output[slc] = c_pycv.peak_nonmaximum_suppression(
                 inputs[slc], min_distance, threshold, padding_mode, constant_value
             )
-            output[slc] += prev_max
-            prev_max = np.max(output[slc])
 
     if need_transpose:
         output = output.transpose(transpose_back)

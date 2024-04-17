@@ -5,12 +5,16 @@ from PIL import Image
 from .._lib.array_api.dtypes import cast
 from ..colors import Colors
 
-
 __all__ = [
     "load_image",
     "save_image",
-    "ImageLoader"
+    "ImageLoader",
+    "DEFAULT_DATA_PATH"
 ]
+
+########################################################################################################################
+
+DEFAULT_DATA_PATH = osp.join(osp.dirname(__file__), 'data')
 
 
 ########################################################################################################################
@@ -112,7 +116,8 @@ class ImageLoader(object):
                 continue
             self.files[''.join(f[:-1])] = f[-1]
 
-    def load(self, name: str, dtype=None, frame_num: int | None = None, _color_fmt: Colors | str | None = None, *args, **kwargs) -> np.ndarray:
+    def load(self, name: str, dtype=None, frame_num: int | None = None, _color_fmt: Colors | str | None = None, *args,
+             **kwargs) -> np.ndarray:
         if name not in self.files:
             raise AttributeError(f'no such file {self._dir_path}')
         path = osp.join(self._dir_path, f'{name}.{self.files[name]}')
