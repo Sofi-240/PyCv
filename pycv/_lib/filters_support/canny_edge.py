@@ -119,7 +119,7 @@ def canny_filter(
     if n_labels == 1:
         return edges_mask, None
 
-    labels_of_strong_edge = np.unique(labels[edges_mask & (edges >= high_threshold)])
+    labels_of_strong_edge = np.unique(labels[edges_mask & (magnitude >= high_threshold)])
 
     labels_bool = np.zeros((n_labels + 1,), bool)
     labels_bool[labels_of_strong_edge] = True

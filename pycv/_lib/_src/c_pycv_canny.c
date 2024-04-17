@@ -3,49 +3,73 @@
 
 // #####################################################################################################################
 
+/*
+    (gy >= 0 && gx <= 0) | (gy >= 0 && gx >= 0)
+    -------------------------------------------
+    (gy <= 0 && gx <= 0) | (gy <= 0 && gx >= 0)
+*/
+
+#define IS_DIAG_POSITIVE(_gy, _gx) (_gy <= 0 && _gx <= 0) || (_gy >= 0 && _gx >= 0) ? 1 : 0
+
+#define IS_DIAG_NEGATIVE(_gy, _gx) (_gy >= 0 && _gx <= 0) || (_gy <= 0 && _gx >= 0) ? 1 : 0
+
+
+/*
+                               (0, 1)               (1, 2)
+                             |gx| > |gy|          |gx| > |gy|
+                         -------------------------------------------
+    (0, 3) |gy| > |gx| | (gy >= 0 && gx <= 0) | (gy >= 0 && gx >= 0)  |gy| > |gx| (2, 5)
+                         -------------------------------------------
+    (3, 6) |gy| > |gx| | (gy <= 0 && gx <= 0) | (gy <= 0 && gx >= 0)  |gy| > |gx| (5, 8)
+                         -------------------------------------------
+                             |gx| > |gy|          |gx| > |gy|
+                                (6, 7)               (7, 8)
+    case diag pos -> interp diag neg
+    case diag neg -> interp diag pos
+*/
+
+#define INTERPOLATION_DELTA(_agy, _agx) _agy > _agx ? _agx / _agy : _agy / _agx
+
+#define LINEAR_INTERPOLATION(_p1, _p2, _a) _p2 * _a + _p1 * (1 - _a)
+
+// #####################################################################################################################
+
 #define PYCV_C_CASE_CANNY_INTERPOLATE(_NTYPE, _dtype, _mag_p, _gy, _gx, _th, _mask, _offsets, _out)                    \
 case NPY_##_NTYPE:                                                                                                     \
 {                                                                                                                      \
-    unsigned int _grad_up, _grad_down, _grad_left, _grad_right, _diag_pos, _diag_neg;                                  \
+    int _diag_pos, _diag_neg;                                                                                          \
     npy_double _abs_gy, _abs_gx, _d, _mag, _p11, _p12, _p21, _p22;                                                     \
     _mag = (npy_double)(*((_dtype *)_mag_p));                                                                          \
     _out = 0;                                                                                                          \
     if (_mask && _mag >= _th) {                                                                                        \
-        _grad_up = _gy >= 0 ? 1 : 0;                                                                                   \
-        _grad_down = _gy <= 0 ? 1 : 0;                                                                                 \
-        _grad_right = _gx >= 0 ? 1 : 0;                                                                                \
-        _grad_left = _gx <= 0 ? 1 : 0;                                                                                 \
-        _diag_neg = (_grad_up && _grad_right) || (_grad_down && _grad_left) ? 1 : 0;                                   \
-        _diag_pos = (_grad_down && _grad_right) || (_grad_up && _grad_left) ? 1 : 0;                                   \
+        _diag_pos = IS_DIAG_POSITIVE(_gy, _gx);                                                                        \
+        _diag_neg = IS_DIAG_NEGATIVE(_gy, _gx);                                                                        \
         if (_diag_neg || _diag_pos) {                                                                                  \
             _abs_gy = _gy < 0 ? -_gy : _gy;                                                                            \
             _abs_gx = _gx < 0 ? -_gx : _gx;                                                                            \
-            if (_diag_neg && _abs_gy > _abs_gx) {                                                                      \
-                _d = _abs_gx / _abs_gy;                                                                                \
+            _d = INTERPOLATION_DELTA(_abs_gy, _abs_gx);                                                                \
+            if (_diag_pos && _abs_gx > _abs_gy) {                                                                      \
                 _p11 = (npy_double)(*((_dtype *)(_mag_p + _offsets[7])));                                              \
                 _p12 = (npy_double)(*((_dtype *)(_mag_p + _offsets[8])));                                              \
                 _p21 = (npy_double)(*((_dtype *)(_mag_p + _offsets[1])));                                              \
                 _p22 = (npy_double)(*((_dtype *)(_mag_p + _offsets[0])));                                              \
-            } else if (_diag_neg) {                                                                                    \
-                _d = _abs_gy / _abs_gx;                                                                                \
+            } else if (_diag_pos) {                                                                                    \
                 _p11 = (npy_double)(*((_dtype *)(_mag_p + _offsets[5])));                                              \
                 _p12 = (npy_double)(*((_dtype *)(_mag_p + _offsets[8])));                                              \
                 _p21 = (npy_double)(*((_dtype *)(_mag_p + _offsets[3])));                                              \
                 _p22 = (npy_double)(*((_dtype *)(_mag_p + _offsets[0])));                                              \
-            } else if (_diag_pos && _abs_gy < _abs_gx) {                                                               \
-                _d = _abs_gy / _abs_gx;                                                                                \
-                _p11 = (npy_double)(*((_dtype *)(_mag_p + _offsets[5])));                                              \
-                _p12 = (npy_double)(*((_dtype *)(_mag_p + _offsets[2])));                                              \
-                _p21 = (npy_double)(*((_dtype *)(_mag_p + _offsets[3])));                                              \
-                _p22 = (npy_double)(*((_dtype *)(_mag_p + _offsets[6])));                                              \
+            } else if (_diag_neg && _abs_gy < _abs_gx) {                                                               \
+                _p11 = (npy_double)(*((_dtype *)(_mag_p + _offsets[7])));                                              \
+                _p12 = (npy_double)(*((_dtype *)(_mag_p + _offsets[6])));                                              \
+                _p21 = (npy_double)(*((_dtype *)(_mag_p + _offsets[1])));                                              \
+                _p22 = (npy_double)(*((_dtype *)(_mag_p + _offsets[2])));                                              \
             } else {                                                                                                   \
-                _d = _abs_gx / _abs_gy;                                                                                \
-                _p11 = (npy_double)(*((_dtype *)(_mag_p + _offsets[1])));                                              \
-                _p12 = (npy_double)(*((_dtype *)(_mag_p + _offsets[2])));                                              \
-                _p21 = (npy_double)(*((_dtype *)(_mag_p + _offsets[7])));                                              \
-                _p22 = (npy_double)(*((_dtype *)(_mag_p + _offsets[6])));                                              \
+                _p11 = (npy_double)(*((_dtype *)(_mag_p + _offsets[3])));                                              \
+                _p12 = (npy_double)(*((_dtype *)(_mag_p + _offsets[6])));                                              \
+                _p21 = (npy_double)(*((_dtype *)(_mag_p + _offsets[5])));                                              \
+                _p22 = (npy_double)(*((_dtype *)(_mag_p + _offsets[2])));                                              \
             }                                                                                                          \
-            if ((_p12 * _d + _p11 * (1 - _d)) <= _mag && (_p22 * _d + _p21 * (1 - _d)) <= _mag) {                      \
+            if (LINEAR_INTERPOLATION(_p12, _p11, _d) <= _mag && LINEAR_INTERPOLATION(_p21, _p22, _d) <= _mag) {        \
                 _out = 1;                                                                                              \
             }                                                                                                          \
         }                                                                                                              \
@@ -153,6 +177,12 @@ int PYCV_canny_nonmaximum_suppression(PyArrayObject *magnitude,
         free(offsets);
         return PyErr_Occurred() ? 0 : 1;
 }
+
+// #####################################################################################################################
+
+
+
+
 
 // #####################################################################################################################
 
