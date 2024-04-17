@@ -9,7 +9,9 @@ __all__ = [
     'show_collection',
     'show_struct',
     'show_histogram',
-    'show_histograms'
+    'show_histograms',
+    'show_pyramid',
+    'show_scale_space'
 ]
 
 
@@ -53,6 +55,7 @@ def imshow(image: np.ndarray, ax=None, color_bar: bool = False):
                 norm=mpl.colors.Normalize(vmin=i_min, vmax=i_max), cmap=cmap), ax=ax,
             orientation='vertical'
         )
+    return ax
 
 
 ########################################################################################################################
@@ -238,5 +241,93 @@ def show_histograms(
                 break
 
     return fig[0] if len(fig) == 1 else fig
+
+
+########################################################################################################################
+
+def pyramid_image(pyramid: list[np.ndarray], one_row: bool = False, one_col: bool = False) -> np.ndarray:
+    if not one_row and not one_col:
+        max_rows = max(pyramid[0].shape[0], sum(vv.shape[0] for vv in pyramid[1:]))
+        max_cols = pyramid[0].shape[1] + pyramid[1].shape[1]
+
+        p_image = np.zeros((max_rows, max_cols), dtype=np.float64)
+
+        p_image[:pyramid[0].shape[0], :pyramid[0].shape[1]] = pyramid[0]
+
+        r = 0
+        c = pyramid[0].shape[1]
+
+        for vv in pyramid[1:]:
+            p_image[r:r + vv.shape[0], c:c + vv.shape[1]] = vv
+            r += vv.shape[0]
+        return p_image
+    elif one_row:
+        max_cols = sum(v.shape[1] for v in pyramid)
+        max_rows = pyramid[0].shape[0]
+
+        p_image = np.zeros((max_rows, max_cols), dtype=np.float64)
+        p_image[:, :pyramid[0].shape[1]] = pyramid[0]
+
+        c = pyramid[0].shape[1]
+        r = 0
+
+        for i in range(1, len(pyramid)):
+            vv = pyramid[i]
+            r += (pyramid[i - 1].shape[0] - pyramid[i].shape[0]) // 2
+            p_image[r:r + vv.shape[0], c:c + vv.shape[1]] = vv
+            c += vv.shape[1]
+        return p_image
+
+    max_cols = pyramid[0].shape[1]
+    max_rows = sum(v.shape[0] for v in pyramid)
+
+    p_image = np.zeros((max_rows, max_cols), dtype=np.float64)
+    p_image[:pyramid[0].shape[0], :] = pyramid[0]
+
+    c = 0
+    r = pyramid[0].shape[0]
+
+    for i in range(1, len(pyramid)):
+        vv = pyramid[i]
+        c += (pyramid[i - 1].shape[1] - pyramid[i].shape[1]) // 2
+        p_image[r:r + vv.shape[0], c:c + vv.shape[1]] = vv
+        r += vv.shape[0]
+    return p_image
+
+
+def show_pyramid(pyramid: list[np.ndarray], title: str | None = None, one_row: bool = False, one_col: bool = False):
+    im = pyramid_image(pyramid, one_row, one_col)
+    ax = imshow(im)
+    if title:
+        ax.set_title(title)
+
+    return ax
+
+
+def show_scale_space(scale_space: list[np.ndarray], title: str | None = None):
+    n_row = len(scale_space)
+    n_col = scale_space[0].shape[0]
+
+    max_rows = sum(ss.shape[1] for ss in scale_space)
+    max_cols = scale_space[0].shape[1] * n_col
+
+    p_image = np.zeros((max_rows, max_cols), dtype=np.float64)
+    r = 0
+    c_shift = 0
+
+    for i in range(n_row):
+        c = c_shift
+        for j in range(n_col):
+            vv = scale_space[i][j]
+            p_image[r:r + vv.shape[0], c:c + vv.shape[1]] = vv
+            c += vv.shape[1] + 2 * c_shift
+        r += scale_space[i][0].shape[0]
+        if i < n_row - 1:
+            c_shift += (scale_space[i].shape[2] - scale_space[i + 1].shape[2]) // 2
+
+    ax = imshow(p_image)
+    if title:
+        ax.set_title(title)
+    return ax
 
 ########################################################################################################################

@@ -90,12 +90,12 @@ def mark_points(
         raise ValueError('color need to be in RGB format')
 
     color = np.array(color, dtype=output.dtype)
-
+    out_shape = output.shape
     for point in points:
         ii, jj = point
-        if ii < 0 or ii >= output.shape[0] or jj < 0 or jj >= output.shape[1]:
-            raise ValueError(f'point: {point} is out of range for image with shape of {output.shape}')
-        sh = _get_shape(shape, min(ii, jj))
+        if ii < 0 or ii >= out_shape[0] or jj < 0 or jj >= out_shape[1]:
+            raise ValueError(f'point: {point} is out of range for image with shape of {out_shape}')
+        sh = _get_shape(shape, min(ii, out_shape[0] - ii, jj, out_shape[1] - jj) - 1)
         r = sh.shape[0] // 2
         tmp = output[ii - r:ii + r + 1, jj - r:jj + r + 1, :]
 

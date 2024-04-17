@@ -99,3 +99,28 @@ int PYCV_glcm(PyArrayObject *gray, PyArrayObject *distances, PyArrayObject *angl
 
 // #####################################################################################################################
 
+//#define CASE_CORNER_FAST_BINARIZE(_ntype, _dtype, _x, _th, _h, _b, _offsets)
+//case NPY_##_ntype:
+//{
+//    int _ii;
+//    double _l_th, _h_th;
+//    _l_th = (double)(*(_dtype *)_x) - _th;
+//    _h_th = (double)(*(_dtype *)_x) + _th;
+//    for (_ii = 0; _ii < 16; _ii++) {
+//        *(_h + _ii) = (double)(*(_dtype *)(_x + *(_offsets + _ii));
+//        *(_b + _ii) = 0;
+//        if (*(_h + _ii) > _h_th) {
+//            *(_b + _ii) = 1;
+//        } else if (*(_h + _ii) < _l_th) {
+//            *(_b + _ii) = -1;
+//        }
+//    }
+//}
+//break
+//
+//
+//int PYCV_corner_FAST(PyArrayObject *input, int ncon, double threshold, PyArrayObject **response)
+//{
+//    int offsets[16] = {-21, -20, -12, -4, 3, 10, 16, 22, 21, 20, 12, 4, -3, -10, -16};
+//
+//}

@@ -39,7 +39,7 @@ def _valid_footprint(
         if kernel_shape is None:
             raise ValueError('one of kernel_shape or footprint must be given')
         elif np.isscalar(kernel_shape):
-            kernel_shape = (kernel_shape,)
+            kernel_shape = (kernel_shape,) * (len(axis) if axis is not None else ndim)
         axis = valid_axis(ndim, axis, len(kernel_shape))
         kernel_shape = fix_kernel_shape(kernel_shape, axis, ndim)
         footprint = np.ones(kernel_shape, bool)

@@ -2,7 +2,6 @@ import numpy as np
 from .._lib._src_py import pycv_transform
 from .._lib.array_api.shapes import atleast_nd
 from ..features import peaks_nonmaximum_suppression
-from ..dsa import KDtree
 
 __all__ = [
     'hough_line',

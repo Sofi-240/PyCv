@@ -15,7 +15,7 @@
 
 #define CKD_GET_INT(_ptr) (int)(*((npy_longlong *)_ptr))
 
-#define CKD_GET_DOUBLE_BY_INDEX(_data, _ind, _m) (double)(*((npy_double *)(_data + (8 * _m * (int)(*((npy_longlong *)_ind))))))
+#define CKD_GET_DOUBLE_BY_INDEX(_data, _ind, _m) (double)(*((npy_double *)(_data + (8 * _m * (*((npy_longlong *)_ind))))))
 
 #define CKD_PTR_GOTO(_ptr, _ind) _ptr + (_ind * 8)
 
@@ -29,7 +29,7 @@
 
 #define CKD_PTR_SET_PREV(_ptr) (_ptr -= 8)
 
-#define CKD_PTR_GOTO_BY_INDEX(_data, _ind, _m) _data + (8 * _m * (int)(*((npy_longlong *)_ind)))
+#define CKD_PTR_GOTO_BY_INDEX(_data, _ind, _m) _data + (8 * _m * (*((npy_longlong *)_ind)))
 
 // #####################################################################################################################
 
@@ -131,7 +131,7 @@ static int ckd_partition(char *indices, char *data, int l, int h, int m, double 
         }
         CKD_PTR_SET_NEXT(ptr_ii);
     }
-//    ckd_swap(ptr_pp, ptr_ii);
+    ckd_swap(ptr_pp, ptr_ii);
     return pp;
 }
 
@@ -673,12 +673,10 @@ static int ckd_build_tree(CKDtree *self, int l, int h, double *dims_min, double 
 
     ckd_nth_element(indices, ptr_d, l, h - 1, nth, m);
 
-    nth -= 1;
-
     ptr_i = CKD_PTR_GOTO(indices, nth);
     split_val = CKD_GET_DOUBLE_BY_INDEX(ptr_d, ptr_i, m);
 
-    pp = nth;
+    pp = ckd_partition(indices, ptr_d, l, nth, m, split_val);
 
     if (pp == l) {
         int pp_min = ckd_min_element(indices, ptr_d, l, h, m);

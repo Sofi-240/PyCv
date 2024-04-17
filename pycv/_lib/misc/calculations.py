@@ -3,6 +3,7 @@ from ..array_api.regulator import np_compliance
 from itertools import combinations_with_replacement
 from .._src_py.pycv_filters import convolve
 from .._src_py.utils import fix_kernel_shape
+from pycv._lib.array_api.dtypes import cast
 from ..filters_support._windows import EdgeKernels, gaussian_kernel
 
 __all__ = [
@@ -20,7 +21,10 @@ def derivatives(
         mode_xy: bool = False
 ) -> np.ndarray:
     inputs = np_compliance(inputs, 'inputs', _check_finite=True, _check_atleast_nd=1)
-    inputs = inputs.astype(np.float64)
+    if inputs.dtype.kind == "f":
+        inputs = inputs.astype(np.float64)
+    else:
+        inputs = cast(inputs, np.float64)
 
     ndim = inputs.ndim
     if ndim > 2 and mode_xy:
