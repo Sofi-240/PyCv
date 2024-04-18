@@ -23,7 +23,7 @@ def resize(
         sigma: float | None = None,
         padding_mode: str = 'constant',
         constant_value: float | int | None = 0,
-        preserve_dtype: bool = False
+        preserve_dtype: bool = True
 ) -> np.ndarray:
     """
     Resize the input array to the specified output shape.
@@ -60,7 +60,7 @@ def rotate(
         reshape: bool = True,
         padding_mode: str = 'constant',
         constant_value: float | int | None = 0,
-        preserve_dtype: bool = False
+        preserve_dtype: bool = True
 ) -> np.ndarray:
     """
     Rotate the input array by the specified angle.
@@ -94,9 +94,10 @@ def geometric_transform(
         transform_matrix: ProjectiveTransform | np.ndarray,
         order: int = 1,
         axis: tuple | None = None,
+        output_shape: tuple | None = None,
         padding_mode: str = 'constant',
         constant_value: float | int | None = 0,
-        preserve_dtype: bool = False
+        preserve_dtype: bool = True
 ) -> np.ndarray:
     """
         Apply a geometric transformation to the input array.
@@ -106,6 +107,7 @@ def geometric_transform(
             transform_matrix (numpy.ndarray): The transformation matrix.
             order (int, optional): The order of interpolation (0=nearest, 1=linear, 2=quadratic, 3=cubic). Defaults to 1.
             axis (tuple or None, optional): The axes along which the transformation is applied. Defaults to None.
+            output_shape (tuple or None, optional): Output shape. Defaults to None.
             padding_mode (str, optional): The padding mode to use for elements outside the boundaries of the input array. Defaults to 'constant'.
             constant_value (float or int or None, optional): The constant value to use for padding if padding_mode is 'constant'. Defaults to 0.
             preserve_dtype (bool, optional): Whether to preserve the data type of the input array in the output. Defaults to False.
@@ -116,7 +118,7 @@ def geometric_transform(
         Notes:
             - If `preserve_dtype` is False, the output array will have dtype float64.
         """
-    return pycv_transform.geometric_transform(inputs, transform_matrix, order, axis, padding_mode, constant_value,
+    return pycv_transform.geometric_transform(inputs, transform_matrix, order, axis, output_shape, padding_mode, constant_value,
                                               preserve_dtype)
 
 ########################################################################################################################

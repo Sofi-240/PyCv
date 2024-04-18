@@ -382,6 +382,15 @@ class ProjectiveTransform(_BaseGeometricTransform):
     def __array__(self) -> np.ndarray:
         return np.asarray(self.matrix, dtype=np.float64)
 
+    def __matmul__(self, other):
+        if isinstance(other, ProjectiveTransform):
+            if isinstance(other, self.__class__):
+                return self.__class__(self.ndim, matrix=self.matrix @ other.matrix)
+            return ProjectiveTransform(self.ndim, matrix=self.matrix @ other.matrix)
+        elif isinstance(other, np.ndarray):
+            return ProjectiveTransform(self.ndim, matrix=self.matrix @ other)
+        raise TypeError(f'cannot matmul object type of {type(other)} only instance of ProjectiveTransform or np.ndarray')
+
     def _transform(self, src: np.ndarray, matrix: np.ndarray) -> np.ndarray:
         nd = matrix.shape[0] - 1
 
@@ -395,8 +404,8 @@ class ProjectiveTransform(_BaseGeometricTransform):
         return self.matrix.shape[0] - 1
 
     @property
-    def inverse(self) -> np.ndarray:
-        return np.linalg.inv(self.matrix)
+    def inverse(self):
+        return self.__class__(self.ndim, matrix=np.linalg.inv(self.matrix))
 
     def transform(self, src: np.ndarray, matrix: np.ndarray) -> np.ndarray:
         matrix = _valid_matrix(self.ndim, matrix)

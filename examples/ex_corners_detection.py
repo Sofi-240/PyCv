@@ -17,3 +17,6 @@ corners = harris_corner(brick)
 peaks = find_peaks(corners, min_distance=7, threshold=0.8)
 marked = mark_points(brick, np.stack(np.where(peaks), axis=-1))
 show_collection([brick, marked])
+
+########################################################################################################################
+

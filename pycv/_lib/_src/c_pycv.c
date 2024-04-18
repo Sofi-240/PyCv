@@ -404,8 +404,8 @@ PyObject* geometric_transform(PyObject* self, PyObject* args)
             InputToArray, &matrix,
             InputOptionalToArray, &input,
             OutputOptionalToArray, &output,
-            InputOptionalToArray, &src,
-            OutputOptionalToArray, &dst,
+            InputOptionalToArray, &dst,
+            OutputOptionalToArray, &src,
             &order, &mode, &constant_value)) {
         goto exit;
     }
@@ -433,13 +433,13 @@ PyObject* geometric_transform(PyObject* self, PyObject* args)
         goto exit;
     }
 
-    PYCV_geometric_transform(matrix, input, output, src, dst, (npy_intp)order, (PYCV_ExtendBorder)mode, (npy_double)constant_value);
+    PYCV_geometric_transform(matrix, input, output, dst, src, (npy_intp)order, (PYCV_ExtendBorder)mode, (npy_double)constant_value);
 
     if (output) {
         PyArray_ResolveWritebackIfCopy(output);
     }
-    if (dst) {
-        PyArray_ResolveWritebackIfCopy(dst);
+    if (src) {
+        PyArray_ResolveWritebackIfCopy(src);
     }
 
 

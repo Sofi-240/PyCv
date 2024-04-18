@@ -7,7 +7,7 @@ from .._src_py.utils import get_output, ctype_border_mode, ctype_interpolation_o
 from pycv._lib._src import c_pycv
 from ..filters_support._windows import gaussian_kernel
 from .._src_py.pycv_filters import convolve
-from ._geometric_transform import ProjectiveTransform, _valid_matrix
+from ._geometric_transform import ProjectiveTransform, SimilarityTransform, _valid_matrix
 
 __all__ = [
     'resize',
@@ -62,7 +62,14 @@ def resize(
     c_pycv.resize(inputs, output, order, 1, mode, constant_value)
 
     if preserve_dtype:
-        return cast(output, dtype.type)
+        min_val = np.min(inputs)
+        max_val = np.max(inputs)
+        np.clip(output, min_val, max_val, out=output)
+        if dtype.kind != 'f':
+            cast(output, dtype.type)
+        elif dtype.itemsize != 8:
+            output = cast(output, dtype.type)
+        return output
 
     return output
 
@@ -94,45 +101,50 @@ def rotate(
 
     order = ctype_interpolation_order(order)
 
-    angle = np.deg2rad(angle)
-    c, s = np.cos(angle), np.sin(angle)
-    rot_matrix = np.array([[c, -s], [s, c]], dtype=np.float64)
-
     inputs_shape = np.asarray(inputs.shape[-2:])[::-1]
-
     center = (inputs_shape - 1) / 2
+
+    matrix = SimilarityTransform(translation=center) @ SimilarityTransform(rotation=angle) @ SimilarityTransform(translation=-center)
 
     if reshape:
         x, y = inputs_shape
-        corners = np.asarray([[0, 0, x, x],
-                              [0, y, 0, y]])
-        bounds = rot_matrix @ corners
-        output_shape = (bounds.ptp(axis=1) + 0.5).astype(int)
+        corners = np.array([
+            [0, 0],
+            [0, x - 1],
+            [y - 1, x - 1],
+            [y - 1, 0]
+        ])
+        bounds = SimilarityTransform(matrix=matrix).inverse(corners)[..., :-1]
+        output_shape = (bounds.ptp(axis=0) + 0.5).astype(int)
+
+        matrix = matrix @  SimilarityTransform(translation=bounds.min(axis=0))
     else:
         output_shape = inputs_shape
 
-    output_center = rot_matrix @ ((output_shape - 1) / 2)
-
-    shift = center - output_center
-
-    matrix = np.eye(3, dtype=np.float64)
-    matrix[:2, :2] = rot_matrix
-    matrix[:2, 2] = shift
-
     dtype = get_dtype_info(inputs.dtype)
-    inputs = cast(inputs, np.float64)
+    if dtype.kind != 'f':
+        inputs = cast(inputs, np.float64)
+    elif dtype.itemsize != 8:
+        inputs = cast(inputs, np.float64)
 
     output, _ = get_output(None, inputs, inputs.shape[:-2] + tuple(output_shape[::-1]))
 
     mode = ctype_border_mode(padding_mode)
 
-    c_pycv.geometric_transform(matrix, inputs, output, None, None, order, mode, constant_value)
+    c_pycv.geometric_transform(matrix.matrix, inputs, output, None, None, order, mode, constant_value)
 
     if need_transpose:
         output = output.transpose(transpose_back)
 
     if preserve_dtype:
-        return cast(output, dtype.type)
+        min_val = np.min(inputs)
+        max_val = np.max(inputs)
+        np.clip(output, min_val, max_val, out=output)
+        if dtype.kind != 'f':
+            cast(output, dtype.type)
+        elif dtype.itemsize != 8:
+            output = cast(output, dtype.type)
+        return output
 
     return output
 
@@ -144,6 +156,7 @@ def geometric_transform(
         transform_matrix: ProjectiveTransform | np.ndarray,
         order: int = 1,
         axis: tuple | None = None,
+        output_shape: tuple | None = None,
         padding_mode: str = 'constant',
         constant_value: float | int | None = 0,
         preserve_dtype: bool = False
@@ -168,19 +181,27 @@ def geometric_transform(
     order = ctype_interpolation_order(order)
 
     dtype = get_dtype_info(inputs.dtype)
-    inputs = cast(inputs, np.float64)
+    if dtype.kind != 'f':
+        inputs = cast(inputs, np.float64)
+    elif dtype.itemsize != 8:
+        inputs = cast(inputs, np.float64)
 
-    output, _ = get_output(None, inputs)
+    output, _ = get_output(None, inputs, output_shape)
 
-    mode = ctype_border_mode(padding_mode)
-
-    c_pycv.geometric_transform(matrix, inputs, output, None, None, order, mode, constant_value)
+    c_pycv.geometric_transform(matrix, inputs, output, None, None, order, ctype_border_mode(padding_mode), constant_value)
 
     if need_transpose:
         output = output.transpose(transpose_back)
 
     if preserve_dtype:
-        return cast(output, dtype.type)
+        min_val = np.min(inputs)
+        max_val = np.max(inputs)
+        np.clip(output, min_val, max_val, out=output)
+        if dtype.kind != 'f':
+            cast(output, dtype.type)
+        elif dtype.itemsize != 8:
+            output = cast(output, dtype.type)
+        return output
 
     return output
 

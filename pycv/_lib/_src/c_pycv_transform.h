@@ -3,23 +3,6 @@
 
 // #####################################################################################################################
 
-typedef struct {
-    npy_intp a_dims[NPY_MAXDIMS];
-    npy_intp a_strides[NPY_MAXDIMS];
-    npy_intp flag;
-    npy_intp rank;
-    npy_intp order;
-    npy_intp c_size;
-    npy_intp c_strides[NPY_MAXDIMS];
-    npy_intp c_counter[NPY_MAXDIMS];
-    npy_intp c_shifts[NPY_MAXDIMS];
-    npy_double *coefficients;
-} InterpolationAuxObject;
-
-int PYCV_InterpolationAuxObjectInit(npy_intp order, PyArrayObject *array, npy_intp ndim0, InterpolationAuxObject *object);
-
-// #####################################################################################################################
-
 int PYCV_resize(PyArrayObject *input,
                 PyArrayObject *output,
                 npy_intp order,
@@ -27,11 +10,16 @@ int PYCV_resize(PyArrayObject *input,
                 PYCV_ExtendBorder mode,
                 npy_double c_val);
 
+int PYCV_map_coordinates_case_c(PyArrayObject *matrix, PyArrayObject *dst, PyArrayObject *src);
+
+int PYCV_map_coordinates_case_a(PyArrayObject *matrix, PyArrayObject *dst, PyArrayObject *src,
+                                int order, PYCV_ExtendBorder mode, double c_val);
+
 int PYCV_geometric_transform(PyArrayObject *matrix,
                              PyArrayObject *input,
                              PyArrayObject *output,
-                             PyArrayObject *src,
                              PyArrayObject *dst,
+                             PyArrayObject *src,
                              npy_intp order,
                              PYCV_ExtendBorder mode,
                              npy_double c_val);

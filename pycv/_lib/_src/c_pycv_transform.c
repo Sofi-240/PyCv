@@ -1,168 +1,10 @@
 #include "c_pycv_base.h"
+#include "c_pycv_interpolation.h"
 #include "c_pycv_transform.h"
 
 // #####################################################################################################################
 
 #define TOLERANCE 1e-15
-
-// #####################################################################################################################
-
-#define PYCV_T_INTERP_NN(_values, _delta, _out)                                                                        \
-{                                                                                                                      \
-    _out = _values[0];                                                                                                 \
-}
-
-#define PYCV_T_INTERP_LINEAR(_values, _delta, _out)                                                                    \
-{                                                                                                                      \
-    _out = (1 - _delta) * _values[0] + _delta * _values[1];                                                            \
-}
-
-#define PYCV_T_INTERP_QUADRATIC(_values, _delta, _out)                                                                 \
-{                                                                                                                      \
-    _out = _values[1] + 0.5 * _delta * (_values[2] - _values[0]) +                                                     \
-            0.5 * _delta * _delta * (_values[2] - 2 * _values[1] + _values[0]);                                        \
-}
-
-#define PYCV_T_INTERP_CUBIC(_values, _delta, _out)                                                                     \
-{                                                                                                                      \
-    _out = _values[1] + 0.5 * _delta * (-_values[0] + _values[2] +                                                     \
-           _delta * (2 * _values[0] - 5 * _values[1] + 4 * _values[2] - _values[3] +                                   \
-           _delta * (-_values[0] + 3 * _values[1] - 3 * _values[2] + _values[3])));                                    \
-}
-
-#define PYCV_T_INTERPOLATION(_order, _values, _delta, _out)                                                            \
-{                                                                                                                      \
-    switch (_order) {                                                                                                  \
-        case 0:                                                                                                        \
-            PYCV_T_INTERP_NN(_values, _delta, _out);                                                                   \
-            break;                                                                                                     \
-        case 1:                                                                                                        \
-            PYCV_T_INTERP_LINEAR(_values, _delta, _out);                                                               \
-            break;                                                                                                     \
-        case 2:                                                                                                        \
-            PYCV_T_INTERP_QUADRATIC(_values, _delta, _out);                                                            \
-            break;                                                                                                     \
-        case 3:                                                                                                        \
-            PYCV_T_INTERP_CUBIC(_values, _delta, _out);                                                                \
-            break;                                                                                                     \
-        default:                                                                                                       \
-            _out = 0;                                                                                                  \
-    }                                                                                                                  \
-}
-
-// #####################################################################################################################
-
-int PYCV_InterpolationAuxObjectInit(npy_intp order, PyArrayObject *array, npy_intp ndim0, InterpolationAuxObject *object)
-{
-    npy_intp rank, max_dims = 0, max_stride = 0, stride_pos, ii;
-
-    rank = PyArray_NDIM(array) - ndim0;
-
-    for (ii = 0; ii < rank; ii++) {
-        object->c_counter[ii] = 0;
-        object->c_shifts[ii] = 0;
-
-        object->a_dims[ii] = PyArray_DIM(array, (int)(ii + ndim0));
-        object->a_strides[ii] =PyArray_STRIDE(array, (int)(ii + ndim0));
-
-        max_dims = max_dims < object->a_dims[ii] ? object->a_dims[ii] : max_dims;
-        stride_pos = object->a_strides[ii] < 0 ? -object->a_strides[ii] : object->a_strides[ii];
-        max_stride = max_stride < stride_pos ? stride_pos : max_stride;
-    }
-
-    object->flag = max_dims * max_stride + 1;
-    object->rank = rank;
-    object->order = order;
-    object->c_size = order + 1;
-    object->c_strides[rank - 1] = 1;
-
-    for (ii = rank - 2; ii >= 0; ii--) {
-        object->c_size *= (order + 1);
-        object->c_strides[ii] = object->c_strides[ii + 1] * (order + 1);
-    }
-
-    object->coefficients = malloc(object->c_size * sizeof(npy_double));
-    if (!object->coefficients) {
-        PyErr_NoMemory();
-        return 0;
-    }
-    return 1;
-}
-
-#define PYCV_T_CASE_INTERP_AUX_BUILD_F(_NTYPE, _dtype, _object, _base_p, _p, _position0, _mode, _c_val)                \
-case NPY_##_NTYPE:                                                                                                     \
-{                                                                                                                      \
-    int _ii, _jj, _outside;                                                                                            \
-    npy_intp _cc;                                                                                                      \
-    for (_jj = 0; _jj < (_object).c_size; _jj++) {                                                                     \
-        _p = _base_p;                                                                                                  \
-        _outside = 0;                                                                                                  \
-        for (_ii = 0; _ii < (_object).rank; _ii++) {                                                                   \
-            if (!_outside) {                                                                                           \
-                _cc = _position0[_ii] + (_object).c_shifts[_ii];                                                       \
-                _cc = PYCV_FitCoordinate(_cc, (_object).a_dims[_ii], (_object).flag, _mode);                           \
-                if (_cc == (_object).flag) {                                                                           \
-                    _outside = 1;                                                                                      \
-                } else {                                                                                               \
-                    _p += (_object).a_strides[_ii] * _cc;                                                              \
-                }                                                                                                      \
-            }                                                                                                          \
-            (_object).c_counter[_ii] += 1;                                                                             \
-            if ((_object).c_counter[_ii] == (_object).c_strides[_ii]) {                                                \
-                (_object).c_counter[_ii] = 0;                                                                          \
-                if ((_object).c_shifts[_ii] == (_object).order) {                                                      \
-                    (_object).c_shifts[_ii] = 0;                                                                       \
-                } else {                                                                                               \
-                    (_object).c_shifts[_ii]  += 1;                                                                     \
-                }                                                                                                      \
-            }                                                                                                          \
-        }                                                                                                              \
-        if (_outside) {                                                                                                \
-            (_object).coefficients[_jj] = (npy_double)_c_val;                                                          \
-        } else {                                                                                                       \
-            (_object).coefficients[_jj] = (npy_double)(*(_dtype *)(_p));                                               \
-        }                                                                                                              \
-    }                                                                                                                  \
-}                                                                                                                      \
-break
-
-#define PYCV_T_INTERP_AUX_BUILD_F(_NTYPE, _object, _base_p, _p, _position0, _mode, _c_val)                             \
-{                                                                                                                      \
-    switch (_NTYPE) {                                                                                                  \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(BOOL, npy_bool, _object, _base_p, _p, _position0, _mode, _c_val);               \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(UBYTE, npy_ubyte, _object, _base_p, _p, _position0, _mode, _c_val);             \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(USHORT, npy_ushort, _object, _base_p, _p, _position0, _mode, _c_val);           \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(UINT, npy_uint, _object, _base_p, _p, _position0, _mode, _c_val);               \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(ULONG, npy_ulong, _object, _base_p, _p, _position0, _mode, _c_val);             \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(ULONGLONG, npy_ulonglong, _object, _base_p, _p, _position0, _mode, _c_val);     \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(BYTE, npy_byte, _object, _base_p, _p, _position0, _mode, _c_val);               \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(SHORT, npy_short, _object, _base_p, _p, _position0, _mode, _c_val);             \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(INT, npy_int, _object, _base_p, _p, _position0, _mode, _c_val);                 \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(LONG, npy_long, _object, _base_p, _p, _position0, _mode, _c_val);               \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(LONGLONG, npy_longlong, _object, _base_p, _p, _position0, _mode, _c_val);       \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(FLOAT, npy_float, _object, _base_p, _p, _position0, _mode, _c_val);             \
-        PYCV_T_CASE_INTERP_AUX_BUILD_F(DOUBLE, npy_double, _object, _base_p, _p, _position0, _mode, _c_val);           \
-    }                                                                                                                  \
-}
-
-#define PYCV_T_INTERP_AUX_COMPUTE_FN(_NTYPE, _object, _p, _delta)                                                      \
-{                                                                                                                      \
-    npy_intp _fc_size, _ii, _jj, _kk;                                                                                  \
-    npy_double _out;                                                                                                   \
-    _fc_size = (_object).c_size / ((_object).order + 1);                                                               \
-    for (_jj = (_object).rank - 1; _jj >= 0; _jj--) {                                                                  \
-        _kk = 0;                                                                                                       \
-        for (_ii = 0; _ii < _fc_size; _ii++) {                                                                         \
-            PYCV_T_INTERPOLATION((_object).order, ((_object).coefficients + _ii * ((_object).order + 1)), _delta[_jj], _out);\
-            (_object).coefficients[_kk] = _out;                                                                        \
-            _kk++;                                                                                                     \
-        }                                                                                                              \
-        _fc_size = _kk / ((_object).order + 1);                                                                        \
-    }                                                                                                                  \
-    _out = (_object).coefficients[0];                                                                                  \
-    PYCV_SET_VALUE_F2A(_NTYPE, _p, _out);                                                                              \
-}
-
 
 // #####################################################################################################################
 
@@ -173,34 +15,46 @@ int PYCV_resize(PyArrayObject *input,
                 PYCV_ExtendBorder mode,
                 npy_double c_val)
 {
-    PYCV_ArrayIterator iter_o;
-    npy_double scale_factor[NPY_MAXDIMS], projection[NPY_MAXDIMS], delta[NPY_MAXDIMS];
-    npy_intp out_size, ii, jj, position0[NPY_MAXDIMS];
-    int num_type_i, num_type_o;
+    PYCV_ArrayIterator iter_o, iter_i;
+    npy_intp flag, cc, max_dims = 0, max_stride = 0, stride_pos;
+    double *nodes = NULL, *delta = NULL, *scale_factor = NULL, val, pos;
+    int out_size, ii, jj, kk, coord[NPY_MAXDIMS], is_out = 0;
     char *po = NULL, *pi = NULL, *pi_base = NULL;
-    InterpolationAuxObject aux;
+    PYCV_InterpTree tree;
 
     NPY_BEGIN_THREADS_DEF;
 
-    if (!PYCV_InterpolationAuxObjectInit(order, input, 0, &aux)) {
-        PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InterpolationAuxObjectInit \n");
+    if (!pycv_InterpTree_init(&tree, (int)PyArray_NDIM(input), (int)order)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: pycv_InterpTree_init \n");
         goto exit;
     }
 
-    out_size = PyArray_SIZE(output);
-
-    for (ii = 0; ii < aux.rank; ii++) {
-        if (grid_mode) {
-            scale_factor[ii] = (npy_double)(aux.a_dims[ii] - 1) / (npy_double)(PyArray_DIM(output, (int)(ii)) - 1);
-        } else {
-            scale_factor[ii] = (npy_double)aux.a_dims[ii] / (npy_double)PyArray_DIM(output, (int)(ii));
-        }
+    scale_factor = malloc((tree.tree_size + 2 * tree.rank) * sizeof(double));
+    if (!scale_factor) {
+        PyErr_NoMemory();
+        goto exit;
     }
 
-    PYCV_ArrayIteratorInit(output, &iter_o);
+    delta = scale_factor + tree.rank;
+    nodes = delta + tree.rank;
 
-    num_type_i = PyArray_TYPE(input);
-    num_type_o = PyArray_TYPE(output);
+    out_size = (int)PyArray_SIZE(output);
+
+    PYCV_ArrayIteratorInit(output, &iter_o);
+    PYCV_ArrayIteratorInit(input, &iter_i);
+
+    for (ii = 0; ii < tree.rank; ii++) {
+        if (grid_mode) {
+            *(scale_factor + ii) = (double)(*(iter_i.dims_m1 + ii)) / (double)(*(iter_o.dims_m1 + ii));
+        } else {
+            *(scale_factor + ii) = (double)(*(iter_i.dims_m1 + ii) + 1) / (double)(*(iter_o.dims_m1 + ii) + 1);
+        }
+        max_dims = *(iter_i.dims_m1 + ii) + 1 > max_dims ? *(iter_i.dims_m1 + ii) + 1 : max_dims;
+
+        stride_pos = *(iter_i.strides + ii) < 0 ? -*(iter_i.strides + ii) : *(iter_i.strides + ii);
+        max_stride = stride_pos > max_stride ? stride_pos : max_stride;
+    }
+    flag = max_stride * max_dims;
 
     NPY_BEGIN_THREADS;
 
@@ -208,28 +62,292 @@ int PYCV_resize(PyArrayObject *input,
     po = (void *)PyArray_DATA(output);
 
     for (ii = 0; ii < out_size; ii++) {
-        for (jj = 0; jj < aux.rank; jj++) {
-            projection[jj] = (npy_double)iter_o.coordinates[jj] * scale_factor[jj];
-            if (order & 1) {
-                position0[jj] = (npy_intp)floor(projection[jj]) - order / 2;
-                delta[jj] = projection[jj] - (npy_intp)floor(projection[jj]);
+        for (kk = 0; kk < tree.rank; kk++) {
+            pos = (double)(*(iter_o.coordinates + kk)) * *(scale_factor + kk);
+            if (tree.order & 1) {
+                *(coord + kk) = (int)floor(pos) - tree.order / 2;
+                *(delta + kk) = pos - floor(pos);
             } else {
-                position0[jj] = (npy_intp)floor(projection[jj] + 0.5) - order / 2;
-                delta[jj] = projection[jj] - (npy_intp)floor(projection[jj] + 0.5);
+                *(coord + kk) = (int)floor(pos + 0.5) - tree.order / 2;
+                *(delta + kk) = pos - floor(pos + 0.5);
             }
         }
-        PYCV_T_INTERP_AUX_BUILD_F(num_type_i, aux, pi_base, pi, position0, mode, c_val);
-        PYCV_T_INTERP_AUX_COMPUTE_FN(num_type_o, aux, po, delta);
+        for (jj = 0; jj < tree.tree_size; jj++) {
+            pi = pi_base;
+            for (kk = 0; kk < tree.rank; kk++) {
+                if (is_out) {
+                    continue;
+                }
+                cc = (npy_intp)(*(coord + kk) + *(tree.offsets + jj * tree.rank + kk));
+                cc = PYCV_FitCoordinate(cc, *(iter_i.dims_m1 + kk) + 1, flag, mode);
+                if (cc == flag) {
+                    is_out = 1;
+                } else {
+                    pi += cc * *(iter_i.strides + kk);
+                }
+            }
+            if (is_out) {
+                *(nodes + jj) = (double)c_val;
+                is_out = 0;
+            } else {
+                PYCV_GET_VALUE(iter_i.numtype, double, pi, *(nodes + jj));
+            }
+        }
+        pycv_InterpTree_interpolate(&tree, nodes, delta);
+        val = *nodes;
+        PYCV_SET_VALUE_F2A(iter_o.numtype, po, val);
         PYCV_ARRAY_ITERATOR_NEXT(iter_o, po);
+
     }
 
     NPY_END_THREADS;
     exit:
-        free(aux.coefficients);
+        pycv_InterpTree_free(&tree);
+        if (scale_factor) {
+            free(scale_factor);
+        }
         return PyErr_Occurred() ? 0 : 1;
 }
 
 // #####################################################################################################################
+
+typedef struct {
+    double *matrix;
+    double *src;
+    double *dst;
+    int ndim;
+} CoordMap;
+
+static int CoordMap_init(CoordMap *self, PyArrayObject *matrix)
+{
+    PYCV_ArrayIterator iter;
+    char *pm = NULL;
+    int h_size, ii;
+    double *hh;
+
+    h_size = (int)PyArray_SIZE(matrix);
+    self->ndim = (int)PyArray_DIM(matrix, 0);
+
+    self->matrix = calloc(h_size + 2 * self->ndim, sizeof(double));
+    if (!self->matrix) {
+        self->ndim = 0;
+        PyErr_NoMemory();
+        return 0;
+    }
+    self->src = self->matrix + h_size;
+    self->dst = self->src + self->ndim;
+
+    PYCV_ArrayIteratorInit(matrix, &iter);
+
+    pm = (void *)PyArray_DATA(matrix);
+
+    for (ii = 0; ii < h_size; ii++) {
+        PYCV_GET_VALUE(iter.numtype, double, pm, *(self->matrix + ii));
+        PYCV_ARRAY_ITERATOR_NEXT(iter, pm);
+    }
+    return 1;
+}
+
+static void CoordMap_free(CoordMap *self)
+{
+    if (self->ndim) {
+        free(self->matrix);
+        self->ndim = 0;
+    }
+}
+
+static void CoordMap_dot_product(CoordMap *self)
+{
+    for (int ii = self->ndim - 1; ii >= 0; ii--) {
+        *(self->src + ii) = 0;
+        for (int jj = 0; jj < self->ndim; jj++) {
+            *(self->src + ii) += *(self->dst + jj) * *(self->matrix + ii * self->ndim + jj);
+        }
+        if (ii < self->ndim - 1) {
+            *(self->src + ii) /= *(self->src + self->ndim - 1);
+        } else if (*(self->src + ii) == 0) {
+            *(self->src + ii) = TOLERANCE;
+        }
+    }
+}
+
+int PYCV_map_coordinates_case_c(PyArrayObject *matrix, PyArrayObject *dst, PyArrayObject *src)
+{
+    PYCV_ArrayIterator iter_s, iter_d;
+    int size, ii, jj;
+    CoordMap mapping;
+    char *psrc = NULL, *pdst = NULL;
+
+    NPY_BEGIN_THREADS_DEF;
+
+    if (!CoordMap_init(&mapping, matrix)) {
+        PyErr_NoMemory();
+        return 0;
+    }
+
+    PYCV_ArrayIteratorInit(src, &iter_s);
+    PYCV_ArrayIteratorInit(dst, &iter_d);
+
+    size = (int)PyArray_DIM(dst, 0);
+
+    psrc = (void *)PyArray_DATA(src);
+    pdst = (void *)PyArray_DATA(dst);
+
+    NPY_BEGIN_THREADS;
+
+    for (ii = 0; ii < size; ii++) {
+        for (jj = 0; jj < mapping.ndim; jj++) {
+            PYCV_GET_VALUE(iter_d.numtype, double, pdst, *(mapping.dst + jj));
+            PYCV_ARRAY_ITERATOR_NEXT(iter_d, pdst);
+        }
+        CoordMap_dot_product(&mapping);
+
+        for (jj = 0; jj < mapping.ndim; jj++) {
+            PYCV_SET_VALUE_F2A(iter_s.numtype, psrc, *(mapping.src + jj));
+            PYCV_ARRAY_ITERATOR_NEXT(iter_s, psrc);
+        }
+    }
+    NPY_END_THREADS;
+    exit:
+        CoordMap_free(&mapping);
+        return PyErr_Occurred() ? 0 : 1;
+}
+
+int PYCV_map_coordinates_case_a(PyArrayObject *matrix, PyArrayObject *dst, PyArrayObject *src,
+                                int order, PYCV_ExtendBorder mode, double c_val)
+{
+    PYCV_ArrayIterator iter_s, iter_d;
+    npy_intp flag, cc, max_dims = 0, max_stride = 0, stride_pos;
+    double *nodes = NULL, *delta = NULL, val, pos;
+    int size, ii, jj, kk, coord[NPY_MAXDIMS], is_out = 0, nd_p;
+    char *pdst = NULL, *psrc = NULL, *pdst_base = NULL;
+    PYCV_InterpTree tree;
+    CoordMap mapping;
+
+    NPY_BEGIN_THREADS_DEF;
+
+    if (!CoordMap_init(&mapping, matrix)) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+
+    if (!pycv_InterpTree_init(&tree, mapping.ndim - 1, order)) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: pycv_InterpTree_init \n");
+        goto exit;
+    }
+
+    delta = malloc((tree.tree_size + tree.rank) * sizeof(double));
+    if (!delta) {
+        PyErr_NoMemory();
+        goto exit;
+    }
+    nodes = delta + tree.rank;
+
+    size = (int)PyArray_SIZE(src);
+
+    PYCV_ArrayIteratorInit(dst, &iter_d);
+    PYCV_ArrayIteratorInit(src, &iter_s);
+
+    nd_p = (int)iter_d.nd_m1 + 1 - tree.rank;
+
+    for (ii = nd_p; ii < nd_p + tree.rank; ii++) {
+        max_dims = *(iter_d.dims_m1 + ii) + 1 > max_dims ? *(iter_d.dims_m1 + ii) + 1 : max_dims;
+        stride_pos = *(iter_d.strides + ii) < 0 ? -*(iter_d.strides + ii) : *(iter_d.strides + ii);
+        max_stride = stride_pos > max_stride ? stride_pos : max_stride;
+    }
+    flag = max_stride * max_dims;
+
+    NPY_BEGIN_THREADS;
+
+    pdst_base = pdst = (void *)PyArray_DATA(dst);
+    psrc = (void *)PyArray_DATA(src);
+
+    for (ii = 0; ii < size; ii++) {
+        for (jj = 0; jj < tree.rank; jj++) {
+            *(mapping.dst + jj) = (double)(*(iter_s.coordinates + nd_p + jj));
+        }
+        *(mapping.dst + tree.rank) = 1;
+        if (tree.rank > 1) {
+            double d1 = *mapping.dst;
+            *mapping.dst = *(mapping.dst + 1);
+            *(mapping.dst + 1) = d1;
+        }
+        CoordMap_dot_product(&mapping);
+
+        if (tree.rank > 1) {
+            double s2 = *mapping.src;
+            *mapping.src = *(mapping.src + 1);
+            *(mapping.src + 1) = s2;
+        }
+
+        for (kk = 0; kk < tree.rank; kk++) {
+            if (tree.order & 1) {
+                *(coord + kk) = (int)floor(*(mapping.src + kk)) - tree.order / 2;
+                *(delta + kk) = *(mapping.src + kk) - floor(*(mapping.src + kk));
+            } else {
+                *(coord + kk) = (int)floor(*(mapping.src + kk) + 0.5) - tree.order / 2;
+                *(delta + kk) = *(mapping.src + kk) - floor(*(mapping.src + kk) + 0.5);
+            }
+        }
+
+
+        for (jj = 0; jj < tree.tree_size; jj++) {
+            pdst = pdst_base;
+            for (kk = 0; kk < tree.rank; kk++) {
+                if (is_out) {
+                    continue;
+                }
+                cc = (npy_intp)(*(coord + kk) + *(tree.offsets + jj * tree.rank + kk));
+                cc = PYCV_FitCoordinate(cc, *(iter_d.dims_m1 + kk) + 1, flag, mode);
+                if (cc == flag) {
+                    is_out = 1;
+                } else {
+                    pdst += cc * *(iter_d.strides + kk);
+                }
+            }
+            if (is_out) {
+                *(nodes + jj) = (double)c_val;
+                is_out = 0;
+            } else {
+                PYCV_GET_VALUE(iter_d.numtype, double, pdst, *(nodes + jj));
+            }
+        }
+
+        pycv_InterpTree_interpolate(&tree, nodes, delta);
+        val = *nodes;
+        PYCV_SET_VALUE_F2A(iter_s.numtype, psrc, val);
+        PYCV_ARRAY_ITERATOR_NEXT(iter_s, psrc);
+    }
+
+    NPY_END_THREADS;
+    exit:
+        pycv_InterpTree_free(&tree);
+        if (delta) {
+            free(delta);
+        }
+        CoordMap_free(&mapping);
+        return PyErr_Occurred() ? 0 : 1;
+}
+
+int PYCV_geometric_transform(PyArrayObject *matrix,
+                             PyArrayObject *input,
+                             PyArrayObject *output,
+                             PyArrayObject *dst,
+                             PyArrayObject *src,
+                             npy_intp order,
+                             PYCV_ExtendBorder mode,
+                             npy_double c_val)
+{
+    if ((input != NULL) & (output != NULL)) {
+        return PYCV_map_coordinates_case_a(matrix, input, output, (int)order, mode, (double)c_val);
+    } else if ((src != NULL) & (dst != NULL)) {
+        return PYCV_map_coordinates_case_c(matrix, dst, src);
+    } else {
+        PyErr_SetString(PyExc_RuntimeError, "inputs and output mode or scr and dst mode \n");
+        return 0;
+    }
+}
+
 
 static int PYCV_AllocateMatrix(PyArrayObject *matrix, npy_double **h)
 {
@@ -280,145 +398,6 @@ static int PYCV_AllocateMatrix(PyArrayObject *matrix, npy_double **h)
             _dst[_ii] = (npy_double)TOLERANCE;                                                                         \
         }                                                                                                              \
     }                                                                                                                  \
-}
-
-int PYCV_geometric_transform(PyArrayObject *matrix,
-                             PyArrayObject *input,
-                             PyArrayObject *output,
-                             PyArrayObject *src,
-                             PyArrayObject *dst,
-                             npy_intp order,
-                             PYCV_ExtendBorder mode,
-                             npy_double c_val)
-{
-    PyArrayObject *p_src, *p_dst;
-    PYCV_ArrayIterator iter_s, iter_d;
-    npy_double delta[NPY_MAXDIMS], src_buffer[NPY_MAXDIMS], dst_buffer[NPY_MAXDIMS], *h, cc;
-    npy_intp ndim, ii, jj, kk, position0[NPY_MAXDIMS], rank_p1, rank, src_size, pre_size, pre_stride = 0;
-    char *src_base = NULL, *psrc = NULL, *pdst = NULL;
-    int case_input_output, case_src_dst, num_type_s, num_type_d;
-    InterpolationAuxObject aux;
-
-    NPY_BEGIN_THREADS_DEF;
-
-    case_input_output = (input != NULL) & (output != NULL) ? 1 : 0;
-    case_src_dst = (src != NULL) & (dst != NULL) ? 1 : 0;
-
-    if (!(case_input_output ^ case_src_dst)) {
-        PyErr_SetString(PyExc_RuntimeError, "inputs and output mode or scr and dst mode \n");
-        goto exit;
-    }
-
-    rank_p1 = PyArray_DIM(matrix, 1);
-    rank = rank_p1 - 1;
-
-    if (case_input_output) {
-        p_src = input;
-        p_dst = output;
-
-        ndim = PyArray_NDIM(p_src);
-
-        if (!PYCV_InterpolationAuxObjectInit(order, p_src, ndim - rank, &aux)) {
-            PyErr_SetString(PyExc_RuntimeError, "Error: PYCV_InterpolationAuxObjectInit \n");
-            goto exit;
-        }
-
-        src_size = pre_size = 1;
-
-        for (ii = 0; ii < ndim; ii++) {
-            if (ii < ndim - rank) {
-                pre_size *= PyArray_DIM(p_dst, (int)ii);
-            } else {
-                src_size *= PyArray_DIM(p_dst, (int)ii);
-            }
-        }
-        if (ndim - rank) {
-            pre_stride = PyArray_STRIDE(p_src, (int)(ndim - rank - 1));
-        }
-    } else {
-        pre_size = 1;
-        src_size = PyArray_DIM(src, 0);
-        ndim = PyArray_DIM(src, 1);
-        p_src = src;
-        p_dst = dst;
-    }
-
-    num_type_s = PyArray_TYPE(p_src);
-    num_type_d = PyArray_TYPE(p_dst);
-
-    if (!PYCV_AllocateMatrix(matrix, &h)) {
-        PyErr_NoMemory();
-        goto exit;
-    }
-
-    PYCV_ArrayIteratorInit(p_src, &iter_s);
-    PYCV_ArrayIteratorInit(p_dst, &iter_d);
-
-    NPY_BEGIN_THREADS;
-
-    src_base = psrc = (void *)PyArray_DATA(p_src);
-    pdst = (void *)PyArray_DATA(p_dst);
-
-    for (ii = 0; ii < pre_size; ii++) {
-        for (jj = 0; jj < src_size; jj++) {
-            if (case_input_output) {
-                for (kk = 0; kk < rank; kk++) {
-                    src_buffer[kk] = (npy_double)iter_d.coordinates[ndim - rank + kk];
-                }
-                src_buffer[rank] = 1;
-                if (rank > 1) {
-                    PYCV_T_G_TRANSFORM_SWAP_XY(src_buffer);
-                }
-                PYCV_T_DOT(rank_p1, src_buffer, h, dst_buffer);
-                if (rank > 1) {
-                    PYCV_T_G_TRANSFORM_SWAP_XY(dst_buffer);
-                }
-
-                for (kk = 0; kk < rank; kk++) {
-                    if (order & 1) {
-                        position0[kk] = (npy_intp)floor(dst_buffer[kk]) - order / 2;
-                        delta[kk] = dst_buffer[kk] - (npy_intp)floor(dst_buffer[kk]);
-                    } else {
-                        position0[kk] = (npy_intp)floor(dst_buffer[kk] + 0.5) - order / 2;
-                        delta[kk] = dst_buffer[kk] - (npy_intp)floor(dst_buffer[kk] + 0.5);
-                    }
-                }
-                PYCV_T_INTERP_AUX_BUILD_F(num_type_s, aux, src_base, psrc, position0, mode, c_val);
-                PYCV_T_INTERP_AUX_COMPUTE_FN(num_type_d, aux, pdst, delta);
-
-                PYCV_ARRAY_ITERATOR_NEXT(iter_d, pdst);
-
-            } else {
-                for (kk = 0; kk < (ndim - rank_p1); kk++) {
-                    PYCV_GET_VALUE(num_type_s, npy_double, psrc, cc);
-                    PYCV_SET_VALUE_F2A(num_type_d, pdst, cc);
-                    PYCV_ARRAY_ITERATOR_NEXT2(iter_s, psrc, iter_d, pdst);
-                }
-
-                for (kk = 0; kk < rank_p1; kk++) {
-                    PYCV_GET_VALUE(num_type_s, npy_double, psrc, src_buffer[kk]);
-                    PYCV_ARRAY_ITERATOR_NEXT(iter_s, psrc);
-                }
-
-                PYCV_T_DOT(rank_p1, src_buffer, h, dst_buffer);
-
-                for (kk = 0; kk < rank_p1; kk++) {
-                    PYCV_SET_VALUE_F2A(num_type_d, pdst, dst_buffer[kk]);
-                    PYCV_ARRAY_ITERATOR_NEXT(iter_d, pdst);
-                }
-            }
-        }
-        if (case_input_output) {
-            src_base += pre_stride;
-        }
-    }
-    NPY_END_THREADS;
-    exit:
-        if (case_input_output) {
-            free(aux.coefficients);
-        }
-        free(h);
-        return PyErr_Occurred() ? 0 : 1;
 }
 
 // #####################################################################################################################
