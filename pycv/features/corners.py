@@ -1,8 +1,10 @@
 import numpy as np
 from ._features import structure_tensor
+from .._lib._src_py import pycv_features as _feat
 
 __all__ = [
-    'harris_corner'
+    'harris_corner',
+    'corner_fast'
 ]
 
 
@@ -27,5 +29,10 @@ def harris_corner(
 
     return R
 
+
+########################################################################################################################
+
+def corner_fast(image: np.ndarray, n: int = 12, threshold: float = 0.1):
+    return _feat.corner_FAST(image, n, threshold)
 
 ########################################################################################################################

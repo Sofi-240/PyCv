@@ -188,11 +188,11 @@ def draw_ellipse(
     if any(p < 0 or p >= s for p, s in zip(center_point, shape)):
         raise ValueError('point is out of range for output shape')
 
-    if center_point[0] - a < 0 or center_point[0] + a >= shape[0]:
-        raise ValueError('a shift is out of range for output shape')
-
-    if center_point[1] - b < 0 or center_point[1] + b >= shape[1]:
+    if center_point[0] - b < 0 or center_point[0] + b >= shape[0]:
         raise ValueError('b shift is out of range for output shape')
+
+    if center_point[1] - a < 0 or center_point[1] + a >= shape[1]:
+        raise ValueError('a shift is out of range for output shape')
 
     coord = pycv_minsc.draw('ellipse', center_point=center_point, a=a, b=b)
 

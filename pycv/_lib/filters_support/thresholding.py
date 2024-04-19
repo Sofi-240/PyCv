@@ -248,7 +248,7 @@ def minimum(image: np.ndarray, nbin: int | None = None, max_iterations: int = 10
 
         for i in range(n_bins - 1):
             if look_for == 1 and smooth[i + 1] < smooth[i]:
-                local_max.append(bins[i])
+                local_max.append(i)
                 look_for = -1
             elif look_for == -1 and smooth[i + 1] > smooth[i]:
                 look_for = 1
@@ -265,7 +265,7 @@ def minimum(image: np.ndarray, nbin: int | None = None, max_iterations: int = 10
         raise RuntimeError(f'reach maximum iterations, 2 local maxima not fount in the histogram')
 
     min_, max_ = local_max
-    th = np.argmin(smooth[int(min_):int(max_)]) + min_
+    th = bins[np.argmin(smooth[min_:max_]) + min_]
     return th
 
 

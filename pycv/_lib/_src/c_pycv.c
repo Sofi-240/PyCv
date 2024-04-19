@@ -740,6 +740,28 @@ PyObject* gray_co_occurrence_matrix(PyObject* self, PyObject* args)
         return valid ? (PyObject *)glcm : Py_BuildValue("");
 }
 
+PyObject* corner_FAST(PyObject* self, PyObject* args)
+{
+    PyArrayObject *input = NULL, *response;
+    int ncon;
+    double threshold;
+
+    if (!PyArg_ParseTuple(args, "O&id", InputToArray, &input, &ncon, &threshold)) {
+        goto exit;
+    }
+
+    if (!PYCV_valid_dtype(PyArray_TYPE(input))) {
+        PyErr_SetString(PyExc_RuntimeError, "input dtype not supported");
+        goto exit;
+    }
+
+    int valid = PYCV_corner_FAST(input, ncon, threshold, &response);
+
+    exit:
+        Py_XDECREF(input);
+        return valid ? (PyObject *)response : Py_BuildValue("");
+}
+
 // #####################################################################################################################
 
 static PyMemberDef CKDnode_members[] = {
@@ -1034,6 +1056,12 @@ static PyMethodDef methods[] = {
     {
         "gray_co_occurrence_matrix",
         (PyCFunction)gray_co_occurrence_matrix,
+        METH_VARARGS,
+        NULL
+    },
+    {
+        "corner_FAST",
+        (PyCFunction)corner_FAST,
         METH_VARARGS,
         NULL
     },

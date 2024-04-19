@@ -41,7 +41,7 @@ def resize(
     if dtype.kind != 'f':
         inputs = cast(inputs, np.float64)
     elif dtype.itemsize != 8:
-        inputs = cast(inputs, np.float64)
+        inputs = inputs.astype(np.float64)
     else:
         preserve_dtype = False
 
@@ -125,7 +125,7 @@ def rotate(
     if dtype.kind != 'f':
         inputs = cast(inputs, np.float64)
     elif dtype.itemsize != 8:
-        inputs = cast(inputs, np.float64)
+        inputs = inputs.astype(np.float64)
 
     output, _ = get_output(None, inputs, inputs.shape[:-2] + tuple(output_shape[::-1]))
 
@@ -184,7 +184,7 @@ def geometric_transform(
     if dtype.kind != 'f':
         inputs = cast(inputs, np.float64)
     elif dtype.itemsize != 8:
-        inputs = cast(inputs, np.float64)
+        inputs = inputs.astype(np.float64)
 
     output, _ = get_output(None, inputs, output_shape)
 

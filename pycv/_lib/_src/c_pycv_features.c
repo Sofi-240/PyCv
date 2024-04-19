@@ -99,28 +99,136 @@ int PYCV_glcm(PyArrayObject *gray, PyArrayObject *distances, PyArrayObject *angl
 
 // #####################################################################################################################
 
-//#define CASE_CORNER_FAST_BINARIZE(_ntype, _dtype, _x, _th, _h, _b, _offsets)
-//case NPY_##_ntype:
-//{
-//    int _ii;
-//    double _l_th, _h_th;
-//    _l_th = (double)(*(_dtype *)_x) - _th;
-//    _h_th = (double)(*(_dtype *)_x) + _th;
-//    for (_ii = 0; _ii < 16; _ii++) {
-//        *(_h + _ii) = (double)(*(_dtype *)(_x + *(_offsets + _ii));
-//        *(_b + _ii) = 0;
-//        if (*(_h + _ii) > _h_th) {
-//            *(_b + _ii) = 1;
-//        } else if (*(_h + _ii) < _l_th) {
-//            *(_b + _ii) = -1;
-//        }
-//    }
-//}
-//break
-//
-//
-//int PYCV_corner_FAST(PyArrayObject *input, int ncon, double threshold, PyArrayObject **response)
-//{
-//    int offsets[16] = {-21, -20, -12, -4, 3, 10, 16, 22, 21, 20, 12, 4, -3, -10, -16};
-//
-//}
+int PYCV_corner_FAST(PyArrayObject *input, int ncon, double threshold, PyArrayObject **response)
+{
+//    const int row_offsets[16] = {-3, -3, -2, -1, 0, 1, 2, 3, 3, 3, 2, 1, 0, -1, -2, -3};
+//    const int col_offsets[16] = {0, 1, 2, 3, 3, 3, 2, 1, 0, -1, -2, -3, -3, -3, -2, -1};
+
+    int offsets[32] = {-3, -3, -2, -1, 0, 1, 2, 3, 3, 3, 2, 1, 0, -1, -2, -3, 0, 1, 2, 3, 3, 3, 2, 1, 0, -1, -2, -3, -3, -3, -2, -1};
+    int bins[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    double h[16] = {0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.};
+
+    int size, ndim, dim0, ii, jj, kind, con, c_p1, c_m1;
+    double lo, hi, vi, vo;
+    PYCV_ArrayIterator iter_i, iter_r;
+    char *ptr_i = NULL, *ptr_r = NULL, *ptr_n = NULL;
+
+    size = (int)PyArray_SIZE(input);
+    PYCV_ArrayIteratorInit(input, &iter_i);
+
+    ndim = (int)iter_i.nd_m1 + 1;
+    dim0 = ndim - 2;
+
+    *response = (PyArrayObject *)PyArray_ZEROS(ndim, PyArray_DIMS(input), NPY_DOUBLE, 0);
+    if (!*response) {
+        PyErr_SetString(PyExc_RuntimeError, "Error: PyArray_EMPTY");
+        return 0;
+    }
+
+    if (ndim < 2 || *(iter_i.dims_m1 + ndim - 1) < 6 || *(iter_i.dims_m1 + ndim - 2) < 6) {
+        return 1;
+    }
+
+    for (jj = 0; jj < 16; jj++) {
+        *(offsets + jj) = *(offsets + jj) * ((int)*(iter_i.strides + dim0)) +
+                          *(offsets + jj + 16) * ((int)*(iter_i.strides + dim0 + 1));
+    }
+
+    PYCV_ArrayIteratorInit(*response, &iter_r);
+
+    ptr_i = (void *)PyArray_DATA(input);
+    ptr_r = (void *)PyArray_DATA(*response);
+
+    size = 1;
+    for (jj = 0; jj < ndim; jj++) {
+        if (jj < dim0) {
+            size *= ((int)(*(iter_i.dims_m1 + jj)) + 1);
+        } else {
+            size *= ((int)(*(iter_i.dims_m1 + jj)) - 5);
+        }
+    }
+
+
+    for (jj = ndim - 1; jj >= dim0; jj--) {
+        *(iter_i.coordinates + jj) = 3;
+        *(iter_r.coordinates + jj) = 3;
+        ptr_i += 3 * *(iter_i.strides + jj);
+        ptr_r += 3 * *(iter_r.strides + jj);
+    }
+
+    for (ii = 0; ii < size; ii++) {
+        PYCV_GET_VALUE(iter_i.numtype, double, ptr_i, vi);
+        lo = vi - threshold;
+        hi = vi + threshold;
+
+        c_p1 = 0;
+        c_m1 = 0;
+        for (jj = 0; jj < 16; jj++) {
+            ptr_n = ptr_i + *(offsets + jj);
+            PYCV_GET_VALUE(iter_i.numtype, double, ptr_n, *(h + jj));
+
+            if (*(h + jj) > hi) {
+                *(bins + jj) = 1;
+                c_p1++;
+            } else if (*(h + jj) < lo) {
+                *(bins + jj) = -1;
+                c_m1++;
+            } else {
+                *(bins + jj) = 0;
+            }
+        }
+
+        if (c_p1 >= ncon || c_m1 >= ncon) {
+            kind = 1;
+
+            do {
+                con = 0;
+                for (jj = 0; jj < (ncon + 15); jj++) {
+                    if (*(bins + (jj % 16)) == kind) {
+                        con++;
+                        if (con == ncon) {
+                            break;
+                        }
+                    } else {
+                        con = 0;
+                    }
+                }
+                kind = -kind;
+                con = con == ncon ? con : 0;
+            } while (!con && kind != 1);
+
+            if (con) {
+                vo = 0;
+                for (jj = 0; jj < 16; jj++) {
+                    vo += abs(*(h + jj) - vi);
+                }
+                PYCV_SET_VALUE(iter_r.numtype, ptr_r, vo);
+            }
+        }
+
+        for (jj = ndim - 1; jj >= 0; jj--) {
+            if (*(iter_i.coordinates + jj) < (*(iter_i.dims_m1 + jj) - (jj < dim0 ? 0 : 3))) {
+                *(iter_i.coordinates + jj) += 1;
+                *(iter_r.coordinates + jj) += 1;
+                ptr_i += *(iter_i.strides + jj);
+                ptr_r += *(iter_r.strides + jj);
+                break;
+            } else {
+                if (jj < dim0) {
+                    ptr_i -= *(iter_i.strides_back + jj);
+                    ptr_r -= *(iter_r.strides_back + jj);
+                    *(iter_i.coordinates + jj) = 0;
+                    *(iter_r.coordinates + jj) = 0;
+                } else {
+                    ptr_i += (3 * *(iter_i.strides + jj) - *(iter_i.strides_back + jj));
+                    ptr_r += (3 * *(iter_r.strides + jj) - *(iter_r.strides_back + jj));
+                    *(iter_i.coordinates + jj) = 3;
+                    *(iter_r.coordinates + jj) = 3;
+                    ptr_i += 3 * *(iter_i.strides + jj);
+                    ptr_r += 3 * *(iter_r.strides + jj);
+                }
+            }
+        }
+    }
+    return 1;
+}

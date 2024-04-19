@@ -1,10 +1,12 @@
 import numpy as np
 from ..._lib.array_api.regulator import np_compliance
 from ..._lib.array_api.iterators import ArrayIteratorSlice
+from ..array_api.dtypes import cast, get_dtype_info
 from pycv._lib._src import c_pycv
 
 __all__ = [
-    'gray_co_occurrence_matrix'
+    'gray_co_occurrence_matrix',
+    'corner_FAST',
 ]
 
 
@@ -58,6 +60,13 @@ def gray_co_occurrence_matrix(
         return output[0]
 
     return np.stack(output)
+
+
+########################################################################################################################
+
+def corner_FAST(inputs: np.ndarray, n: int = 12, threshold: float = 0.15):
+    inputs = np_compliance(inputs, arg_name='inputs', _check_finite=True, _check_atleast_nd=2)
+    return c_pycv.corner_FAST(inputs, n, threshold)
 
 
 ########################################################################################################################

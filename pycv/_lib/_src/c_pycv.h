@@ -56,6 +56,8 @@ PyObject* peak_nonmaximum_suppression(PyObject* self, PyObject* args);
 
 PyObject* gray_co_occurrence_matrix(PyObject* self, PyObject* args);
 
+PyObject* corner_FAST(PyObject* self, PyObject* args);
+
 // #####################################################################################################################
 
 PyTypeObject CKDnode_Type;
