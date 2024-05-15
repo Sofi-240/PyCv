@@ -13,6 +13,7 @@
 #include "c_pycv_minmax_tree.h"
 #include "c_pycv_features.h"
 #include "c_pycv_peaks.h"
+#include "c_pycv_pyramids.h"
 
 // #####################################################################################################################
 
@@ -959,6 +960,49 @@ PyTypeObject CHaarFeatures_Type = {
     .tp_methods = CHaarFeatures_methods,
 };
 
+// *********************************************************************************************************************
+
+static PyMemberDef CLayer_members[] = {
+    {NULL}  /* Sentinel */
+};
+
+static PyMethodDef CLayer_methods[] = {
+    {"scale", (PyCFunction)CLayer_scale, METH_VARARGS, NULL},
+    {"rescale", (PyCFunction)CLayer_rescale, METH_VARARGS, NULL},
+    {"reduce", (PyCFunction)CLayer_reduce, METH_VARARGS, NULL},
+    {NULL, NULL, 0, NULL} // Sentinel
+};
+
+static PyGetSetDef CLayer_GetSet[] = {
+    {"input_dtype", (getter)CLayer_get_input_dtype, (setter)CLayer_set_input_dtype, NULL},
+    {"padding_mode", (getter)CLayer_get_padding_mode, (setter)CLayer_set_padding_mode, NULL},
+    {"order", (getter)CLayer_get_order, (setter)CLayer_set_order, NULL},
+    {"scalespace", (getter)CLayer_get_scalespace, (setter)CLayer_set_scalespace, NULL},
+    {"factors", (getter)CLayer_get_factors, (setter)CLayer_set_factors, NULL},
+    {"anti_alias_scales", (getter)CLayer_get_anti_alias_scales, NULL, NULL},
+    {"nscales", (getter)CLayer_get_nscales, NULL, NULL},
+    {"ndim", (getter)CLayer_get_ndim, NULL, NULL},
+    {"input_dims", (getter)CLayer_get_input_dims, (setter)CLayer_set_input_dims, NULL},
+    {"output_dims", (getter)CLayer_get_output_dims, NULL, NULL},
+    {"cval", (getter)CLayer_get_cval, (setter)CLayer_set_cval, NULL},
+    {NULL, NULL, NULL, NULL} // Sentinel
+};
+
+PyTypeObject CLayer_Type = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "c_pycv.CLayer",
+    .tp_doc = PyDoc_STR("CLayer object"),
+    .tp_basicsize = sizeof(CLayer),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = CLayerPy_new,
+    .tp_init = (initproc)CLayerPy_init,
+    .tp_dealloc = (destructor)CLayerPy_dealloc,
+    .tp_members = CLayer_members,
+    .tp_methods = CLayer_methods,
+    .tp_getset = CLayer_GetSet,
+};
+
 
 // #####################################################################################################################
 
@@ -1088,7 +1132,8 @@ PyInit_c_pycv(void) {
         (PyType_Ready(&CConvexHull_Type) < 0) ||
         (PyType_Ready(&CKMeans_Type) < 0) ||
         (PyType_Ready(&CMinMaxTree_Type) < 0) ||
-        (PyType_Ready(&CHaarFeatures_Type) < 0)) {
+        (PyType_Ready(&CHaarFeatures_Type) < 0) ||
+        (PyType_Ready(&CLayer_Type) < 0)) {
         return NULL;
     }
 
@@ -1101,7 +1146,8 @@ PyInit_c_pycv(void) {
         (PyModule_AddObjectRef(m, "CConvexHull", (PyObject *) &CConvexHull_Type) < 0) ||
         (PyModule_AddObjectRef(m, "CKMeans", (PyObject *) &CKMeans_Type) < 0) ||
         (PyModule_AddObjectRef(m, "CMinMaxTree", (PyObject *) &CMinMaxTree_Type) < 0) ||
-        (PyModule_AddObjectRef(m, "CHaarFeatures", (PyObject *) &CHaarFeatures_Type) < 0)) {
+        (PyModule_AddObjectRef(m, "CHaarFeatures", (PyObject *) &CHaarFeatures_Type) < 0) ||
+        (PyModule_AddObjectRef(m, "CLayer", (PyObject *) &CLayer_Type) < 0)) {
         Py_DECREF(m);
         return NULL;
     }

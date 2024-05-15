@@ -309,7 +309,7 @@ def show_scale_space(scale_space: list[np.ndarray], title: str | None = None):
     n_col = scale_space[0].shape[0]
 
     max_rows = sum(ss.shape[1] for ss in scale_space)
-    max_cols = scale_space[0].shape[1] * n_col
+    max_cols = scale_space[0].shape[2] * n_col
 
     p_image = np.zeros((max_rows, max_cols), dtype=np.float64)
     r = 0

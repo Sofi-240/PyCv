@@ -123,7 +123,6 @@ static int CoordMap_init(CoordMap *self, PyArrayObject *matrix)
     PYCV_ArrayIterator iter;
     char *pm = NULL;
     int h_size, ii;
-    double *hh;
 
     h_size = (int)PyArray_SIZE(matrix);
     self->ndim = (int)PyArray_DIM(matrix, 0);
@@ -208,9 +207,8 @@ int PYCV_map_coordinates_case_c(PyArrayObject *matrix, PyArrayObject *dst, PyArr
         }
     }
     NPY_END_THREADS;
-    exit:
-        CoordMap_free(&mapping);
-        return PyErr_Occurred() ? 0 : 1;
+    CoordMap_free(&mapping);
+    return PyErr_Occurred() ? 0 : 1;
 }
 
 int PYCV_map_coordinates_case_a(PyArrayObject *matrix, PyArrayObject *dst, PyArrayObject *src,
@@ -218,7 +216,7 @@ int PYCV_map_coordinates_case_a(PyArrayObject *matrix, PyArrayObject *dst, PyArr
 {
     PYCV_ArrayIterator iter_s, iter_d;
     npy_intp flag, cc, max_dims = 0, max_stride = 0, stride_pos;
-    double *nodes = NULL, *delta = NULL, val, pos;
+    double *nodes = NULL, *delta = NULL, val;
     int size, ii, jj, kk, coord[NPY_MAXDIMS], is_out = 0, nd_p;
     char *pdst = NULL, *psrc = NULL, *pdst_base = NULL;
     PYCV_InterpTree tree;

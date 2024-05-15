@@ -72,6 +72,8 @@ PyTypeObject CMinMaxTree_Type;
 
 PyTypeObject CHaarFeatures_Type;
 
+PyTypeObject CLayer_Type;
+
 // #####################################################################################################################
 
 

@@ -26,22 +26,17 @@ __all__ = [
 ########################################################################################################################
 
 def ctype_border_mode(
-        mode: str
+        mode: str | int
 ) -> int:
-    if mode == 'valid':
-        return 2
-    elif mode == 'reflect':
-        return 3
-    elif mode == 'constant':
-        return 4
-    elif mode == 'symmetric':
-        return 5
-    elif mode == 'wrap':
-        return 6
-    elif mode == 'edge':
-        return 7
-    else:
-        raise RuntimeError('border mode not supported')
+    modes = {'valid': 2, 'reflect': 3, 'constant': 4, 'symmetric': 5, 'wrap': 6, 'edge': 7}
+    if isinstance(mode, str):
+        if mode in modes:
+            return modes[mode]
+        raise RuntimeError(f'border mode not supported use {list(modes.keys())}')
+    for k, itm in modes.items():
+        if itm == mode:
+            return k
+    raise RuntimeError(f'border mode not supported use {list(modes.values())}')
 
 
 def ctype_convex_hull_mode(

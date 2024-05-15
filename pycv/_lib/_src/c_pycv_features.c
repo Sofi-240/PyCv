@@ -101,9 +101,6 @@ int PYCV_glcm(PyArrayObject *gray, PyArrayObject *distances, PyArrayObject *angl
 
 int PYCV_corner_FAST(PyArrayObject *input, int ncon, double threshold, PyArrayObject **response)
 {
-//    const int row_offsets[16] = {-3, -3, -2, -1, 0, 1, 2, 3, 3, 3, 2, 1, 0, -1, -2, -3};
-//    const int col_offsets[16] = {0, 1, 2, 3, 3, 3, 2, 1, 0, -1, -2, -3, -3, -3, -2, -1};
-
     int offsets[32] = {-3, -3, -2, -1, 0, 1, 2, 3, 3, 3, 2, 1, 0, -1, -2, -3, 0, 1, 2, 3, 3, 3, 2, 1, 0, -1, -2, -3, -3, -3, -2, -1};
     int bins[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     double h[16] = {0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.};

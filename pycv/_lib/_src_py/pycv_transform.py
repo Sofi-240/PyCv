@@ -55,9 +55,13 @@ def resize(
     scale_factor = np.array([(si - 1) / (so - 1) for so, si in zip(output_shape, inputs.shape)])
 
     if anti_alias_filter:
-        sigma = sigma is sigma if not None else np.max(scale_factor)
-        kernel = gaussian_kernel(sigma, inputs.ndim)
-        inputs = convolve(inputs, kernel, padding_mode=padding_mode, constant_value=constant_value)
+        sigma = sigma if sigma is not None else np.maximum(0, np.max((scale_factor - 1) / 2))
+        for i in range(inputs.ndim):
+            if scale_factor[i] <= 1:
+                continue
+            kernel = gaussian_kernel(sigma, 1)
+            kernel = kernel.reshape(tuple(1 if j != i else kernel.size for j in range(inputs.ndim)))
+            inputs = convolve(inputs, kernel, padding_mode=padding_mode, constant_value=constant_value)
 
     c_pycv.resize(inputs, output, order, 1, mode, constant_value)
 
