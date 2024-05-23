@@ -87,6 +87,7 @@ and image transformation.
 * **kdtree:** Implementation of k-dimensional trees for spatial data structures.
 * **kmeans:** Implementation of kmeans algorithm.
 * **convex hull:** Implementation of convex hull algorithms.
+* **min-max tree:** Implementation of min max tree ds.
 
 ### 8. transform: Functions for geometric transformations.
 

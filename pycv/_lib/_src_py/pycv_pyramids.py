@@ -1,10 +1,10 @@
 import numpy as np
 import abc
 from pycv._lib._src.c_pycv import CLayer
-from ..array_api.dtypes import cast
-from ..array_api.regulator import np_compliance
-from .._src_py.utils import valid_axis, as_sequence_by_axis
-from .._src_py.utils import ctype_border_mode, ctype_interpolation_order
+from pycv._lib.array_api.dtypes import cast
+from pycv._lib.array_api.regulator import np_compliance
+from pycv._lib._src_py.utils import valid_axis, as_sequence_by_axis
+from pycv._lib._src_py.utils import ctype_border_mode, ctype_interpolation_order
 
 __all__ = [
     "GaussianPyramid",
@@ -27,16 +27,18 @@ def _make_scalespace(ndim: int, scales: list | tuple | float = None) -> list[tup
             raise ValueError('scale tuple size must be equal to ndim')
         return all(filter(scalar_valid, _v))
 
-    if scales is None:
-        return
+    def valid(_v):
+        if np.isscalar(_v) and scalar_valid(_v):
+            return (_v,) * ndim
+        elif isinstance(_v, tuple) and tuple_valid(_v):
+            return _v
+        raise TypeError('invalid scales input')
 
-    if np.isscalar(scales) and scalar_valid(scales):
-        return [(scales,) * ndim]
-    elif isinstance(scales, tuple) and tuple_valid(scales):
-        return [scales]
-    elif isinstance(scales, list) and all(filter(tuple_valid, scales)):
-        return scales
-    raise TypeError('invalid scales input')
+    if scales is None:
+        return None
+    elif isinstance(scales, list):
+        return list(map(valid, scales))
+    return [valid(scales)]
 
 
 def _factor_valid(ndim: int, factors: tuple | float) -> tuple:

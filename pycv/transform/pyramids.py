@@ -1,4 +1,4 @@
-from .._lib.filters_support.pyramids import GaussianPyramid, LaplacianPyramid, GaussianScaleSpace, DOGPyramid
+from pycv._lib._src_py.pycv_pyramids import GaussianPyramid, LaplacianPyramid, GaussianScaleSpace, DOGPyramid
 
 __all__ = [
     "GaussianPyramid",

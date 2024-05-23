@@ -60,7 +60,7 @@ def rotate(
         reshape: bool = True,
         padding_mode: str = 'constant',
         constant_value: float | int | None = 0,
-        preserve_dtype: bool = True
+        preserve_dtype: bool = False
 ) -> np.ndarray:
     """
     Rotate the input array by the specified angle.

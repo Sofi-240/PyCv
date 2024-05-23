@@ -145,9 +145,9 @@ def rotate(
         max_val = np.max(inputs)
         np.clip(output, min_val, max_val, out=output)
         if dtype.kind != 'f':
-            cast(output, dtype.type)
-        elif dtype.itemsize != 8:
             output = cast(output, dtype.type)
+        elif dtype.itemsize != 8:
+            output = output.astype(dtype.type)
         return output
 
     return output
